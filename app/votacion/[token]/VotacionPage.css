@@ -1,0 +1,128 @@
+.votacion-container {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.loading,
+.error-message {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.2rem;
+}
+
+.error-message {
+  text-align: center;
+  background: #d63031;
+  color: #ffffff;
+  border-radius: 8px;
+  margin: 2rem 0;
+}
+
+.votacion-header {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.votacion-header h1 {
+  color: #2d3436;
+  margin-bottom: 1rem;
+}
+
+.descripcion {
+  color: #636e72;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.fechas {
+  color: #636e72;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.opciones-container {
+  margin: 2rem 0;
+}
+
+.opciones-container h2 {
+  color: #2d3436;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.opciones-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.opcion-card {
+  background: #f5f6fa;
+  color: #2d3436;
+  border-radius: 8px;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.opcion-card:hover {
+  background: #dfe6e9;
+}
+
+.opcion-card.selected {
+  background: #a29bfe;
+  color: white;
+  border-color: #6c5ce7;
+}
+
+.votar-button {
+  display: block;
+  width: 100%;
+  max-width: 300px;
+  margin: 2rem auto 0;
+  padding: 1rem;
+  background: #6c5ce7;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.votar-button:hover {
+  background: #5649c0;
+}
+
+.votar-button:disabled {
+  background: #b2bec3;
+  cursor: not-allowed;
+}
+
+.success-message {
+  text-align: center;
+  padding: 1.5rem;
+  background: #55efc4;
+  color: #2d3436;
+  border-radius: 8px;
+  margin: 2rem 0;
+  font-size: 1.1rem;
+}
+
+@media (max-width: 768px) {
+  .votacion-container {
+    padding: 1rem;
+    margin: 1rem;
+  }
+
+  .opciones-grid {
+    grid-template-columns: 1fr;
+  }
+}

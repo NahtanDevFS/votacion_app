@@ -13,6 +13,7 @@ export default function AdminLayout({
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [user, setUser] = useState<string | null>(null); // Estado para el usuario
 
   useEffect(() => {
     const checkMobile = () => {
@@ -24,11 +25,12 @@ export default function AdminLayout({
     };
 
     checkMobile();
+    // Obtener el usuario desde localStorage
+    const adminUser = localStorage.getItem("admin");
+    setUser(adminUser);
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
-
-  const user = localStorage.getItem("admin");
 
   // Guardar estado del sidebar
   useEffect(() => {
