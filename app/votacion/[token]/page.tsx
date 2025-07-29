@@ -121,6 +121,20 @@ export default function VotacionPage() {
     }
   };
 
+  const isExpired = (dbDate: string) => {
+    // Eliminar el offset y parsear como UTC
+    const dateStr = dbDate.replace(" ", "T").replace(/\+.*$/, "Z");
+    console.log("Date:", new Date(dateStr).getTime() + " UTC: " + dateStr);
+    const endDate = new Date(dateStr).getTime();
+
+    // Obtener timestamp actual en UTC (evita problemas de zona horaria local)
+    const now = new Date();
+    const nowUTC = new Date(
+      now.getTime() - now.getTimezoneOffset() * 60000
+    ).getTime();
+    return nowUTC >= endDate;
+  };
+
   if (loading) return <div className="loading">Cargando...</div>;
   if (error) return <div className="error-message">{error}</div>;
 
@@ -131,11 +145,22 @@ export default function VotacionPage() {
         <p className="descripcion">{votacion?.descripcion}</p>
         <div className="fechas">
           <span>Votación abierta hasta: {formatDate(votacion?.fecha_fin)}</span>
+          {isExpired(votacion?.fecha_fin) && (
+            <div className="expired-message">
+              ⚠️ Esta votación ya ha expirado
+            </div>
+          )}
         </div>
       </div>
 
       {success ? (
         <div className="success-message">{success}</div>
+      ) : isExpired(votacion?.fecha_fin) ? (
+        <div className="error-message">
+          Lo sentimos, el período de votación ha finalizado
+        </div>
+      ) : error ? (
+        <div className="error-message">{error}</div>
       ) : (
         <>
           <div className="opciones-container">
@@ -158,7 +183,7 @@ export default function VotacionPage() {
           <button
             className="votar-button"
             onClick={handleVotar}
-            disabled={!!success}
+            disabled={!!success || isExpired(votacion?.fecha_fin) || !!error}
           >
             Votar
           </button>

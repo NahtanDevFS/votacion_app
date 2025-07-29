@@ -15,11 +15,24 @@
 }
 
 .error-message {
-  text-align: center;
   background: #d63031;
   color: #ffffff;
   border-radius: 8px;
   margin: 2rem 0;
+}
+
+.expired-message {
+  color: #ff6b6b;
+  font-weight: bold;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: rgba(214, 48, 49, 0.1);
+  padding: 0.8rem;
+  border-radius: 8px;
+  margin-top: 1rem;
 }
 
 .votacion-header {
@@ -42,6 +55,9 @@
   color: #636e72;
   font-size: 0.9rem;
   font-style: italic;
+  padding: 1rem;
+  background: #f5f6fa;
+  border-radius: 8px;
 }
 
 .opciones-container {
@@ -97,7 +113,7 @@
   transition: background 0.3s ease;
 }
 
-.votar-button:hover {
+.votar-button:hover:not(:disabled) {
   background: #5649c0;
 }
 
@@ -116,6 +132,17 @@
   font-size: 1.1rem;
 }
 
+.votacion-ended-message {
+  text-align: center;
+  padding: 1.5rem;
+  background: #ffeaa7;
+  color: #2d3436;
+  border-radius: 8px;
+  margin: 2rem 0;
+  font-size: 1.1rem;
+  border-left: 4px solid #fdcb6e;
+}
+
 @media (max-width: 768px) {
   .votacion-container {
     padding: 1rem;
@@ -124,5 +151,9 @@
 
   .opciones-grid {
     grid-template-columns: 1fr;
+  }
+
+  .votar-button {
+    max-width: 100%;
   }
 }
