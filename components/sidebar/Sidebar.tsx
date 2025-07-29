@@ -95,7 +95,7 @@ export default function Sidebar({ isOpen, onToggle, isMobile }: SidebarProps) {
               )}
             </li>
 
-            <li
+            {/*<li
               className={activeItem === "settings" ? "active" : ""}
               onClick={() => handleNavigation("settings")}
             >
@@ -106,7 +106,7 @@ export default function Sidebar({ isOpen, onToggle, isMobile }: SidebarProps) {
                   <span className="nav-arrow">→</span>
                 </>
               )}
-            </li>
+            </li>*/}
           </ul>
         </nav>
 

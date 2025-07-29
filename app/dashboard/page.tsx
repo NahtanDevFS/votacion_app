@@ -11,6 +11,8 @@ export default function DashboardPage() {
   const [votaciones, setVotaciones] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [currentVotacion, setCurrentVotacion] = useState<any>(null);
   const [newVotacion, setNewVotacion] = useState({
     titulo: "",
     descripcion: "",
@@ -135,6 +137,98 @@ export default function DashboardPage() {
       fecha_fin: "",
       opciones: [""],
     });
+  };
+
+  // Función para abrir el modal de edición
+  const handleEditClick = (votacion: any) => {
+    setCurrentVotacion(votacion);
+    setNewVotacion({
+      titulo: votacion.titulo,
+      descripcion: votacion.descripcion,
+      fecha_fin: formatDateTimeLocal(new Date(votacion.fecha_fin)),
+      opciones: votacion.opcion_votacion.map((op: any) => op.nombre),
+    });
+    setShowEditModal(true);
+  };
+
+  // Actualizar votación
+  const handleUpdateVotacion = async () => {
+    if (
+      !newVotacion.titulo ||
+      !newVotacion.descripcion ||
+      !newVotacion.fecha_fin
+    ) {
+      alert("Por favor complete todos los campos requeridos");
+      return;
+    }
+
+    if (newVotacion.opciones.filter((o) => o.trim()).length === 0) {
+      alert("Debe agregar al menos una opción de votación");
+      return;
+    }
+
+    const selectedDateLocal = new Date(newVotacion.fecha_fin);
+    const now = new Date();
+
+    if (selectedDateLocal <= now) {
+      alert("La fecha de finalización debe ser futura");
+      return;
+    }
+
+    const fechaFinUTC = new Date(
+      selectedDateLocal.getTime() -
+        selectedDateLocal.getTimezoneOffset() * 60000
+    ).toISOString();
+
+    // Actualizar la votación principal
+    const { data, error } = await supabase
+      .from("votacion")
+      .update({
+        titulo: newVotacion.titulo,
+        descripcion: newVotacion.descripcion,
+        fecha_fin: fechaFinUTC,
+      })
+      .eq("id", currentVotacion.id)
+      .select();
+
+    if (error) {
+      console.error("Error updating votacion:", error);
+      alert("Error al actualizar la votación");
+      return;
+    }
+
+    // Eliminar opciones antiguas
+    await supabase
+      .from("opcion_votacion")
+      .delete()
+      .eq("votacion_id", currentVotacion.id);
+
+    // Crear nuevas opciones
+    const { error: opcionesError } = await supabase
+      .from("opcion_votacion")
+      .insert(
+        newVotacion.opciones
+          .filter((o) => o.trim())
+          .map((opcion) => ({
+            votacion_id: currentVotacion.id,
+            nombre: opcion.trim(),
+            creado_en: new Date().toISOString(),
+          }))
+      );
+
+    if (opcionesError) {
+      console.error("Error updating opciones:", opcionesError);
+      alert("Error al actualizar las opciones de votación");
+      return;
+    }
+
+    // Actualizar lista
+    const updatedVotaciones = votaciones.map((v) =>
+      v.id === currentVotacion.id ? { ...data[0], opcion_votacion: [] } : v
+    );
+    setVotaciones(updatedVotaciones);
+    setShowEditModal(false);
+    setCurrentVotacion(null);
   };
 
   const generateToken = () => {
@@ -301,6 +395,102 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+      {showEditModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h2>Editar Votación</h2>
+            <div className="form-group">
+              <label>Título *</label>
+              <input
+                type="text"
+                value={newVotacion.titulo}
+                onChange={(e) =>
+                  setNewVotacion({ ...newVotacion, titulo: e.target.value })
+                }
+                required
+              />
+            </div>
+            {/* ... (otros campos del formulario igual que en creación) */}
+            <div className="form-group">
+              <label>Descripción *</label>
+              <textarea
+                value={newVotacion.descripcion}
+                onChange={(e) =>
+                  setNewVotacion({
+                    ...newVotacion,
+                    descripcion: e.target.value,
+                  })
+                }
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Fecha de Finalización *</label>
+              <input
+                type="datetime-local"
+                value={newVotacion.fecha_fin}
+                onChange={(e) => {
+                  setNewVotacion({ ...newVotacion, fecha_fin: e.target.value });
+                }}
+                min={formatDateTimeLocal(new Date())}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Opciones de Votación *</label>
+              {newVotacion.opciones.map((opcion, index) => (
+                <div key={index} className="opcion-input">
+                  <input
+                    type="text"
+                    value={opcion}
+                    onChange={(e) => {
+                      const newOpciones = [...newVotacion.opciones];
+                      newOpciones[index] = e.target.value;
+                      setNewVotacion({ ...newVotacion, opciones: newOpciones });
+                    }}
+                    placeholder={`Opción ${index + 1}`}
+                  />
+                  {index > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newOpciones = [...newVotacion.opciones];
+                        newOpciones.splice(index, 1);
+                        setNewVotacion({
+                          ...newVotacion,
+                          opciones: newOpciones,
+                        });
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                className="add-opcion"
+                onClick={() =>
+                  setNewVotacion({
+                    ...newVotacion,
+                    opciones: [...newVotacion.opciones, ""],
+                  })
+                }
+              >
+                + Añadir Opción
+              </button>
+            </div>
+            <div className="modal-actions">
+              <button type="button" onClick={() => setShowEditModal(false)}>
+                Cancelar
+              </button>
+              <button type="button" onClick={handleUpdateVotacion}>
+                Guardar Cambios
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Votaciones Activas */}
       <section className="votaciones-section">
@@ -314,6 +504,7 @@ export default function DashboardPage() {
                 key={votacion.id}
                 votacion={votacion}
                 onDelete={handleDeleteVotacion}
+                onEdit={handleEditClick}
               />
             ))}
           </div>
@@ -332,6 +523,7 @@ export default function DashboardPage() {
                 key={votacion.id}
                 votacion={votacion}
                 onDelete={handleDeleteVotacion}
+                onEdit={handleEditClick}
               />
             ))}
           </div>
@@ -345,9 +537,11 @@ export default function DashboardPage() {
 function VotacionCard({
   votacion,
   onDelete,
+  onEdit,
 }: {
   votacion: any;
   onDelete: (id: number) => void;
+  onEdit: (votacion: any) => void;
 }) {
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
   const votacionUrl = `${baseUrl}/votacion/${votacion.token_link}`;
@@ -404,7 +598,9 @@ function VotacionCard({
       </div>
 
       <div className="card-actions">
-        <button className="edit-button">✏️ Editar</button>
+        <button className="edit-button" onClick={() => onEdit(votacion)}>
+          ✏️ Editar
+        </button>
         <button
           className="delete-button"
           onClick={() => onDelete(votacion.id)}
