@@ -158,12 +158,27 @@ export default function DashboardPage() {
     }
   };
 
-  // Separar votaciones activas y expiradas
+  const getTimestamp = (dbDate: string) => {
+    // Eliminar el offset y parsear como UTC
+    const dateStr = dbDate.replace(" ", "T").replace(/\+.*$/, "Z");
+    console.log("Date:", new Date(dateStr).getTime() + " UTC: " + dateStr);
+    return new Date(dateStr).getTime();
+  };
+
+  // Obtener timestamp actual en UTC (evita problemas de zona horaria local)
+  const now = new Date();
+  const nowUTC = new Date(
+    now.getTime() - now.getTimezoneOffset() * 60000
+  ).getTime();
+  console.log("Now UTC:", nowUTC + " UTC: " + new Date(nowUTC).toISOString());
+
+  // Comparación precisa
   const votacionesActivas = votaciones.filter(
-    (v) => new Date(v.fecha_fin) > new Date() && v.estado !== "cancelada"
+    (v) => getTimestamp(v.fecha_fin) > nowUTC && v.estado !== "cancelada"
   );
+
   const votacionesExpiradas = votaciones.filter(
-    (v) => new Date(v.fecha_fin) <= new Date() || v.estado === "cancelada"
+    (v) => getTimestamp(v.fecha_fin) <= nowUTC
   );
 
   // Función para formatear el valor del input datetime-local
