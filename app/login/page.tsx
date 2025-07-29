@@ -48,8 +48,12 @@ export default function AuthPage() {
       return;
     }
 
+    document.cookie = `admin=${JSON.stringify(data)}; path=/; max-age=${
+      60 * 60 * 365
+    }`; // 1 año
     localStorage.setItem("admin", JSON.stringify(data));
     router.push("/dashboard");
+    router.refresh();
   };
 
   const handleRegister = async (e: React.FormEvent) => {

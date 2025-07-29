@@ -1,0 +1,36 @@
+.admin-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.admin-content {
+  flex: 1;
+  transition: margin-left 0.3s ease;
+  padding: 0rem;
+  background-color: #8400b5;
+  margin-left: 80px; /* Ancho del sidebar colapsado */
+}
+
+.admin-content-no-sidebar {
+  flex: 1;
+  transition: margin-left 0.3s ease;
+  padding: 0rem;
+  background-color: #8400b5;
+  margin-left: 0px; /* Ancho del sidebar colapsado */
+}
+
+.admin-content.sidebar-open {
+  margin-left: 280px;
+}
+
+@media (max-width: 768px) {
+  .admin-content {
+    margin-left: 0;
+    padding: 1rem;
+    padding-top: 0px; /* Espacio para el botón de toggle */
+  }
+
+  .admin-content.sidebar-open {
+    margin-left: 0;
+  }
+}

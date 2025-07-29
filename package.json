@@ -9,10 +9,12 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@fingerprintjs/fingerprintjs": "^4.6.2",
     "@supabase/supabase-js": "^2.52.1",
     "next": "15.4.4",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "react-qr-code": "^2.0.18"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

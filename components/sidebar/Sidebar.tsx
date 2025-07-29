@@ -4,65 +4,67 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import "./Sidebar.css";
 
-export default function Sidebar() {
+type SidebarProps = {
+  isOpen: boolean;
+  onToggle: () => void;
+  isMobile: boolean;
+};
+
+export default function Sidebar({ isOpen, onToggle, isMobile }: SidebarProps) {
   const router = useRouter();
-  const [activeItem, setActiveItem] = useState("dashboard");
-  const [isOpen, setIsOpen] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
+  const [activeItem, setActiveItem] = useState("");
 
-  // Verificar el tamaño de pantalla
+  // Sincronizar ítem activo con la ruta
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-      if (window.innerWidth < 768) {
-        setIsOpen(false);
-      } else {
-        setIsOpen(true);
-      }
-    };
-
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    const path = window.location.pathname.split("/").pop() || "dashboard";
+    setActiveItem(path);
   }, []);
 
   const handleNavigation = (path: string) => {
     setActiveItem(path);
     router.push(`/${path}`);
-    if (isMobile) setIsOpen(false);
+    if (isMobile) onToggle(); // Cierra el sidebar al navegar en móvil
   };
 
   const handleLogout = () => {
     localStorage.removeItem("admin");
+    localStorage.removeItem("sidebarState");
+    // Eliminar cookie
+    document.cookie = "admin=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     router.push("/login");
+    router.refresh();
   };
 
   return (
     <>
-      {/* Botón para móviles */}
+      {/* Botón para móviles - solo se muestra en mobile */}
       {isMobile && (
-        <button className="sidebar-toggle" onClick={() => setIsOpen(!isOpen)}>
-          {isOpen ? (
-            <span className="close-icon">✕</span>
-          ) : (
-            <span className="menu-icon">☰</span>
-          )}
+        <button className="sidebar-toggle" onClick={onToggle}>
+          {isOpen ? "✕" : "☰"}
         </button>
       )}
 
-      {/* Overlay para móviles */}
+      {/* Overlay para móviles - solo cuando el sidebar está abierto en mobile */}
       {isMobile && isOpen && (
-        <div className="sidebar-overlay" onClick={() => setIsOpen(false)} />
+        <div className="sidebar-overlay" onClick={onToggle} />
       )}
 
       {/* Sidebar */}
-      <aside className={`sidebar ${isOpen ? "open" : "closed"}`}>
+      <aside
+        className={`sidebar ${isOpen ? "open" : "closed"} ${
+          isMobile ? "mobile" : "desktop"
+        }`}
+      >
         <div className="sidebar-header">
           <div className="user-avatar">
             <span>👤</span>
           </div>
-          <h3>Panel Admin</h3>
-          <p>Bienvenido/a</p>
+          {(!isMobile || isOpen) && ( // Solo muestra texto si no es mobile o está abierto
+            <>
+              <h3>Panel</h3>
+              <p>Bienvenido</p>
+            </>
+          )}
         </div>
 
         <nav className="sidebar-nav">
@@ -72,8 +74,12 @@ export default function Sidebar() {
               onClick={() => handleNavigation("dashboard")}
             >
               <span className="nav-icon">📊</span>
-              <span className="nav-text">Dashboard</span>
-              <span className="nav-arrow">→</span>
+              {(!isMobile || isOpen) && (
+                <>
+                  <span className="nav-text">Dashboard</span>
+                  <span className="nav-arrow">→</span>
+                </>
+              )}
             </li>
 
             <li
@@ -81,8 +87,12 @@ export default function Sidebar() {
               onClick={() => handleNavigation("profile")}
             >
               <span className="nav-icon">👤</span>
-              <span className="nav-text">Mi Perfil</span>
-              <span className="nav-arrow">→</span>
+              {(!isMobile || isOpen) && (
+                <>
+                  <span className="nav-text">Mi Perfil</span>
+                  <span className="nav-arrow">→</span>
+                </>
+              )}
             </li>
 
             <li
@@ -90,8 +100,12 @@ export default function Sidebar() {
               onClick={() => handleNavigation("settings")}
             >
               <span className="nav-icon">⚙️</span>
-              <span className="nav-text">Configuración</span>
-              <span className="nav-arrow">→</span>
+              {(!isMobile || isOpen) && (
+                <>
+                  <span className="nav-text">Configuración</span>
+                  <span className="nav-arrow">→</span>
+                </>
+              )}
             </li>
           </ul>
         </nav>
@@ -99,7 +113,7 @@ export default function Sidebar() {
         <div className="sidebar-footer">
           <button className="logout-button" onClick={handleLogout}>
             <span className="logout-icon">🚪</span>
-            <span>Cerrar Sesión</span>
+            {(!isMobile || isOpen) && <span>Cerrar Sesión</span>}
           </button>
         </div>
 
