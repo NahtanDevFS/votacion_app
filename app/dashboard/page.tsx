@@ -290,7 +290,7 @@ export default function DashboardPage() {
   return (
     <div className="dashboard-container">
       <div className="dashboard-header">
-        <h1>Mis Votaciones</h1>
+        <h1 className="dashboard-title">Mis Votaciones</h1>
         <button
           className="create-button"
           onClick={() => setShowCreateModal(true)}
@@ -494,7 +494,7 @@ export default function DashboardPage() {
 
       {/* Votaciones Activas */}
       <section className="votaciones-section">
-        <h2>Votaciones Activas</h2>
+        <h2 className="votaciones-section-activas">Votaciones Activas</h2>
         {votacionesActivas.length === 0 ? (
           <p className="no-votaciones">No hay votaciones activas</p>
         ) : (
@@ -513,7 +513,7 @@ export default function DashboardPage() {
 
       {/* Votaciones Expiradas */}
       <section className="votaciones-section">
-        <h2>Votaciones Expiradas</h2>
+        <h2 className="votaciones-section-expiradas">Votaciones Expiradas</h2>
         {votacionesExpiradas.length === 0 ? (
           <p className="no-votaciones">No hay votaciones expiradas</p>
         ) : (

@@ -62,7 +62,7 @@
   top: 20px;
   left: 20px;
   z-index: 1001;
-  background: var(--sidebar-accent);
+  background: rgba(108, 92, 231, 0.6);
   color: white;
   border: none;
   width: 50px;

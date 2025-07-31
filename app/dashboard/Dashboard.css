@@ -210,8 +210,23 @@
   margin-bottom: 3rem;
 }
 
-.votaciones-section h2 {
+/*
+.votaciones-section {
   color: #2d3436;
+  border-bottom: 2px solid #f5f6fa;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
+}*/
+
+.votaciones-section-activas {
+  color: #29f68c;
+  border-bottom: 2px solid #f5f6fa;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.votaciones-section-expiradas {
+  color: #ff4221;
   border-bottom: 2px solid #f5f6fa;
   padding-bottom: 0.5rem;
   margin-bottom: 1.5rem;
@@ -360,6 +375,9 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+  .dashboard-header {
+    justify-content: center;
+  }
   .dashboard-container {
     padding: 1rem;
   }
