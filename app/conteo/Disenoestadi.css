@@ -1,0 +1,118 @@
+.contenedor-estadisticas {
+  max-width: 800px;
+  margin: 0 auto;
+  background-color: #1e2a38;
+  color: #fff;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 0 12px rgba(0,0,0,0.4);
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 2rem;
+  font-size: 2rem;
+  color: #61dafb;
+}
+
+.conteo-votos {
+  margin-bottom: 2rem;
+  color: white;
+  font-size: 1rem;
+  text-align: center;
+}
+
+.barra-votos {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem 0;
+}
+
+.barra-item {
+  width: 100%;
+}
+
+.barra-label {
+  color: #ddd;
+  font-size: 0.95rem;
+  margin-left: 5px;
+}
+
+.barra-porcentaje {
+  background-color: #3a3a3a;
+  border-radius: 20px;
+  overflow: hidden;
+  height: 24px;
+  margin-top: 5px;
+}
+
+.barra-interna {
+  height: 100%;
+  background: linear-gradient(to right, #00c3ff, #00ffa5);
+  color: #fff;
+  font-size: 0.8rem;
+  padding-left: 10px;
+  display: flex;
+  align-items: center;
+  font-weight: bold;
+  transition: width 0.5s ease;
+}
+
+.contenedor-conteo-horizontal {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.tarjeta-voto {
+  background: linear-gradient(135deg, #00c3ff, #00ffa5);
+  color: #002b40;
+  padding: 0.7rem 1.4rem;
+  border-radius: 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  transition: transform 0.2s ease;
+}
+
+.tarjeta-voto:hover {
+  transform: scale(1.05);
+  cursor: default;
+}
+
+.espacio-entre-graficos {
+  height: 30px;
+}
+
+.voto-total {
+  text-align: center;
+  font-size: 1.4rem;
+  color: #61dafb;
+  background: rgba(44, 34, 184, 0.1);
+  padding: 1rem 1.5rem;
+  border-radius: 10px;
+  margin-bottom: 1.5rem;
+  font-weight: bold;
+  box-shadow: 0 0 12px rgba(39, 201, 201, 0.3);
+}
+
+.titulo-seccion {
+  text-align: center;
+  font-size: 1.2rem;
+  color: #61dafb;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-weight: bold;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
