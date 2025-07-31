@@ -127,7 +127,7 @@ export default function DashboardPage() {
     setNewVotacion({
       titulo: votacion.titulo,
       descripcion: votacion.descripcion,
-      fecha_fin: formatDateTimeLocal(new Date(votacion.fecha_fin)),
+      fecha_fin: formatDateTimeLocal(votacion.fecha_fin),
       opciones: votacion.opcion_votacion.map((op: any) => op.nombre),
     });
     setShowEditModal(true);
@@ -473,13 +473,14 @@ function generateToken() {
   );
 }
 
-function formatDateTimeLocal(date: Date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  const h = String(date.getHours()).padStart(2, "0");
-  const min = String(date.getMinutes()).padStart(2, "0");
-  return `${y}-${m}-${d}T${h}:${min}`;
+function formatDateTimeLocal(dateInput: string | Date): string {
+  const dt = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  const year = dt.getUTCFullYear();
+  const month = String(dt.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(dt.getUTCDate()).padStart(2, "0");
+  const hour = String(dt.getUTCHours()).padStart(2, "0");
+  const minute = String(dt.getUTCMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hour}:${minute}`;
 }
 
 function VotacionCard({
