@@ -1,6 +1,7 @@
+// app/dashboard/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import QRCode from "react-qr-code";
@@ -20,36 +21,30 @@ export default function DashboardPage() {
     opciones: [""],
   });
 
-  // Obtener votaciones del usuario
-  useEffect(() => {
-    const fetchVotaciones = async () => {
-      const user = JSON.parse(localStorage.getItem("admin") || "{}");
-
-      const { data, error } = await supabase
-        .from("votacion")
-        .select(
-          `
-          *,
-          opcion_votacion(*)
-        `
-        )
-        .eq("creado_por", user.id)
-        .order("fecha_fin", { ascending: true });
-
-      if (error) {
-        console.error("Error fetching votaciones:", error);
-      } else {
-        setVotaciones(data || []);
-      }
-      setLoading(false);
-    };
-
-    fetchVotaciones();
+  // 1) Función reutilizable para cargar TODAS las votaciones con sus opciones
+  const fetchVotaciones = useCallback(async () => {
+    setLoading(true);
+    const user = JSON.parse(localStorage.getItem("admin") || "{}");
+    const { data, error } = await supabase
+      .from("votacion")
+      .select("*, opcion_votacion(*)")
+      .eq("creado_por", user.id)
+      .order("fecha_fin", { ascending: true });
+    if (error) {
+      console.error("Error fetching votaciones:", error);
+    } else {
+      setVotaciones(data || []);
+    }
+    setLoading(false);
   }, []);
 
-  // Crear nueva votación
+  // 2) Carga inicial
+  useEffect(() => {
+    fetchVotaciones();
+  }, [fetchVotaciones]);
+
+  // 3) Crear nueva votación y luego recargar lista
   const handleCreateVotacion = async () => {
-    // Validar campos requeridos
     if (
       !newVotacion.titulo ||
       !newVotacion.descripcion ||
@@ -58,27 +53,18 @@ export default function DashboardPage() {
       alert("Por favor complete todos los campos requeridos");
       return;
     }
-
-    // Validar que haya al menos una opción
     if (newVotacion.opciones.filter((o) => o.trim()).length === 0) {
       alert("Debe agregar al menos una opción de votación");
       return;
     }
 
-    // Obtener la fecha actual en UTC
     const now = new Date();
     const nowUTC = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-
-    // Convertir la fecha seleccionada a objeto Date (ya está en local)
     const selectedDateLocal = new Date(newVotacion.fecha_fin);
-
-    // Validar que la fecha de fin sea futura (comparando fechas locales)
     if (selectedDateLocal <= now) {
       alert("La fecha de finalización debe ser futura");
       return;
     }
-
-    // Convertir a UTC para Supabase
     const fechaFinUTC = new Date(
       selectedDateLocal.getTime() -
         selectedDateLocal.getTimezoneOffset() * 60000
@@ -101,14 +87,12 @@ export default function DashboardPage() {
         },
       ])
       .select();
-
-    if (error) {
+    if (error || !data) {
       console.error("Error creating votacion:", error);
       alert("Error al crear la votación");
       return;
     }
 
-    // Crear opciones de votación
     const votacionId = data[0].id;
     const { error: opcionesError } = await supabase
       .from("opcion_votacion")
@@ -121,15 +105,13 @@ export default function DashboardPage() {
             creado_en: new Date().toISOString(),
           }))
       );
-
     if (opcionesError) {
       console.error("Error creating opciones:", opcionesError);
       alert("Error al crear las opciones de votación");
       return;
     }
 
-    // Actualizar lista
-    setVotaciones([...votaciones, data[0]]);
+    await fetchVotaciones();
     setShowCreateModal(false);
     setNewVotacion({
       titulo: "",
@@ -139,7 +121,7 @@ export default function DashboardPage() {
     });
   };
 
-  // Función para abrir el modal de edición
+  // 4) Abrir modal de edición cargando datos existentes
   const handleEditClick = (votacion: any) => {
     setCurrentVotacion(votacion);
     setNewVotacion({
@@ -151,7 +133,7 @@ export default function DashboardPage() {
     setShowEditModal(true);
   };
 
-  // Actualizar votación
+  // 5) Actualizar votación y luego recargar lista
   const handleUpdateVotacion = async () => {
     if (
       !newVotacion.titulo ||
@@ -161,7 +143,6 @@ export default function DashboardPage() {
       alert("Por favor complete todos los campos requeridos");
       return;
     }
-
     if (newVotacion.opciones.filter((o) => o.trim()).length === 0) {
       alert("Debe agregar al menos una opción de votación");
       return;
@@ -169,18 +150,15 @@ export default function DashboardPage() {
 
     const selectedDateLocal = new Date(newVotacion.fecha_fin);
     const now = new Date();
-
     if (selectedDateLocal <= now) {
       alert("La fecha de finalización debe ser futura");
       return;
     }
-
     const fechaFinUTC = new Date(
       selectedDateLocal.getTime() -
         selectedDateLocal.getTimezoneOffset() * 60000
     ).toISOString();
 
-    // Actualizar la votación principal
     const { data, error } = await supabase
       .from("votacion")
       .update({
@@ -190,20 +168,17 @@ export default function DashboardPage() {
       })
       .eq("id", currentVotacion.id)
       .select();
-
-    if (error) {
+    if (error || !data) {
       console.error("Error updating votacion:", error);
       alert("Error al actualizar la votación");
       return;
     }
 
-    // Eliminar opciones antiguas
+    // Reemplazar opciones
     await supabase
       .from("opcion_votacion")
       .delete()
       .eq("votacion_id", currentVotacion.id);
-
-    // Crear nuevas opciones
     const { error: opcionesError } = await supabase
       .from("opcion_votacion")
       .insert(
@@ -215,35 +190,21 @@ export default function DashboardPage() {
             creado_en: new Date().toISOString(),
           }))
       );
-
     if (opcionesError) {
       console.error("Error updating opciones:", opcionesError);
       alert("Error al actualizar las opciones de votación");
       return;
     }
 
-    // Actualizar lista
-    const updatedVotaciones = votaciones.map((v) =>
-      v.id === currentVotacion.id ? { ...data[0], opcion_votacion: [] } : v
-    );
-    setVotaciones(updatedVotaciones);
+    await fetchVotaciones();
     setShowEditModal(false);
     setCurrentVotacion(null);
   };
 
-  const generateToken = () => {
-    return (
-      Math.random().toString(36).substring(2, 15) +
-      Math.random().toString(36).substring(2, 15)
-    );
-  };
-
-  // Eliminar votación
+  // 6) Eliminar votación localmente
   const handleDeleteVotacion = async (id: number) => {
     if (!confirm("¿Estás seguro de eliminar esta votación?")) return;
-
     const { error } = await supabase.from("votacion").delete().eq("id", id);
-
     if (error) {
       console.error("Error deleting votacion:", error);
       alert("Error al eliminar la votación");
@@ -252,41 +213,22 @@ export default function DashboardPage() {
     }
   };
 
-  const getTimestamp = (dbDate: string) => {
-    // Eliminar el offset y parsear como UTC
-    const dateStr = dbDate.replace(" ", "T").replace(/\+.*$/, "Z");
-    console.log("Date:", new Date(dateStr).getTime() + " UTC: " + dateStr);
-    return new Date(dateStr).getTime();
-  };
-
-  // Obtener timestamp actual en UTC (evita problemas de zona horaria local)
-  const now = new Date();
+  // 7) Filtrar activas y expiradas
   const nowUTC = new Date(
-    now.getTime() - now.getTimezoneOffset() * 60000
+    new Date().getTime() - new Date().getTimezoneOffset() * 60000
   ).getTime();
-  console.log("Now UTC:", nowUTC + " UTC: " + new Date(nowUTC).toISOString());
+  const getTimestamp = (dbDate: string) =>
+    new Date(dbDate.replace(" ", "T").replace(/\+.*$/, "Z")).getTime();
 
-  // Comparación precisa
   const votacionesActivas = votaciones.filter(
     (v) => getTimestamp(v.fecha_fin) > nowUTC && v.estado !== "cancelada"
   );
-
   const votacionesExpiradas = votaciones.filter(
     (v) => getTimestamp(v.fecha_fin) <= nowUTC
   );
 
-  // Función para formatear el valor del input datetime-local
-  const formatDateTimeLocal = (date: Date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
-  };
-
   if (loading) return <div className="loading">Cargando...</div>;
+
   return (
     <div className="dashboard-container">
       <div className="dashboard-header">
@@ -299,7 +241,7 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {/* Modal para crear votación */}
+      {/* --- Modal Crear --- */}
       {showCreateModal && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -333,9 +275,9 @@ export default function DashboardPage() {
               <input
                 type="datetime-local"
                 value={newVotacion.fecha_fin}
-                onChange={(e) => {
-                  setNewVotacion({ ...newVotacion, fecha_fin: e.target.value });
-                }}
+                onChange={(e) =>
+                  setNewVotacion({ ...newVotacion, fecha_fin: e.target.value })
+                }
                 min={formatDateTimeLocal(new Date())}
                 required
               />
@@ -348,9 +290,9 @@ export default function DashboardPage() {
                     type="text"
                     value={opcion}
                     onChange={(e) => {
-                      const newOpciones = [...newVotacion.opciones];
-                      newOpciones[index] = e.target.value;
-                      setNewVotacion({ ...newVotacion, opciones: newOpciones });
+                      const newOps = [...newVotacion.opciones];
+                      newOps[index] = e.target.value;
+                      setNewVotacion({ ...newVotacion, opciones: newOps });
                     }}
                     placeholder={`Opción ${index + 1}`}
                   />
@@ -358,12 +300,9 @@ export default function DashboardPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        const newOpciones = [...newVotacion.opciones];
-                        newOpciones.splice(index, 1);
-                        setNewVotacion({
-                          ...newVotacion,
-                          opciones: newOpciones,
-                        });
+                        const newOps = [...newVotacion.opciones];
+                        newOps.splice(index, 1);
+                        setNewVotacion({ ...newVotacion, opciones: newOps });
                       }}
                     >
                       ✕
@@ -385,16 +324,16 @@ export default function DashboardPage() {
               </button>
             </div>
             <div className="modal-actions">
-              <button type="button" onClick={() => setShowCreateModal(false)}>
+              <button onClick={() => setShowCreateModal(false)}>
                 Cancelar
               </button>
-              <button type="button" onClick={handleCreateVotacion}>
-                Crear Votación
-              </button>
+              <button onClick={handleCreateVotacion}>Crear Votación</button>
             </div>
           </div>
         </div>
       )}
+
+      {/* --- Modal Editar --- */}
       {showEditModal && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -410,7 +349,6 @@ export default function DashboardPage() {
                 required
               />
             </div>
-            {/* ... (otros campos del formulario igual que en creación) */}
             <div className="form-group">
               <label>Descripción *</label>
               <textarea
@@ -429,9 +367,9 @@ export default function DashboardPage() {
               <input
                 type="datetime-local"
                 value={newVotacion.fecha_fin}
-                onChange={(e) => {
-                  setNewVotacion({ ...newVotacion, fecha_fin: e.target.value });
-                }}
+                onChange={(e) =>
+                  setNewVotacion({ ...newVotacion, fecha_fin: e.target.value })
+                }
                 min={formatDateTimeLocal(new Date())}
                 required
               />
@@ -444,9 +382,9 @@ export default function DashboardPage() {
                     type="text"
                     value={opcion}
                     onChange={(e) => {
-                      const newOpciones = [...newVotacion.opciones];
-                      newOpciones[index] = e.target.value;
-                      setNewVotacion({ ...newVotacion, opciones: newOpciones });
+                      const newOps = [...newVotacion.opciones];
+                      newOps[index] = e.target.value;
+                      setNewVotacion({ ...newVotacion, opciones: newOps });
                     }}
                     placeholder={`Opción ${index + 1}`}
                   />
@@ -454,12 +392,9 @@ export default function DashboardPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        const newOpciones = [...newVotacion.opciones];
-                        newOpciones.splice(index, 1);
-                        setNewVotacion({
-                          ...newVotacion,
-                          opciones: newOpciones,
-                        });
+                        const newOps = [...newVotacion.opciones];
+                        newOps.splice(index, 1);
+                        setNewVotacion({ ...newVotacion, opciones: newOps });
                       }}
                     >
                       ✕
@@ -481,28 +416,24 @@ export default function DashboardPage() {
               </button>
             </div>
             <div className="modal-actions">
-              <button type="button" onClick={() => setShowEditModal(false)}>
-                Cancelar
-              </button>
-              <button type="button" onClick={handleUpdateVotacion}>
-                Guardar Cambios
-              </button>
+              <button onClick={() => setShowEditModal(false)}>Cancelar</button>
+              <button onClick={handleUpdateVotacion}>Guardar Cambios</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Votaciones Activas */}
+      {/* --- Votaciones Activas --- */}
       <section className="votaciones-section">
         <h2 className="votaciones-section-activas">Votaciones Activas</h2>
         {votacionesActivas.length === 0 ? (
           <p className="no-votaciones">No hay votaciones activas</p>
         ) : (
           <div className="votaciones-grid">
-            {votacionesActivas.map((votacion) => (
+            {votacionesActivas.map((v) => (
               <VotacionCard
-                key={votacion.id}
-                votacion={votacion}
+                key={v.id}
+                votacion={v}
                 onDelete={handleDeleteVotacion}
                 onEdit={handleEditClick}
               />
@@ -511,17 +442,17 @@ export default function DashboardPage() {
         )}
       </section>
 
-      {/* Votaciones Expiradas */}
+      {/* --- Votaciones Expiradas --- */}
       <section className="votaciones-section">
         <h2 className="votaciones-section-expiradas">Votaciones Expiradas</h2>
         {votacionesExpiradas.length === 0 ? (
           <p className="no-votaciones">No hay votaciones expiradas</p>
         ) : (
           <div className="votaciones-grid">
-            {votacionesExpiradas.map((votacion) => (
+            {votacionesExpiradas.map((v) => (
               <VotacionCard
-                key={votacion.id}
-                votacion={votacion}
+                key={v.id}
+                votacion={v}
                 onDelete={handleDeleteVotacion}
                 onEdit={handleEditClick}
               />
@@ -533,7 +464,24 @@ export default function DashboardPage() {
   );
 }
 
-// Componente de Tarjeta de Votación
+// --- Helpers y componentes auxiliares ---
+
+function generateToken() {
+  return (
+    Math.random().toString(36).substring(2, 15) +
+    Math.random().toString(36).substring(2, 15)
+  );
+}
+
+function formatDateTimeLocal(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const h = String(date.getHours()).padStart(2, "0");
+  const min = String(date.getMinutes()).padStart(2, "0");
+  return `${y}-${m}-${d}T${h}:${min}`;
+}
+
 function VotacionCard({
   votacion,
   onDelete,
@@ -547,19 +495,16 @@ function VotacionCard({
   const votacionUrl = `${baseUrl}/votacion/${votacion.token_link}`;
 
   const formatDate = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "UTC",
-    };
-
     try {
-      return new Date(dateString).toLocaleString("es-ES", options);
-    } catch (e) {
-      console.error("Error formateando fecha:", dateString, e);
+      return new Date(dateString).toLocaleString("es-ES", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "UTC",
+      });
+    } catch {
       return "Fecha inválida";
     }
   };
@@ -569,16 +514,13 @@ function VotacionCard({
       <div className="qr-container">
         <QRCode value={votacionUrl} size={128} level="H" />
       </div>
-
       <div className="votacion-link">
         <a href={votacionUrl} target="_blank" rel="noopener noreferrer">
           {votacionUrl}
         </a>
       </div>
-
       <h3>{votacion.titulo}</h3>
       <p className="descripcion">{votacion.descripcion}</p>
-
       <div className="fechas">
         <div>
           <strong>Creada:</strong> {formatDate(votacion.fecha_inicio)}
@@ -587,29 +529,22 @@ function VotacionCard({
           <strong>Expira:</strong> {formatDate(votacion.fecha_fin)}
         </div>
       </div>
-
       <div className="opciones">
         <strong>Opciones:</strong>
         <ul>
-          {votacion.opcion_votacion?.map((opcion: any) => (
-            <li key={opcion.id}>{opcion.nombre}</li>
+          {votacion.opcion_votacion?.map((op: any) => (
+            <li key={op.id}>{op.nombre}</li>
           ))}
         </ul>
       </div>
-
       <div className="card-actions">
         <button className="edit-button" onClick={() => onEdit(votacion)}>
           ✏️ Editar
         </button>
-        <button
-          className="delete-button"
-          onClick={() => onDelete(votacion.id)}
-          type="button"
-        >
+        <button className="delete-button" onClick={() => onDelete(votacion.id)}>
           🗑️ Eliminar
         </button>
       </div>
-
       <a href={`/conteo?votacion=${votacion.id}`} className="stats-button">
         Ver Estadísticas
       </a>
