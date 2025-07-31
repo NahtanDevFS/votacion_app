@@ -10,10 +10,21 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Responsividad
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
+  // Estado para saber si hay un admin logueado
+  // Inicialmente null para que cliente y servidor coincidan (no mostrar sidebar)
+  const [adminUser, setAdminUser] = useState<string | null>(null);
 
+  // Responsividad
+  const [isMobile, setIsMobile] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // 1️⃣ Leer localStorage solo en efecto
+  useEffect(() => {
+    const stored = localStorage.getItem("admin");
+    setAdminUser(stored);
+  }, []);
+
+  // 2️⃣ Calcular mobile / sidebarOpen
   useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth < 768;
@@ -25,12 +36,8 @@ export default function AdminLayout({
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Lee siempre el admin actual (puede cambiar en logout sin reload)
-  const adminUser =
-    typeof window !== "undefined" ? localStorage.getItem("admin") : null;
-
-  if (!adminUser) {
-    // Si no hay admin en localStorage, NO mostramos el sidebar
+  // Mientras adminUser sea null (todavía cargando), renderizamos igual que sin admin
+  if (adminUser === null) {
     return (
       <div className="admin-container">
         <main className="admin-content-no-sidebar">{children}</main>
@@ -38,6 +45,16 @@ export default function AdminLayout({
     );
   }
 
+  // Si adminUser es falsy (no hay admin en localStorage), no mostramos sidebar
+  if (!adminUser) {
+    return (
+      <div className="admin-container">
+        <main className="admin-content-no-sidebar">{children}</main>
+      </div>
+    );
+  }
+
+  // Finalmente, si adminUser existe, mostramos sidebar
   return (
     <div className="admin-container">
       <Sidebar
