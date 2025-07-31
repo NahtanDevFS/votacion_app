@@ -610,10 +610,7 @@ function VotacionCard({
         </button>
       </div>
 
-      <a
-        href={`/dashboard/estadisticas/${votacion.id}`}
-        className="stats-button"
-      >
+      <a href={`/conteo?votacion=${votacion.id}`} className="stats-button">
         Ver Estadísticas
       </a>
     </div>
