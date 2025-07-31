@@ -178,6 +178,7 @@
 
 /* Footer del Sidebar */
 .sidebar-footer {
+  flex-shrink: 0;
   padding: 1.5rem;
   position: relative;
   z-index: 2;
