@@ -43,6 +43,7 @@ export default function EncuestaVotarPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [fingerprint, setFingerprint] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // 1) Obtener fingerprint
   useEffect(() => {
@@ -115,9 +116,11 @@ export default function EncuestaVotarPage() {
   };
 
   // 3) Enviar voto(s)
+  // 3) Enviar voto(s) con verificación en tiempo real
   const handleVotar = async () => {
-    if (!encuesta) return;
-    // validar cada inciso
+    if (!encuesta || !fingerprint) return;
+
+    // Validar selecciones en cada inciso
     for (const inc of encuesta.inciso_encuesta) {
       const sel = selectedMap[inc.id] || [];
       if (sel.length === 0) {
@@ -130,34 +133,54 @@ export default function EncuestaVotarPage() {
         return;
       }
     }
-    if (!fingerprint) {
-      setError("No se pudo identificar tu dispositivo");
-      return;
-    }
 
-    const inserts: any[] = [];
-    encuesta.inciso_encuesta.forEach((inc) => {
-      (selectedMap[inc.id] || []).forEach((opId) => {
-        inserts.push({
-          encuesta_id: encuesta.id,
-          inciso_id: inc.id,
-          opcion_id: opId,
-          fingerprint_device_hash: fingerprint,
-          user_agent: navigator.userAgent,
+    setIsSubmitting(true);
+
+    try {
+      // VERIFICACIÓN EN TIEMPO REAL DE VOTO EXISTENTE
+      const { data: existingVote, error: checkError } = await supabase
+        .from("voto_participante_encuesta")
+        .select("id")
+        .eq("encuesta_id", encuesta.id)
+        .eq("fingerprint_device_hash", fingerprint)
+        .limit(1);
+
+      if (checkError) throw checkError;
+
+      if (existingVote && existingVote.length > 0) {
+        setError("Ya has participado en esta encuesta");
+        setSuccess("");
+        return;
+      }
+
+      // Si no existe voto previo, proceder con el registro
+      const inserts: any[] = [];
+      encuesta.inciso_encuesta.forEach((inc) => {
+        (selectedMap[inc.id] || []).forEach((opId) => {
+          inserts.push({
+            encuesta_id: encuesta.id,
+            inciso_id: inc.id,
+            opcion_id: opId,
+            fingerprint_device_hash: fingerprint,
+            user_agent: navigator.userAgent,
+          });
         });
       });
-    });
 
-    const { error: err } = await supabase
-      .from("voto_participante_encuesta")
-      .insert(inserts);
+      const { error: insertError } = await supabase
+        .from("voto_participante_encuesta")
+        .insert(inserts);
 
-    if (err) {
-      console.error(err);
-      setError("Error al registrar tu voto");
-    } else {
+      if (insertError) throw insertError;
+
       setSuccess("¡Tu voto ha sido registrado correctamente!");
       setError("");
+    } catch (error) {
+      console.error("Error al votar:", error);
+      setError("Error al registrar tu voto. Por favor intenta nuevamente.");
+      setSuccess("");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -225,9 +248,16 @@ export default function EncuestaVotarPage() {
           <button
             className="votar-button"
             onClick={handleVotar}
-            disabled={!!success || expired}
+            disabled={!!success || expired || isSubmitting}
           >
-            Votar
+            {isSubmitting ? (
+              <>
+                <span className="loading-spinner"></span>
+                Verificando...
+              </>
+            ) : (
+              "Votar"
+            )}
           </button>
         </>
       )}
