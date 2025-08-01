@@ -31,7 +31,7 @@ export default function Sidebar({ isOpen, onToggle, isMobile }: SidebarProps) {
     localStorage.removeItem("sidebarState");
     // Eliminar cookie
     document.cookie = "admin=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    router.push("/login");
+    router.push("/");
     router.refresh();
   };
 

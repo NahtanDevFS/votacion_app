@@ -1,0 +1,106 @@
+/* app/Home.css */
+
+:root {
+  --gradient-start: #f0f4ff;
+  --gradient-end: #e8d6ff;
+  --card-bg: #ffffff;
+  --primary: #8724ff;
+  --secondary: #6200ff;
+  --dark: #2d3436;
+}
+
+/* Full-viewport softly graded background */
+.home-viewport {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #8724ff, #a32aff);
+  padding: 2rem;
+}
+
+/* Centered “card” */
+.home-card {
+  background: #f5edff;
+  border-radius: 16px;
+  padding: 3rem 2rem;
+  max-width: 800px;
+  width: 100%;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+/* Logo + Title aligned */
+.home-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.home-logo {
+  border-radius: 12px;
+}
+
+.home-title {
+  font-size: 2.8rem;
+  color: var(--primary);
+  margin: 0;
+}
+
+/* Description */
+.home-description {
+  font-size: 1.5rem;
+  color: #6200ff;
+  line-height: 1.5;
+  margin-bottom: 2.5rem;
+  font-weight: 600;
+}
+
+.home-description-button {
+  font-size: 1.4rem;
+  color: var(--dark);
+  line-height: 1.5;
+  margin-bottom: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+/* Buttons row */
+.home-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.home-buttons button {
+  background: var(--secondary);
+  color: white;
+  border: none;
+  padding: 0.9rem 1.8rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.home-buttons button:hover {
+  background: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Responsive tweaks */
+@media (max-width: 500px) {
+  .home-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .home-title {
+    font-size: 2.2rem;
+  }
+  .home-description {
+    font-size: 1rem;
+  }
+}
