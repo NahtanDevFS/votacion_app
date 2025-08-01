@@ -169,7 +169,7 @@ export default function ProfilePage() {
                 <div className="input-decoration"></div>
               </div>
 
-              <div className="form-group">
+              {/*<div className="form-group">
                 <label htmlFor="correo">Correo electrónico</label>
                 <input
                   type="email"
@@ -191,7 +191,7 @@ export default function ProfilePage() {
                   placeholder="Nueva contraseña"
                 />
                 <div className="input-decoration"></div>
-              </div>
+              </div>*/}
 
               <div className="form-actions">
                 <button type="submit" className="save-button">

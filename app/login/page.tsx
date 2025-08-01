@@ -10,107 +10,129 @@ type AuthMode = "login" | "register" | "forgot";
 export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
   const [lastName, setLastName] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [mode, setMode] = useState<AuthMode>("login");
+  const [transition, setTransition] = useState(false);
   const router = useRouter();
 
-  // Animación de cambio de formulario
-  const [transition, setTransition] = useState(false);
-
-  const changeMode = (newMode: AuthMode) => {
+  /**
+   * Cambia de modo de formulario.
+   * @param newMode Modo al que cambiar ("login"|"register"|"forgot")
+   * @param clearSuccess Si true limpia también success; si false, preserva el mensaje
+   */
+  const changeMode = (newMode: AuthMode, clearSuccess = true) => {
     setTransition(true);
     setTimeout(() => {
       setMode(newMode);
       setError("");
-      setSuccess("");
+      if (clearSuccess) setSuccess("");
       setTransition(false);
     }, 300);
   };
 
+  // ─── LOGIN ────────────────────────────────────────────────────────────────
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
 
-    const { data, error: supabaseError } = await supabase
-      .from("admin_votacion")
-      .select("*")
-      .eq("correo", email)
-      .eq("contrasena", password)
-      .single();
-
-    if (supabaseError || !data) {
+    // 1) Autenticar con Supabase Auth
+    const { data: loginData, error: loginError } =
+      await supabase.auth.signInWithPassword({ email, password });
+    if (loginError || !loginData.session) {
       setError("Credenciales incorrectas");
       return;
     }
 
-    document.cookie = `admin=${JSON.stringify(data)}; path=/; max-age=${
-      60 * 60 * 365
-    }`; // 1 año
-    localStorage.setItem("admin", JSON.stringify(data));
+    // 2) Traer perfil desde tu tabla por id_auth
+    const { data: profile, error: profileError } = await supabase
+      .from("admin_votacion")
+      .select("*")
+      .eq("id_auth", loginData.user.id)
+      .single();
+    if (profileError || !profile) {
+      setError("Error al obtener perfil");
+      return;
+    }
+
+    // 3) Guardar sesión y redirigir
+    document.cookie = `admin=${JSON.stringify(profile)}; path=/; max-age=${
+      60 * 60 * 24 * 365
+    }`;
+    localStorage.setItem("admin", JSON.stringify(profile));
     router.push("/dashboard");
     router.refresh();
   };
 
+  // ─── REGISTRO ─────────────────────────────────────────────────────────────
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
 
-    // Verificar si el correo ya existe
-    const { data: existingUser } = await supabase
-      .from("admin_votacion")
-      .select("*")
-      .eq("correo", email)
-      .single();
-
-    if (existingUser) {
-      setError("Este correo ya está registrado");
-      return;
-    }
-
-    const { error } = await supabase.from("admin_votacion").insert([
+    // 1) Crear usuario en Supabase Auth (envía correo de verificación)
+    // 1) Crear usuario en Supabase Auth (envía correo de verificación)
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp(
       {
-        nombre: name,
-        apellido: lastName,
-        correo: email,
-        contrasena: password,
-      },
-    ]);
-
-    if (error) {
-      setError("Error al registrar el usuario");
+        email,
+        password,
+        options: {
+          emailRedirectTo: "https://votacion-app.vercel.app/verify",
+        },
+      }
+    );
+    if (signUpError) {
+      setError(signUpError.message);
       return;
     }
+    // 2) Intentar insertar el perfil (no cancelamos el flujo si esto falla)
+    const { error: profileError } = await supabase
+      .from("admin_votacion")
+      .insert([
+        {
+          id_auth: signUpData.user?.id,
+          nombre: name,
+          apellido: lastName,
+          correo: email,
+        },
+      ]);
+    if (profileError) {
+      console.error("Error al crear perfil:", profileError.message);
+    }
 
-    setSuccess("¡Registro exitoso! Ahora puedes iniciar sesión");
-    changeMode("login");
+    // 3) Mostrar mensaje y cambiar a login, preservando success
+    setSuccess(
+      "¡Registro exitoso! Revisa tu correo para verificar tu cuenta (puede estar en spam)."
+    );
+    changeMode("login", /* clearSuccess= */ false);
   };
 
-  const handlePasswordReset = async (e: React.FormEvent) => {
+  // ─── RECUPERAR CONTRASEÑA ─────────────────────────────────────────────────
+  const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
 
-    if (newPassword !== confirmPassword) {
-      setError("Las contraseñas no coinciden");
+    // 1) Enviar correo de reset de contraseña
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+      email,
+      {
+        redirectTo: "https://votacion-app.vercel.app/reset-password",
+      }
+    );
+    if (resetError) {
+      setError(resetError.message);
       return;
     }
 
-    const { error } = await supabase
-      .from("admin_votacion")
-      .update({ contrasena: newPassword })
-      .eq("correo", email);
-
-    if (error) {
-      setError("No existe un usuario con este correo");
-      return;
-    }
-
-    setSuccess("Contraseña actualizada correctamente");
-    changeMode("login");
+    // 2) Mostrar mensaje y cambiar a login, preservando success
+    setSuccess(
+      "Revisa tu correo para restablecer la contraseña (puede estar en spam)."
+    );
+    changeMode("login", /* clearSuccess= */ false);
   };
 
   return (
@@ -133,7 +155,7 @@ export default function AuthPage() {
               <p>
                 {mode === "login" && "Ingresa tus credenciales"}
                 {mode === "register" && "Completa tus datos"}
-                {mode === "forgot" && "Restablece tu contraseña"}
+                {mode === "forgot" && "Recibe un correo para restablecer"}
               </p>
             </div>
 
@@ -146,48 +168,43 @@ export default function AuthPage() {
                   ? handleLogin
                   : mode === "register"
                   ? handleRegister
-                  : handlePasswordReset
+                  : handleForgotPassword
               }
             >
               {mode === "register" && (
-                <div className="input-group">
-                  <input
-                    type="text"
-                    placeholder="Nombre"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                  />
-                  <span className="input-icon">👤</span>
-                </div>
+                <>
+                  <div className="input-group">
+                    <input
+                      type="text"
+                      placeholder="Nombre"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                    />
+                    <span className="input-icon">👤</span>
+                  </div>
+                  <div className="input-group">
+                    <input
+                      type="text"
+                      placeholder="Apellido"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                    />
+                    <span className="input-icon">👥</span>
+                  </div>
+                </>
               )}
 
-              {mode === "register" && (
-                <div className="input-group">
-                  <input
-                    type="text"
-                    placeholder="Apellido"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                  />
-                  <span className="input-icon">👥</span>
-                </div>
-              )}
-
-              {(mode === "login" ||
-                mode === "register" ||
-                mode === "forgot") && (
-                <div className="input-group">
-                  <input
-                    type="email"
-                    placeholder="Correo electrónico"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                  <span className="input-icon">✉️</span>
-                </div>
-              )}
+              <div className="input-group">
+                <input
+                  type="email"
+                  placeholder="Correo electrónico"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+                <span className="input-icon">✉️</span>
+              </div>
 
               {(mode === "login" || mode === "register") && (
                 <div className="input-group">
@@ -199,48 +216,21 @@ export default function AuthPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    minLength={4}
+                    minLength={6}
                   />
                   <span className="input-icon">🔒</span>
                 </div>
               )}
 
-              {mode === "forgot" && (
-                <>
-                  <div className="input-group">
-                    <input
-                      type="password"
-                      placeholder="Nueva contraseña"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      required
-                      minLength={4}
-                    />
-                    <span className="input-icon">🔄</span>
-                  </div>
-                  <div className="input-group">
-                    <input
-                      type="password"
-                      placeholder="Confirmar contraseña"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      required
-                      minLength={4}
-                    />
-                    <span className="input-icon">✅</span>
-                  </div>
-                </>
-              )}
-
               <button type="submit" className="auth-button">
                 {mode === "login" && "Iniciar sesión"}
                 {mode === "register" && "Registrarse"}
-                {mode === "forgot" && "Actualizar contraseña"}
+                {mode === "forgot" && "Enviar correo"}
               </button>
             </form>
 
             <div className="auth-footer">
-              {mode === "login" ? (
+              {mode === "login" && (
                 <>
                   <p>
                     ¿No tienes cuenta?{" "}
@@ -255,14 +245,16 @@ export default function AuthPage() {
                     </button>
                   </p>
                 </>
-              ) : mode === "register" ? (
+              )}
+              {mode === "register" && (
                 <p>
                   ¿Ya tienes cuenta?{" "}
                   <button onClick={() => changeMode("login")}>
                     Inicia sesión
                   </button>
                 </p>
-              ) : (
+              )}
+              {mode === "forgot" && (
                 <p>
                   ¿Recordaste tu contraseña?{" "}
                   <button onClick={() => changeMode("login")}>
