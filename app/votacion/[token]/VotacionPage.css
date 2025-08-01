@@ -159,6 +159,10 @@
   border-left: 4px solid #fdcb6e;
 }
 
+.info-selection {
+  color: #2d3436;
+}
+
 @media (max-width: 768px) {
   .votacion-container {
     padding: 1rem;

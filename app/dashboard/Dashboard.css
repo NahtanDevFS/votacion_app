@@ -8,14 +8,6 @@
   --error: #d63031;
 }
 
-/*
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-}*/
-
 /* Estilos generales */
 .dashboard-container {
   padding: 2rem;
@@ -23,42 +15,18 @@
   margin: 0 auto;
 }
 
-/*
-.auth-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  background-color: var(--light);
-  position: relative;
-  overflow: hidden;
-}*/
-
-/* Decoración animada */
-/*
-.auth-decoration {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-}*/
-
-/* .shape1,
-.shape2,
-.shape3 {
-  position: absolute;
-  border-radius: 50%;
-  background: linear-gradient(45deg, var(--primary), var(--secondary));
-  opacity: 0.4;
-  animation: float 15s infinite ease-in-out;
-} */
-
-.loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  font-size: 1.2rem;
+/* Leyenda tipo de votación */
+.tipo-info {
+  background: #f5f6fa;
+  border-left: 4px solid var(--primary);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  color: #2d3436;
+}
+.tipo-info p {
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
 }
 
 /* Header */
@@ -73,11 +41,11 @@
 
 .dashboard-header h1 {
   margin: 0;
-  color: #2d3436;
+  color: var(--dark);
 }
 
 .create-button {
-  background: #6c5ce7;
+  background: var(--secondary);
   color: white;
   border: none;
   padding: 0.8rem 1.5rem;
@@ -89,10 +57,18 @@
   align-items: center;
   gap: 0.5rem;
 }
-
 .create-button:hover {
-  background: #5649c0;
+  background: var(--primary);
   transform: translateY(-2px);
+}
+
+/* Loading */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.2rem;
 }
 
 /* Modal */
@@ -108,7 +84,6 @@
   align-items: center;
   z-index: 1000;
 }
-
 .modal-content {
   background: white;
   padding: 2rem;
@@ -117,33 +92,30 @@
   max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
-  color: #2d3436;
+  color: var(--dark);
 }
-
 .modal-content h2 {
   margin-top: 0;
-  color: #2d3436;
+  color: var(--dark);
 }
-
 .form-group {
   margin-bottom: 1.5rem;
 }
-
 .form-group label {
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 500;
 }
-
 .form-group input,
-.form-group textarea {
+.form-group textarea,
+.form-group select {
   width: 100%;
   padding: 0.8rem;
   border: 1px solid #ddd;
   border-radius: 8px;
   font-size: 1rem;
+  background: white;
 }
-
 .form-group textarea {
   min-height: 100px;
   resize: vertical;
@@ -154,11 +126,9 @@
   gap: 0.5rem;
   margin-bottom: 0.5rem;
 }
-
 .opcion-input input {
   flex: 1;
 }
-
 .opcion-input button {
   background: #ff7675;
   color: white;
@@ -167,11 +137,10 @@
   border-radius: 8px;
   cursor: pointer;
 }
-
 .add-opcion {
   background: none;
   border: none;
-  color: #6c5ce7;
+  color: var(--secondary);
   cursor: pointer;
   font-size: 0.9rem;
   display: flex;
@@ -179,28 +148,24 @@
   gap: 0.3rem;
   margin-top: 0.5rem;
 }
-
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
   margin-top: 1.5rem;
 }
-
 .modal-actions button {
   padding: 0.8rem 1.5rem;
   border-radius: 8px;
   cursor: pointer;
   font-size: 1rem;
 }
-
 .modal-actions button:first-child {
   background: #f5f6fa;
   border: 1px solid #ddd;
 }
-
 .modal-actions button:last-child {
-  background: #6c5ce7;
+  background: var(--secondary);
   color: white;
   border: none;
 }
@@ -209,29 +174,18 @@
 .votaciones-section {
   margin-bottom: 3rem;
 }
-
-/*
-.votaciones-section {
-  color: #2d3436;
-  border-bottom: 2px solid #f5f6fa;
-  padding-bottom: 0.5rem;
-  margin-bottom: 1.5rem;
-}*/
-
 .votaciones-section-activas {
   color: #29f68c;
   border-bottom: 2px solid #f5f6fa;
   padding-bottom: 0.5rem;
   margin-bottom: 1.5rem;
 }
-
 .votaciones-section-expiradas {
   color: #ff4221;
   border-bottom: 2px solid #f5f6fa;
   padding-bottom: 0.5rem;
   margin-bottom: 1.5rem;
 }
-
 .no-votaciones {
   color: #636e72;
   font-style: italic;
@@ -260,10 +214,17 @@
   flex-direction: column;
   gap: 1rem;
 }
-
 .votacion-card:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+}
+
+.tipo-label {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--dark);
+  text-align: left;
+  margin-bottom: 0.5rem;
 }
 
 .qr-container {
@@ -275,35 +236,29 @@
   justify-content: center;
   align-self: center;
 }
-
 .votacion-link {
   word-break: break-all;
   font-size: 0.9rem;
-  color: #6c5ce7;
+  color: var(--secondary);
   text-align: center;
 }
-
 .votacion-link a {
   color: inherit;
   text-decoration: none;
 }
-
 .votacion-link a:hover {
   text-decoration: underline;
 }
-
 .votacion-card h3 {
   margin: 0;
-  color: #2d3436;
+  color: var(--dark);
   font-size: 1.2rem;
 }
-
 .descripcion {
   color: #636e72;
   font-size: 0.9rem;
   margin: 0;
 }
-
 .fechas {
   font-size: 0.85rem;
   color: #636e72;
@@ -311,27 +266,21 @@
   flex-direction: column;
   gap: 0.3rem;
 }
-
 .opciones {
   font-size: 0.9rem;
   color: #636e72;
 }
-
 .opciones ul {
-  margin: 0.5rem 0 0 0;
-  padding-left: 1.2rem;
+  margin: 0.5rem 0 0 1.2rem;
 }
-
 .opciones li {
   margin-bottom: 0.2rem;
 }
-
 .card-actions {
   display: flex;
   gap: 0.5rem;
   margin-top: 0.5rem;
 }
-
 .edit-button,
 .delete-button {
   flex: 1;
@@ -344,60 +293,16 @@
   justify-content: center;
   gap: 0.3rem;
 }
-
 .edit-button {
   background: #f5f6fa;
   border: 1px solid #ddd;
-  color: #2d3436;
+  color: var(--dark);
 }
-
 .delete-button {
   background: #ff7675;
   border: 1px solid #e17076;
   color: white;
 }
-
-.stats-button {
-  display: block;
-  text-align: center;
-  background: #6c5ce7;
-  color: white;
-  padding: 0.8rem;
-  border-radius: 8px;
-  text-decoration: none;
-  margin-top: 1rem;
-  transition: background 0.3s ease;
-}
-
-.stats-button:hover {
-  background: #5649c0;
-}
-.form-group select {
-  width: 100%;
-  padding: 0.8rem;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 1rem;
-  background: white;
-}
-
-.state-label {
-  text-align: center;
-  font-size: 0.9rem;
-  font-weight: 500;
-  padding: 0.3rem 0.5rem;
-  border-radius: 6px;
-  color: white;
-  background: var(--success); /* por defecto “en progreso” verde */
-  max-width: fit-content;
-  margin: 0 auto;
-}
-/* Cuando el estado sea “expirada”, asumimos que el HTML le inyecta la clase .expirada */
-.state-label.expirada {
-  background: var(--error);
-}
-
-/* Botón de alternar estado */
 .toggle-button {
   flex: 1;
   padding: 0.5rem;
@@ -417,6 +322,34 @@
   background: var(--primary);
   transform: translateY(-1px);
 }
+.state-label {
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  color: white;
+  background: var(--success);
+  max-width: fit-content;
+  margin: 0 auto;
+}
+.state-label.expirada {
+  background: var(--error);
+}
+.stats-button {
+  display: block;
+  text-align: center;
+  background: var(--secondary);
+  color: white;
+  padding: 0.8rem;
+  border-radius: 8px;
+  text-decoration: none;
+  margin-top: 1rem;
+  transition: background 0.3s ease;
+}
+.stats-button:hover {
+  background: var(--primary);
+}
 
 /* Responsive */
 @media (max-width: 768px) {
@@ -426,7 +359,6 @@
   .dashboard-container {
     padding: 1rem;
   }
-
   .votaciones-grid {
     grid-template-columns: 1fr;
   }

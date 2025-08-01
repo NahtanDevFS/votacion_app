@@ -76,7 +76,7 @@ export default function Sidebar({ isOpen, onToggle, isMobile }: SidebarProps) {
               <span className="nav-icon">📊</span>
               {(!isMobile || isOpen) && (
                 <>
-                  <span className="nav-text">Dashboard</span>
+                  <span className="nav-text">Dashboard votaciones</span>
                   <span className="nav-arrow">→</span>
                 </>
               )}

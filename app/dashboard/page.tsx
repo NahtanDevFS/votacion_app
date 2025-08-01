@@ -1,4 +1,3 @@
-// app/dashboard/page.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -6,6 +5,8 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import QRCode from "react-qr-code";
 import "./Dashboard.css";
+
+type VotacionType = "opcion_unica" | "opcion_multiple";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -17,12 +18,11 @@ export default function DashboardPage() {
   const [newVotacion, setNewVotacion] = useState({
     titulo: "",
     descripcion: "",
-    fecha_fin: "",
     opciones: [""],
     estado: "en_progreso",
+    tipo_votacion: "opcion_unica" as VotacionType,
   });
 
-  // 1) Carga las votaciones
   const fetchVotaciones = useCallback(async () => {
     setLoading(true);
     const user = JSON.parse(localStorage.getItem("admin") || "{}");
@@ -31,11 +31,8 @@ export default function DashboardPage() {
       .select("*, opcion_votacion(*)")
       .eq("creado_por", user.id)
       .order("id", { ascending: false });
-    if (error) {
-      console.error("Error fetching votaciones:", error);
-    } else {
-      setVotaciones(data || []);
-    }
+    if (error) console.error("Error fetching votaciones:", error);
+    else setVotaciones(data || []);
     setLoading(false);
   }, []);
 
@@ -43,13 +40,8 @@ export default function DashboardPage() {
     fetchVotaciones();
   }, [fetchVotaciones]);
 
-  // 2) Crear Votación
   const handleCreateVotacion = async () => {
-    if (
-      !newVotacion.titulo ||
-      !newVotacion.descripcion ||
-      !newVotacion.fecha_fin
-    ) {
+    if (!newVotacion.titulo || !newVotacion.descripcion) {
       alert("Por favor complete todos los campos requeridos");
       return;
     }
@@ -59,10 +51,8 @@ export default function DashboardPage() {
     }
 
     const now = new Date();
-    const nowUTC = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-    const selected = new Date(newVotacion.fecha_fin);
-    const fechaFinUTC = new Date(
-      selected.getTime() - selected.getTimezoneOffset() * 60000
+    const nowUTC = new Date(
+      now.getTime() - now.getTimezoneOffset() * 60000
     ).toISOString();
 
     const user = JSON.parse(localStorage.getItem("admin") || "{}");
@@ -74,9 +64,9 @@ export default function DashboardPage() {
         {
           titulo: newVotacion.titulo,
           descripcion: newVotacion.descripcion,
-          fecha_inicio: nowUTC.toISOString(),
-          fecha_fin: fechaFinUTC,
+          fecha_inicio: nowUTC,
           estado: newVotacion.estado,
+          tipo_votacion: newVotacion.tipo_votacion,
           token_link,
           creado_por: user.id,
         },
@@ -111,31 +101,26 @@ export default function DashboardPage() {
     setNewVotacion({
       titulo: "",
       descripcion: "",
-      fecha_fin: "",
       opciones: [""],
       estado: "en_progreso",
+      tipo_votacion: "opcion_unica",
     });
   };
 
-  // 3) Editar Votación
   const handleEditClick = (votacion: any) => {
     setCurrentVotacion(votacion);
     setNewVotacion({
       titulo: votacion.titulo,
       descripcion: votacion.descripcion,
-      fecha_fin: formatDateTimeLocal(votacion.fecha_fin),
       opciones: votacion.opcion_votacion.map((op: any) => op.nombre),
       estado: votacion.estado,
+      tipo_votacion: votacion.tipo_votacion,
     });
     setShowEditModal(true);
   };
 
   const handleUpdateVotacion = async () => {
-    if (
-      !newVotacion.titulo ||
-      !newVotacion.descripcion ||
-      !newVotacion.fecha_fin
-    ) {
+    if (!newVotacion.titulo || !newVotacion.descripcion) {
       alert("Por favor complete todos los campos requeridos");
       return;
     }
@@ -144,18 +129,13 @@ export default function DashboardPage() {
       return;
     }
 
-    const selected = new Date(newVotacion.fecha_fin);
-    const fechaFinUTC = new Date(
-      selected.getTime() - selected.getTimezoneOffset() * 60000
-    ).toISOString();
-
     const { data, error } = await supabase
       .from("votacion")
       .update({
         titulo: newVotacion.titulo,
         descripcion: newVotacion.descripcion,
-        fecha_fin: fechaFinUTC,
         estado: newVotacion.estado,
+        tipo_votacion: newVotacion.tipo_votacion,
       })
       .eq("id", currentVotacion.id)
       .select();
@@ -165,7 +145,6 @@ export default function DashboardPage() {
       return;
     }
 
-    // Reemplazar opciones
     await supabase
       .from("opcion_votacion")
       .delete()
@@ -192,7 +171,6 @@ export default function DashboardPage() {
     setCurrentVotacion(null);
   };
 
-  // 4) Eliminar
   const handleDeleteVotacion = async (id: number) => {
     if (!confirm("¿Estás seguro de eliminar esta votación?")) return;
     const { error } = await supabase.from("votacion").delete().eq("id", id);
@@ -204,7 +182,6 @@ export default function DashboardPage() {
     }
   };
 
-  // 5) Toggle estado
   const handleToggleState = async (v: any) => {
     const newState = v.estado === "en_progreso" ? "expirada" : "en_progreso";
     const { error } = await supabase
@@ -219,7 +196,6 @@ export default function DashboardPage() {
     }
   };
 
-  // 6) Filtrar por estado
   const votacionesActivas = votaciones.filter(
     (v) => v.estado === "en_progreso"
   );
@@ -237,6 +213,17 @@ export default function DashboardPage() {
         >
           + Crear Nueva Votación
         </button>
+      </div>
+
+      <div className="tipo-info">
+        <p>
+          <strong>Opción única:</strong> El votante solo puede seleccionar{" "}
+          <em>una</em> opción.
+        </p>
+        <p>
+          <strong>Opción múltiple:</strong> El votante puede seleccionar{" "}
+          <em>varias</em> opciones.
+        </p>
       </div>
 
       {/* Crear Modal */}
@@ -269,30 +256,30 @@ export default function DashboardPage() {
               />
             </div>
             <div className="form-group">
-              <label>Fecha de Finalización *</label>
-              <input
-                type="datetime-local"
-                value={newVotacion.fecha_fin}
-                onChange={(e) =>
-                  setNewVotacion({ ...newVotacion, fecha_fin: e.target.value })
-                }
-                min={formatDateTimeLocal(new Date())}
-                required
-              />
-            </div>
-            <div className="form-group">
               <label>Estado *</label>
               <select
                 value={newVotacion.estado}
                 onChange={(e) =>
-                  setNewVotacion({
-                    ...newVotacion,
-                    estado: e.target.value,
-                  })
+                  setNewVotacion({ ...newVotacion, estado: e.target.value })
                 }
               >
                 <option value="en_progreso">En progreso</option>
                 <option value="expirada">Expirada</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Tipo de Votación *</label>
+              <select
+                value={newVotacion.tipo_votacion}
+                onChange={(e) =>
+                  setNewVotacion({
+                    ...newVotacion,
+                    tipo_votacion: e.target.value as VotacionType,
+                  })
+                }
+              >
+                <option value="opcion_unica">Opción única</option>
+                <option value="opcion_multiple">Opción múltiple</option>
               </select>
             </div>
             <div className="form-group">
@@ -351,6 +338,7 @@ export default function DashboardPage() {
         <div className="modal-overlay">
           <div className="modal-content">
             <h2>Editar Votación</h2>
+            {/* … misma estructura que Crear Modal, incluyendo select de tipo_votacion … */}
             <div className="form-group">
               <label>Título *</label>
               <input
@@ -376,30 +364,30 @@ export default function DashboardPage() {
               />
             </div>
             <div className="form-group">
-              <label>Fecha de Finalización *</label>
-              <input
-                type="datetime-local"
-                value={newVotacion.fecha_fin}
-                onChange={(e) =>
-                  setNewVotacion({ ...newVotacion, fecha_fin: e.target.value })
-                }
-                min={formatDateTimeLocal(new Date())}
-                required
-              />
-            </div>
-            <div className="form-group">
               <label>Estado *</label>
               <select
                 value={newVotacion.estado}
                 onChange={(e) =>
-                  setNewVotacion({
-                    ...newVotacion,
-                    estado: e.target.value,
-                  })
+                  setNewVotacion({ ...newVotacion, estado: e.target.value })
                 }
               >
                 <option value="en_progreso">En progreso</option>
                 <option value="expirada">Expirada</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label>Tipo de Votación *</label>
+              <select
+                value={newVotacion.tipo_votacion}
+                onChange={(e) =>
+                  setNewVotacion({
+                    ...newVotacion,
+                    tipo_votacion: e.target.value as VotacionType,
+                  })
+                }
+              >
+                <option value="opcion_unica">Opción única</option>
+                <option value="opcion_multiple">Opción múltiple</option>
               </select>
             </div>
             <div className="form-group">
@@ -451,7 +439,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Activas */}
       <section className="votaciones-section">
         <h2 className="votaciones-section-activas">Votaciones Activas</h2>
         {votacionesActivas.length === 0 ? (
@@ -471,7 +458,6 @@ export default function DashboardPage() {
         )}
       </section>
 
-      {/* Expiradas */}
       <section className="votaciones-section">
         <h2 className="votaciones-section-expiradas">Votaciones Expiradas</h2>
         {votacionesExpiradas.length === 0 ? (
@@ -493,8 +479,6 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-// Helpers y componentes
 
 function generateToken() {
   return (
@@ -546,14 +530,18 @@ function VotacionCard({
           {votacionUrl}
         </a>
       </div>
+
+      <div className="tipo-label">
+        <strong>Tipo de votación:</strong>{" "}
+        {votacion.tipo_votacion === "opcion_unica"
+          ? "Opción única"
+          : "Opción múltiple"}
+      </div>
       <h3>{votacion.titulo}</h3>
       <p className="descripcion">{votacion.descripcion}</p>
       <div className="fechas">
         <div>
           <strong>Creada:</strong> {formatDate(votacion.fecha_inicio)}
-        </div>
-        <div>
-          <strong>Expira:</strong> {formatDate(votacion.fecha_fin)}
         </div>
       </div>
       <div className="opciones">

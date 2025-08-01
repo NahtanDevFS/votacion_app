@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import FingerprintJS from "@fingerprintjs/fingerprintjs";
@@ -9,24 +9,13 @@ import "./VotacionPage.css";
 export default function VotacionPage() {
   const { token } = useParams() as { token: string };
   const [votacion, setVotacion] = useState<any>(null);
-  const [selectedOpcion, setSelectedOpcion] = useState<number | null>(null);
+  const [selectedOpciones, setSelectedOpciones] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [fingerprint, setFingerprint] = useState("");
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString("es-ES", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "UTC",
-    });
-  };
-
-  // 1) fingerprint
+  // 1) Obtén fingerprint
   useEffect(() => {
     (async () => {
       try {
@@ -39,7 +28,7 @@ export default function VotacionPage() {
     })();
   }, []);
 
-  // 2) fetch votación + check voto previo
+  // 2) Carga votación y valida voto previo
   useEffect(() => {
     if (!fingerprint) return;
 
@@ -76,9 +65,22 @@ export default function VotacionPage() {
     })();
   }, [fingerprint, token]);
 
+  // Maneja selección de opción(s)
+  const handleSelect = (id: number) => {
+    if (votacion.tipo_votacion === "opcion_multiple") {
+      setSelectedOpciones((prev) =>
+        prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+      );
+    } else {
+      setSelectedOpciones([id]);
+    }
+    setError("");
+  };
+
+  // 3) Envía voto(s)
   const handleVotar = async () => {
-    if (!selectedOpcion) {
-      setError("Selecciona una opción para votar");
+    if (selectedOpciones.length === 0) {
+      setError("Selecciona al menos una opción para votar");
       return;
     }
     if (!fingerprint) {
@@ -86,14 +88,17 @@ export default function VotacionPage() {
       return;
     }
 
-    const { error: err } = await supabase.from("voto_participante").insert([
-      {
-        votacion_id: votacion.id,
-        opcion_votacion_id: selectedOpcion,
-        fingerprint_device_hash: fingerprint,
-        user_agent: navigator.userAgent,
-      },
-    ]);
+    const inserts = selectedOpciones.map((id) => ({
+      votacion_id: votacion.id,
+      opcion_votacion_id: id,
+      fingerprint_device_hash: fingerprint,
+      user_agent: navigator.userAgent,
+    }));
+
+    const { error: err } = await supabase
+      .from("voto_participante")
+      .insert(inserts);
+
     if (err) {
       console.error(err);
       setError("Error al registrar tu voto");
@@ -103,7 +108,7 @@ export default function VotacionPage() {
     }
   };
 
-  // 3) expired by estado
+  // 4) Comprueba si la votación está expirada
   const expired = votacion?.estado === "expirada";
 
   if (loading) return <div className="loading">Cargando...</div>;
@@ -115,9 +120,7 @@ export default function VotacionPage() {
         <h1>{votacion.titulo}</h1>
         <p className="descripcion">{votacion.descripcion}</p>
         <div className="fechas">
-          <span>
-            Válida hasta que cambie su estado a <b>expirada</b>:
-          </span>
+          <span>Estado de la votación:</span>
           <div className={`state-label ${votacion.estado}`}>
             {votacion.estado === "en_progreso" ? "En progreso" : "Expirada"}
           </div>
@@ -132,6 +135,11 @@ export default function VotacionPage() {
         </div>
       ) : (
         <>
+          <div className="info-selection">
+            {votacion.tipo_votacion === "opcion_multiple"
+              ? "Votación de opción múltiple: Selecciona una o más opciones"
+              : "Votación de opción única: Selecciona una sola opción"}
+          </div>
           <div className="opciones-container">
             <h2>Opciones:</h2>
             <div className="opciones-grid">
@@ -139,9 +147,9 @@ export default function VotacionPage() {
                 <div
                   key={op.id}
                   className={`opcion-card ${
-                    selectedOpcion === op.id ? "selected" : ""
+                    selectedOpciones.includes(op.id) ? "selected" : ""
                   }`}
-                  onClick={() => setSelectedOpcion(op.id)}
+                  onClick={() => handleSelect(op.id)}
                 >
                   {op.nombre}
                 </div>
@@ -152,7 +160,7 @@ export default function VotacionPage() {
           <button
             className="votar-button"
             onClick={handleVotar}
-            disabled={!!success || expired || !!error}
+            disabled={!!success || expired}
           >
             Votar
           </button>
