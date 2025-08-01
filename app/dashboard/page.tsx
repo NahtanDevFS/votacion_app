@@ -5,6 +5,8 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import QRCode from "react-qr-code";
 import "./Dashboard.css";
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
 
 type VotacionType = "opcion_unica" | "opcion_multiple";
 
@@ -42,11 +44,21 @@ export default function DashboardPage() {
 
   const handleCreateVotacion = async () => {
     if (!newVotacion.titulo || !newVotacion.descripcion) {
-      alert("Por favor complete todos los campos requeridos");
+      Swal.fire({
+        icon: "warning",
+        title: "Campos incompletos",
+        text: "Por favor complete todos los campos requeridos.",
+        confirmButtonColor: "#6200ff",
+      });
       return;
     }
     if (newVotacion.opciones.filter((o) => o.trim()).length === 0) {
-      alert("Debe agregar al menos una opción de votación");
+      Swal.fire({
+        icon: "warning",
+        title: "Sin opciones",
+        text: "Debe agregar al menos una opción de votación.",
+        confirmButtonColor: "#6200ff",
+      });
       return;
     }
 
@@ -105,6 +117,13 @@ export default function DashboardPage() {
       estado: "en_progreso",
       tipo_votacion: "opcion_unica",
     });
+
+    Swal.fire({
+      icon: "success",
+      title: "Votación creada",
+      text: "Tu votación ha sido creada correctamente.",
+      confirmButtonColor: "#6200ff",
+    });
   };
 
   const handleEditClick = (votacion: any) => {
@@ -121,11 +140,21 @@ export default function DashboardPage() {
 
   const handleUpdateVotacion = async () => {
     if (!newVotacion.titulo || !newVotacion.descripcion) {
-      alert("Por favor complete todos los campos requeridos");
+      Swal.fire({
+        icon: "warning",
+        title: "Campos incompletos",
+        text: "Por favor complete todos los campos requeridos.",
+        confirmButtonColor: "#6200ff",
+      });
       return;
     }
     if (newVotacion.opciones.filter((o) => o.trim()).length === 0) {
-      alert("Debe agregar al menos una opción de votación");
+      Swal.fire({
+        icon: "warning",
+        title: "Sin opciones",
+        text: "Debe agregar al menos una opción de votación.",
+        confirmButtonColor: "#6200ff",
+      });
       return;
     }
 
@@ -141,7 +170,11 @@ export default function DashboardPage() {
       .select();
     if (error || !data) {
       console.error("Error updating votacion:", error);
-      alert("Error al actualizar la votación");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudo actualizar la votación.",
+      });
       return;
     }
 
@@ -162,23 +195,53 @@ export default function DashboardPage() {
       );
     if (opcionesError) {
       console.error("Error updating opciones:", opcionesError);
-      alert("Error al actualizar las opciones de votación");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudo actualizar las opciones de votación.",
+      });
       return;
     }
 
     await fetchVotaciones();
     setShowEditModal(false);
     setCurrentVotacion(null);
+    Swal.fire({
+      icon: "success",
+      title: "Votación actualizada",
+      text: "Los cambios se han guardado correctamente.",
+      confirmButtonColor: "#6200ff",
+    });
   };
 
   const handleDeleteVotacion = async (id: number) => {
-    if (!confirm("¿Estás seguro de eliminar esta votación?")) return;
+    const result = await Swal.fire({
+      title: "¿Estás seguro?",
+      text: "Esta acción no se puede deshacer.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Sí, eliminar",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#d63031",
+      cancelButtonColor: "#6200ff",
+    });
+    if (!result.isConfirmed) return;
     const { error } = await supabase.from("votacion").delete().eq("id", id);
     if (error) {
       console.error("Error deleting votacion:", error);
-      alert("Error al eliminar la votación");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudo eliminar la votación.",
+      });
     } else {
       setVotaciones(votaciones.filter((v) => v.id !== id));
+      Swal.fire({
+        icon: "success",
+        title: "Eliminado",
+        text: "La votación ha sido eliminada.",
+        confirmButtonColor: "#6200ff",
+      });
     }
   };
 
@@ -190,7 +253,11 @@ export default function DashboardPage() {
       .eq("id", v.id);
     if (error) {
       console.error("Error toggling estado:", error);
-      alert("Error al cambiar el estado de la votación");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudo cambiar el estado.",
+      });
     } else {
       await fetchVotaciones();
     }
