@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
 import "./Login.css";
 
 type AuthMode = "login" | "register" | "forgot";
@@ -63,6 +65,14 @@ export default function AuthPage() {
       60 * 60 * 24 * 365
     }`;
     localStorage.setItem("admin", JSON.stringify(profile));
+    // SweetAlert de éxito antes de redirigir
+    await Swal.fire({
+      icon: "success",
+      title: "¡Bienvenido!",
+      text: `Has iniciado sesión como ${profile.nombre}`,
+      confirmButtonColor: "#6200ff",
+    });
+    //redirección
     router.push("/dashboard");
     router.refresh();
   };
