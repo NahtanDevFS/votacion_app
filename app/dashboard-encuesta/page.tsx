@@ -777,6 +777,25 @@ function EncuestaCard({
       minute: "2-digit",
     });
 
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(encuesta.token_link);
+      Swal.fire({
+        icon: "success",
+        title: "Código copiado",
+        text: `Códido "${encuesta.token_link}" copiado al portapapeles.`,
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } catch {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudo copiar el código.",
+      });
+    }
+  };
+
   return (
     <div className="votacion-card">
       <div className="qr-container">
@@ -787,10 +806,20 @@ function EncuestaCard({
           {url}
         </a>
       </div>
+      {/* New code + copy button */}
+      <div className="votacion-code">
+        <div className="votacion-code-title">Código de encuesta: </div>
+        <div className="votacion-code-container">
+          <code className="code-text">{encuesta.token_link}</code>
+          <button className="copy-button" onClick={copyCode}>
+            Copiar
+          </button>
+        </div>
+      </div>
       <h3>{encuesta.titulo}</h3>
       <p className="descripcion">{encuesta.descripcion}</p>
       <div className="tipo-label">
-        <strong>N.º incisos:</strong> {encuesta.inciso_encuesta.length}
+        <strong>N. incisos:</strong> {encuesta.inciso_encuesta.length}
       </div>
       <div className="fechas">
         <div>

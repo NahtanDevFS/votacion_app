@@ -587,6 +587,25 @@ function VotacionCard({
       minute: "2-digit",
     });
 
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(votacion.token_link);
+      Swal.fire({
+        icon: "success",
+        title: "Código copiado",
+        text: `Códido "${votacion.token_link}" copiado al portapapeles.`,
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    } catch {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudo copiar el código.",
+      });
+    }
+  };
+
   return (
     <div className="votacion-card">
       <div className="qr-container">
@@ -596,6 +615,16 @@ function VotacionCard({
         <a href={votacionUrl} target="_blank" rel="noopener noreferrer">
           {votacionUrl}
         </a>
+      </div>
+      {/* New code + copy button */}
+      <div className="votacion-code">
+        <div className="votacion-code-title">Código de votación: </div>
+        <div className="votacion-code-container">
+          <code className="code-text">{votacion.token_link}</code>
+          <button className="copy-button" onClick={copyCode}>
+            Copiar
+          </button>
+        </div>
       </div>
 
       <div className="tipo-label">
