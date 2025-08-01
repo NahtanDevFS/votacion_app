@@ -115,7 +115,9 @@ export default function VotacionPage() {
         <h1>{votacion.titulo}</h1>
         <p className="descripcion">{votacion.descripcion}</p>
         <div className="fechas">
-          <span>Válida hasta que cambie su estado a "expirada":</span>
+          <span>
+            Válida hasta que cambie su estado a <b>expirada</b>:
+          </span>
           <div className={`state-label ${votacion.estado}`}>
             {votacion.estado === "en_progreso" ? "En progreso" : "Expirada"}
           </div>
