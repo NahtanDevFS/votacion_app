@@ -5,6 +5,8 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import FingerprintJS from "@fingerprintjs/fingerprintjs";
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
 import "./EncuestaPage.css";
 
 type TipoOption = "opcion_unica" | "opcion_multiple";
@@ -115,11 +117,16 @@ export default function EncuestaVotarPage() {
   // 3) Enviar voto(s)
   const handleVotar = async () => {
     if (!encuesta) return;
-    // asegurar al menos una opción por inciso
+    // validar cada inciso
     for (const inc of encuesta.inciso_encuesta) {
       const sel = selectedMap[inc.id] || [];
       if (sel.length === 0) {
-        setError(`Selecciona al menos una opción en el inciso "${inc.texto}"`);
+        await Swal.fire({
+          icon: "warning",
+          title: "¡Falta seleccionar!",
+          text: `Por favor selecciona al menos una opción en el inciso:\n"${inc.texto}"`,
+          confirmButtonColor: "#6200ff",
+        });
         return;
       }
     }
@@ -180,12 +187,6 @@ export default function EncuestaVotarPage() {
         </div>
       ) : (
         <>
-          {/*<div className="info-selection">
-            {encuesta?.tipo_encuesta === "opcion_multiple"
-              ? "Encuesta de opción múltiple: Selecciona una o más opciones por inciso"
-              : "Encuesta de opción única: Selecciona una sola opción por inciso"}
-          </div>*/}
-
           {encuesta?.inciso_encuesta.map((inc) => (
             <div key={inc.id} className="inciso-section">
               <h2>{inc.texto}</h2>

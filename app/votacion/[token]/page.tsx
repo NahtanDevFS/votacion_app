@@ -1,9 +1,12 @@
+// app/votacion/[token]/page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import FingerprintJS from "@fingerprintjs/fingerprintjs";
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
 import "./VotacionPage.css";
 
 export default function VotacionPage() {
@@ -79,8 +82,14 @@ export default function VotacionPage() {
 
   // 3) Envía voto(s)
   const handleVotar = async () => {
+    // Si no hay selección, mostramos SweetAlert
     if (selectedOpciones.length === 0) {
-      setError("Selecciona al menos una opción para votar");
+      await Swal.fire({
+        icon: "warning",
+        title: "¡Espera!",
+        text: "El voto no puede estar vacío",
+        confirmButtonColor: "#6200ff",
+      });
       return;
     }
     if (!fingerprint) {
