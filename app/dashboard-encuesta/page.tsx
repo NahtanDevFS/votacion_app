@@ -5,6 +5,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import QRCode from "react-qr-code";
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
 import "./Dashboard_encuesta.css";
 
 type Estado = "en_progreso" | "expirada";
@@ -94,16 +96,31 @@ export default function DashboardEncuestaPage() {
 
   async function handleCreate() {
     if (!newEncuesta.titulo.trim() || !newEncuesta.descripcion.trim()) {
-      alert("Completa título y descripción");
+      Swal.fire({
+        icon: "warning",
+        title: "Campos incompletos",
+        text: "Completa título y descripción",
+        confirmButtonColor: "#6200ff",
+      });
       return;
     }
     for (const inc of newEncuesta.incisos) {
       if (!inc.texto.trim()) {
-        alert("Cada inciso debe tener texto");
+        Swal.fire({
+          icon: "warning",
+          title: "Inciso vacío",
+          text: "Cada inciso debe tener texto",
+          confirmButtonColor: "#6200ff",
+        });
         return;
       }
       if (!inc.opciones.some((o) => o.texto.trim())) {
-        alert("Cada inciso necesita al menos una opción");
+        Swal.fire({
+          icon: "warning",
+          title: "Opciones faltantes",
+          text: "Cada inciso necesita al menos una opción",
+          confirmButtonColor: "#6200ff",
+        });
         return;
       }
     }
@@ -113,7 +130,7 @@ export default function DashboardEncuestaPage() {
     ).toISOString();
     const user = JSON.parse(localStorage.getItem("admin") || "{}");
     const token_link = generateToken();
-
+    // Insert encuesta
     const { data: encuestaCreated, error: errEnc } = await supabase
       .from("encuesta")
       .insert([
@@ -130,10 +147,14 @@ export default function DashboardEncuestaPage() {
       .single();
     if (errEnc || !encuestaCreated) {
       console.error(errEnc);
-      alert("Error al crear encuesta");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Error al crear encuesta",
+      });
       return;
     }
-
+    // Insert incisos + opciones
     for (const inc of newEncuesta.incisos) {
       const { data: incCreated, error: errInc } = await supabase
         .from("inciso_encuesta")
@@ -148,7 +169,11 @@ export default function DashboardEncuestaPage() {
         .single();
       if (errInc || !incCreated) {
         console.error(errInc);
-        alert("Error al crear incisos");
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "Error al crear incisos",
+        });
         return;
       }
       const opcionesPayload = inc.opciones
@@ -162,7 +187,11 @@ export default function DashboardEncuestaPage() {
         .insert(opcionesPayload);
       if (errOpc) {
         console.error(errOpc);
-        alert("Error al crear opciones");
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "Error al crear opciones",
+        });
         return;
       }
     }
@@ -175,8 +204,14 @@ export default function DashboardEncuestaPage() {
       estado: "en_progreso",
       incisos: [emptyInciso()],
     });
+    Swal.fire({
+      icon: "success",
+      title: "Encuesta creada",
+      text: "Tu encuesta se ha creado correctamente.",
+      confirmButtonColor: "#6200ff",
+    });
   }
-
+  // Update
   function handleEditClick(enc: Encuesta) {
     setCurrentEncuesta(enc);
     setNewEncuesta({
@@ -199,16 +234,31 @@ export default function DashboardEncuestaPage() {
   async function handleUpdate() {
     if (!currentEncuesta) return;
     if (!newEncuesta.titulo.trim() || !newEncuesta.descripcion.trim()) {
-      alert("Completa título y descripción");
+      Swal.fire({
+        icon: "warning",
+        title: "Campos incompletos",
+        text: "Completa título y descripción",
+        confirmButtonColor: "#6200ff",
+      });
       return;
     }
     for (const inc of newEncuesta.incisos) {
       if (!inc.texto.trim()) {
-        alert("Cada inciso debe tener texto");
+        Swal.fire({
+          icon: "warning",
+          title: "Inciso vacío",
+          text: "Cada inciso debe tener texto",
+          confirmButtonColor: "#6200ff",
+        });
         return;
       }
       if (!inc.opciones.some((o) => o.texto.trim())) {
-        alert("Cada inciso necesita al menos una opción");
+        Swal.fire({
+          icon: "warning",
+          title: "Opciones faltantes",
+          text: "Cada inciso necesita al menos una opción",
+          confirmButtonColor: "#6200ff",
+        });
         return;
       }
     }
@@ -223,7 +273,11 @@ export default function DashboardEncuestaPage() {
       .eq("id", currentEncuesta.id);
     if (errEnc) {
       console.error(errEnc);
-      alert("Error al actualizar encuesta");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "Error al actualizar encuesta",
+      });
       return;
     }
 
@@ -245,7 +299,11 @@ export default function DashboardEncuestaPage() {
         .single();
       if (errInc || !incCreated) {
         console.error(errInc);
-        alert("Error al re-crear incisos");
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "Error al re-crear incisos",
+        });
         return;
       }
       const opcionesPayload = inc.opciones
@@ -256,7 +314,11 @@ export default function DashboardEncuestaPage() {
         .insert(opcionesPayload);
       if (errOpc) {
         console.error(errOpc);
-        alert("Error al re-crear opciones");
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "Error al re-crear opciones",
+        });
         return;
       }
     }
@@ -264,16 +326,43 @@ export default function DashboardEncuestaPage() {
     await fetchEncuestas();
     setShowEditModal(false);
     setCurrentEncuesta(null);
+
+    Swal.fire({
+      icon: "success",
+      title: "Encuesta actualizada",
+      text: "Los cambios se guardaron correctamente.",
+      confirmButtonColor: "#6200ff",
+    });
   }
 
   async function handleDelete(id: number) {
-    if (!confirm("¿Eliminar esta encuesta?")) return;
+    const result = await Swal.fire({
+      title: "¿Estás seguro?",
+      text: "Esta acción eliminará la encuesta.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Sí, eliminar",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#d63031",
+      cancelButtonColor: "#6200ff",
+    });
+    if (!result.isConfirmed) return;
     const { error } = await supabase.from("encuesta").delete().eq("id", id);
     if (error) {
       console.error(error);
-      alert("Error al eliminar");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudo eliminar la encuesta.",
+      });
     } else {
       setEncuestas((es) => es.filter((e) => e.id !== id));
+      Swal.fire({
+        icon: "success",
+        title: "Eliminada",
+        text: "La encuesta fue eliminada.",
+        confirmButtonColor: "#6200ff",
+      });
     }
   }
 
@@ -285,9 +374,19 @@ export default function DashboardEncuestaPage() {
       .eq("id", enc.id);
     if (error) {
       console.error(error);
-      alert("Error al cambiar estado");
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudo cambiar el estado.",
+      });
     } else {
       fetchEncuestas();
+      Swal.fire({
+        icon: "success",
+        title: "Cambiada",
+        text: "La encuesta fue cambiada de estado",
+        confirmButtonColor: "#6200ff",
+      });
     }
   }
 
