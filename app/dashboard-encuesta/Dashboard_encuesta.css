@@ -13,6 +13,7 @@
   padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
+  color: var(--dark);
 }
 
 /* Leyenda de tipo de inciso */
@@ -402,6 +403,91 @@
 }
 .stats-button:hover {
   background: var(--primary);
+}
+
+.opcion-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.image-upload-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.image-upload-label {
+  cursor: pointer;
+}
+
+.upload-button {
+  background-color: #f0f0f0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.upload-button:hover {
+  background-color: #e0e0e0;
+}
+
+.image-preview-container {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #ddd;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.image-preview {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.remove-image-button {
+  background: none;
+  border: none;
+  color: #ff4444;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+  margin-left: 4px;
+}
+
+.opciones-preview ul {
+  list-style-type: none;
+  padding-left: 0;
+  margin-top: 8px;
+}
+
+.opciones-preview li {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+  font-size: 14px;
+  color: #555;
+}
+
+.opciones-preview img {
+  border-radius: 4px;
+}
+
+@media (max-width: 768px) {
+  .opcion-input-container {
+    flex-direction: column;
+  }
+
+  .image-upload-container {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 /* Responsive */

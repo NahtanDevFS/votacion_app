@@ -1,4 +1,3 @@
-// app/encuesta/[token]/page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -15,6 +14,7 @@ type Estado = "en_progreso" | "expirada";
 interface Opcion {
   id: number;
   texto: string;
+  imagen_url: string | null;
 }
 
 interface Inciso {
@@ -206,7 +206,16 @@ export default function EncuestaVotarPage() {
                     }`}
                     onClick={() => handleSelect(inc.id, op.id, inc.tipo_inciso)}
                   >
-                    {op.texto}
+                    {op.imagen_url && (
+                      <div className="opcion-image-container">
+                        <img
+                          src={op.imagen_url}
+                          alt={op.texto}
+                          className="opcion-image"
+                        />
+                      </div>
+                    )}
+                    <div className="opcion-text">{op.texto}</div>
                   </div>
                 ))}
               </div>

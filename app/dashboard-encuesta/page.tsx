@@ -1,4 +1,3 @@
-// dashboard-encuesta/page.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -14,6 +13,9 @@ type Estado = "en_progreso" | "expirada";
 interface Opcion {
   id?: number;
   texto: string;
+  imagen?: File | null;
+  imagen_url?: string | null;
+  preview?: string;
 }
 
 interface Inciso {
@@ -34,7 +36,11 @@ interface Encuesta {
     id: number;
     texto: string;
     tipo_inciso: "opcion_unica" | "opcion_multiple";
-    opcion_encuesta: Array<{ id: number; texto: string }>;
+    opcion_encuesta: Array<{
+      id: number;
+      texto: string;
+      imagen_url: string | null;
+    }>;
   }>;
 }
 
@@ -63,6 +69,52 @@ export default function DashboardEncuestaPage() {
     estado: "en_progreso",
     incisos: [emptyInciso()],
   });
+
+  // Función para subir imágenes al bucket
+  const uploadImage = async (
+    file: File,
+    encuestaId: number,
+    opcionTexto: string
+  ) => {
+    const fileExt = file.name.split(".").pop();
+    const fileName =
+      `${encuestaId}_${opcionTexto}_${Math.random()}.${fileExt}`.replace(
+        /\s+/g,
+        "_"
+      );
+    const filePath = `${fileName}`;
+
+    const { data, error } = await supabase.storage
+      .from("imgs")
+      .upload(filePath, file);
+
+    if (error) {
+      console.error("Error uploading image:", error);
+      return null;
+    }
+
+    // Get public URL
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("imgs").getPublicUrl(filePath);
+
+    return publicUrl;
+  };
+
+  // Función para eliminar imágenes
+  const deleteImage = async (imageUrl: string) => {
+    const fileName = imageUrl.split("/").pop();
+    if (!fileName) return false;
+
+    const { error } = await supabase.storage.from("imgs").remove([fileName]);
+
+    if (error) {
+      console.error("Error deleting image:", error);
+      return false;
+    }
+
+    return true;
+  };
 
   const fetchEncuestas = useCallback(async () => {
     setLoading(true);
@@ -93,6 +145,52 @@ export default function DashboardEncuestaPage() {
   const generateToken = () =>
     Math.random().toString(36).substring(2, 15) +
     Math.random().toString(36).substring(2, 15);
+
+  // Manejar cambio de imagen para una opción
+  const handleImageChange = (
+    incisoIndex: number,
+    opcionIndex: number,
+    file: File | null
+  ) => {
+    const newIncisos = [...newEncuesta.incisos];
+
+    if (file) {
+      newIncisos[incisoIndex].opciones[opcionIndex] = {
+        ...newIncisos[incisoIndex].opciones[opcionIndex],
+        imagen: file,
+        preview: URL.createObjectURL(file),
+      };
+    } else {
+      // Si file es null (removido), mantener la imagen_url existente si existe
+      newIncisos[incisoIndex].opciones[opcionIndex] = {
+        ...newIncisos[incisoIndex].opciones[opcionIndex],
+        imagen: null,
+        preview:
+          newIncisos[incisoIndex].opciones[opcionIndex].imagen_url || undefined,
+      };
+    }
+
+    setNewEncuesta({
+      ...newEncuesta,
+      incisos: newIncisos,
+    });
+  };
+
+  // Remover imagen de una opción
+  const handleRemoveImage = (incisoIndex: number, opcionIndex: number) => {
+    const newIncisos = [...newEncuesta.incisos];
+    newIncisos[incisoIndex].opciones[opcionIndex] = {
+      ...newIncisos[incisoIndex].opciones[opcionIndex],
+      imagen: null,
+      imagen_url: null,
+      preview: undefined,
+    };
+
+    setNewEncuesta({
+      ...newEncuesta,
+      incisos: newIncisos,
+    });
+  };
 
   async function handleCreate() {
     if (!newEncuesta.titulo.trim() || !newEncuesta.descripcion.trim()) {
@@ -130,6 +228,7 @@ export default function DashboardEncuestaPage() {
     ).toISOString();
     const user = JSON.parse(localStorage.getItem("admin") || "{}");
     const token_link = generateToken();
+
     // Insert encuesta
     const { data: encuestaCreated, error: errEnc } = await supabase
       .from("encuesta")
@@ -154,6 +253,7 @@ export default function DashboardEncuestaPage() {
       });
       return;
     }
+
     // Insert incisos + opciones
     for (const inc of newEncuesta.incisos) {
       const { data: incCreated, error: errInc } = await supabase
@@ -176,12 +276,28 @@ export default function DashboardEncuestaPage() {
         });
         return;
       }
-      const opcionesPayload = inc.opciones
-        .filter((o) => o.texto.trim())
-        .map((o) => ({
-          inciso_id: incCreated.id,
-          texto: o.texto,
-        }));
+
+      // Subir imágenes y crear opciones
+      const opcionesPayload = await Promise.all(
+        inc.opciones
+          .filter((o) => o.texto.trim())
+          .map(async (op) => {
+            let imagen_url = null;
+            if (op.imagen) {
+              imagen_url = await uploadImage(
+                op.imagen,
+                encuestaCreated.id,
+                op.texto
+              );
+            }
+            return {
+              inciso_id: incCreated.id,
+              texto: op.texto,
+              imagen_url,
+            };
+          })
+      );
+
       const { error: errOpc } = await supabase
         .from("opcion_encuesta")
         .insert(opcionesPayload);
@@ -211,6 +327,7 @@ export default function DashboardEncuestaPage() {
       confirmButtonColor: "#6200ff",
     });
   }
+
   // Update
   function handleEditClick(enc: Encuesta) {
     setCurrentEncuesta(enc);
@@ -225,6 +342,8 @@ export default function DashboardEncuestaPage() {
         opciones: inc.opcion_encuesta.map((op) => ({
           id: op.id,
           texto: op.texto,
+          imagen_url: op.imagen_url,
+          preview: op.imagen_url || undefined,
         })),
       })),
     });
@@ -281,10 +400,19 @@ export default function DashboardEncuestaPage() {
       return;
     }
 
+    // Obtener opciones actuales para limpiar imágenes si es necesario
+    const { data: currentOptions } = await supabase
+      .from("opcion_encuesta")
+      .select("*")
+      .eq("inciso_id", currentEncuesta.inciso_encuesta[0].id);
+
+    // Eliminar incisos y opciones existentes
     await supabase
       .from("inciso_encuesta")
       .delete()
       .eq("encuesta_id", currentEncuesta.id);
+
+    // Crear nuevos incisos y opciones
     for (const inc of newEncuesta.incisos) {
       const { data: incCreated, error: errInc } = await supabase
         .from("inciso_encuesta")
@@ -306,9 +434,35 @@ export default function DashboardEncuestaPage() {
         });
         return;
       }
-      const opcionesPayload = inc.opciones
-        .filter((o) => o.texto.trim())
-        .map((o) => ({ inciso_id: incCreated.id, texto: o.texto }));
+
+      // Subir imágenes y crear opciones
+      const opcionesPayload = await Promise.all(
+        inc.opciones
+          .filter((o) => o.texto.trim())
+          .map(async (op) => {
+            let imagen_url = op.imagen_url || null;
+
+            // Si hay una nueva imagen, subirla
+            if (op.imagen) {
+              // Eliminar imagen anterior si existe
+              if (op.imagen_url) {
+                await deleteImage(op.imagen_url);
+              }
+              imagen_url = await uploadImage(
+                op.imagen,
+                currentEncuesta.id,
+                op.texto
+              );
+            }
+
+            return {
+              inciso_id: incCreated.id,
+              texto: op.texto,
+              imagen_url,
+            };
+          })
+      );
+
       const { error: errOpc } = await supabase
         .from("opcion_encuesta")
         .insert(opcionesPayload);
@@ -321,6 +475,22 @@ export default function DashboardEncuestaPage() {
         });
         return;
       }
+    }
+
+    // Limpiar imágenes de opciones eliminadas
+    if (currentOptions) {
+      const deletedOptions = currentOptions.filter(
+        (op: any) =>
+          !newEncuesta.incisos
+            .flatMap((inc) => inc.opciones)
+            .some((newOp) => newOp.id === op.id)
+      );
+
+      await Promise.all(
+        deletedOptions
+          .filter((op: any) => op.imagen_url)
+          .map((op: any) => deleteImage(op.imagen_url))
+      );
     }
 
     await fetchEncuestas();
@@ -347,6 +517,21 @@ export default function DashboardEncuestaPage() {
       cancelButtonColor: "#6200ff",
     });
     if (!result.isConfirmed) return;
+
+    // Primero obtener opciones para eliminar sus imágenes
+    const { data: options } = await supabase
+      .from("opcion_encuesta")
+      .select("imagen_url")
+      .eq("inciso_id", id);
+
+    if (options) {
+      await Promise.all(
+        options
+          .filter((op: any) => op.imagen_url)
+          .map((op: any) => deleteImage(op.imagen_url))
+      );
+    }
+
     const { error } = await supabase.from("encuesta").delete().eq("id", id);
     if (error) {
       console.error(error);
@@ -506,28 +691,68 @@ export default function DashboardEncuestaPage() {
                 <div>
                   <strong>Opciones:</strong>
                   {inc.opciones.map((op, j) => (
-                    <div key={j} className="opcion-input">
-                      <input
-                        type="text"
-                        value={op.texto}
-                        onChange={(e) => {
-                          const copy = [...newEncuesta.incisos];
-                          copy[i].opciones[j].texto = e.target.value;
-                          setNewEncuesta({ ...newEncuesta, incisos: copy });
-                        }}
-                        placeholder={`Opción ${j + 1}`}
-                      />
-                      {j > 0 && (
-                        <button
-                          onClick={() => {
+                    <div key={j} className="opcion-input-container">
+                      <div className="opcion-input">
+                        <input
+                          type="text"
+                          value={op.texto}
+                          onChange={(e) => {
                             const copy = [...newEncuesta.incisos];
-                            copy[i].opciones.splice(j, 1);
+                            copy[i].opciones[j].texto = e.target.value;
                             setNewEncuesta({ ...newEncuesta, incisos: copy });
                           }}
-                        >
-                          ✕
-                        </button>
-                      )}
+                          placeholder={`Opción ${j + 1}`}
+                        />
+                        {j > 0 && (
+                          <button
+                            onClick={() => {
+                              const copy = [...newEncuesta.incisos];
+                              copy[i].opciones.splice(j, 1);
+                              setNewEncuesta({ ...newEncuesta, incisos: copy });
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                      <div className="image-upload-container">
+                        <label className="image-upload-label">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) =>
+                              handleImageChange(
+                                i,
+                                j,
+                                e.target.files ? e.target.files[0] : null
+                              )
+                            }
+                            style={{ display: "none" }}
+                          />
+                          <span className="upload-button">
+                            {op.preview ? "Cambiar imagen" : "Agregar imagen"}
+                          </span>
+                        </label>
+                        {op.preview && (
+                          <>
+                            <div className="image-preview-container">
+                              <img
+                                src={op.preview}
+                                alt="Preview"
+                                className="image-preview"
+                                style={{ width: "30px", height: "30px" }}
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              className="remove-image-button"
+                              onClick={() => handleRemoveImage(i, j)}
+                            >
+                              ✕
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   ))}
                   <button
@@ -655,28 +880,68 @@ export default function DashboardEncuestaPage() {
                 <div>
                   <strong>Opciones:</strong>
                   {inc.opciones.map((op, j) => (
-                    <div key={j} className="opcion-input">
-                      <input
-                        type="text"
-                        value={op.texto}
-                        onChange={(e) => {
-                          const copy = [...newEncuesta.incisos];
-                          copy[i].opciones[j].texto = e.target.value;
-                          setNewEncuesta({ ...newEncuesta, incisos: copy });
-                        }}
-                        placeholder={`Opción ${j + 1}`}
-                      />
-                      {j > 0 && (
-                        <button
-                          onClick={() => {
+                    <div key={j} className="opcion-input-container">
+                      <div className="opcion-input">
+                        <input
+                          type="text"
+                          value={op.texto}
+                          onChange={(e) => {
                             const copy = [...newEncuesta.incisos];
-                            copy[i].opciones.splice(j, 1);
+                            copy[i].opciones[j].texto = e.target.value;
                             setNewEncuesta({ ...newEncuesta, incisos: copy });
                           }}
-                        >
-                          ✕
-                        </button>
-                      )}
+                          placeholder={`Opción ${j + 1}`}
+                        />
+                        {j > 0 && (
+                          <button
+                            onClick={() => {
+                              const copy = [...newEncuesta.incisos];
+                              copy[i].opciones.splice(j, 1);
+                              setNewEncuesta({ ...newEncuesta, incisos: copy });
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                      <div className="image-upload-container">
+                        <label className="image-upload-label">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) =>
+                              handleImageChange(
+                                i,
+                                j,
+                                e.target.files ? e.target.files[0] : null
+                              )
+                            }
+                            style={{ display: "none" }}
+                          />
+                          <span className="upload-button">
+                            {op.preview ? "Cambiar imagen" : "Agregar imagen"}
+                          </span>
+                        </label>
+                        {op.preview && (
+                          <>
+                            <div className="image-preview-container">
+                              <img
+                                src={op.preview}
+                                alt="Preview"
+                                className="image-preview"
+                                style={{ width: "30px", height: "30px" }}
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              className="remove-image-button"
+                              onClick={() => handleRemoveImage(i, j)}
+                            >
+                              ✕
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   ))}
                   <button
@@ -806,7 +1071,6 @@ function EncuestaCard({
           {url}
         </a>
       </div>
-      {/* New code + copy button */}
       <div className="votacion-code">
         <div className="votacion-code-title">Código de encuesta: </div>
         <div className="votacion-code-container">
@@ -825,6 +1089,34 @@ function EncuestaCard({
         <div>
           <strong>Creada:</strong> {formatDate(encuesta.fecha_inicio)}
         </div>
+      </div>
+      <div className="opciones-preview">
+        <strong>Opciones:</strong>
+        <ul>
+          {encuesta.inciso_encuesta[0]?.opcion_encuesta
+            ?.slice(0, 3)
+            .map((op) => (
+              <li key={op.id}>
+                {op.imagen_url && (
+                  <img
+                    src={op.imagen_url}
+                    alt={op.texto}
+                    style={{
+                      width: "30px",
+                      height: "30px",
+                      marginRight: "8px",
+                    }}
+                  />
+                )}
+                {op.texto}
+              </li>
+            ))}
+          {encuesta.inciso_encuesta[0]?.opcion_encuesta?.length > 3 && (
+            <li>
+              +{encuesta.inciso_encuesta[0].opcion_encuesta.length - 3} más...
+            </li>
+          )}
+        </ul>
       </div>
       <div className={`state-label ${encuesta.estado}`}>
         <em>
