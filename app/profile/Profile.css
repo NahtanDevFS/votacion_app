@@ -121,11 +121,11 @@
 .profile-info h1 {
   font-size: 2rem;
   margin-bottom: 0.5rem;
-  color: #e7ecfd;
+  color: #ffffff;
 }
 
 .profile-info p {
-  color: #e7ecfd;
+  color: #ffffff;
   opacity: 0.7;
   font-size: 1rem;
 }
@@ -135,10 +135,10 @@
   color: var(--dark);
 }
 
-.edit-button {
+.edit-button-profile {
   margin-left: auto;
   padding: 0.8rem 1.5rem;
-  background: var(--primary);
+  background: #0d00ff;
   color: white;
   border: none;
   border-radius: 50px;

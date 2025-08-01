@@ -1,0 +1,75 @@
+/* app/encuesta/EncuestaEntry.css */
+
+:root {
+  --primary: #8724ff;
+  --secondary: #6200ff;
+  --dark: #2d3436;
+  --card-bg: #ffffff;
+  --grad-start: #f5f6fa;
+  --grad-end: #e8d6ff;
+}
+
+.entry-viewport {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #8724ff, #a32aff);
+  padding: 2rem;
+}
+
+.entry-card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 2.5rem 2rem;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+}
+
+.entry-title {
+  margin-bottom: 1.5rem;
+  font-size: 1.8rem;
+  color: var(--dark);
+}
+
+.entry-input-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.entry-input {
+  flex: 1;
+  padding: 0.8rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  outline: none;
+}
+
+.entry-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 4px rgba(135, 36, 255, 0.3);
+}
+
+.entry-button {
+  background: var(--secondary);
+  color: white;
+  border: none;
+  padding: 0 1.2rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.entry-button:hover:not(:disabled) {
+  background: var(--primary);
+  transform: translateY(-2px);
+}
+
+.entry-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}

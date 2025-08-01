@@ -7,7 +7,7 @@
   flex: 1;
   transition: margin-left 0.3s ease;
   padding: 0rem;
-  background-color: #8400b5;
+  background: linear-gradient(135deg, #8724ff, #a32aff);
   margin-left: 80px; /* Ancho del sidebar colapsado */
 }
 
@@ -15,7 +15,7 @@
   flex: 1;
   transition: margin-left 0.3s ease;
   padding: 0rem;
-  background-color: #8400b5;
+  background: linear-gradient(135deg, #8724ff, #a32aff);
   margin-left: 0px; /* Ancho del sidebar colapsado */
 }
 

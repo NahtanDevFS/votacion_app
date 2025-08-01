@@ -45,7 +45,7 @@
 }
 
 .create-button {
-  background: var(--secondary);
+  background: #0d00ff;
   color: white;
   border: none;
   padding: 0.8rem 1.5rem;
@@ -58,7 +58,7 @@
   gap: 0.5rem;
 }
 .create-button:hover {
-  background: var(--primary);
+  background: #3b30ff;
   transform: translateY(-2px);
 }
 

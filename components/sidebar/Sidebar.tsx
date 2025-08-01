@@ -106,6 +106,18 @@ export default function Sidebar({ isOpen, onToggle, isMobile }: SidebarProps) {
                 </>
               )}
             </li>
+            <li
+              className={activeItem === "home" ? "active" : ""}
+              onClick={() => handleNavigation("")}
+            >
+              <span className="nav-icon">🏠</span>
+              {(!isMobile || isOpen) && (
+                <>
+                  <span className="nav-text">Inicio</span>
+                  <span className="nav-arrow">→</span>
+                </>
+              )}
+            </li>
 
             {/*<li
               className={activeItem === "settings" ? "active" : ""}

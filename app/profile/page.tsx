@@ -121,7 +121,7 @@ export default function ProfilePage() {
               {profile.nombre.charAt(0).toUpperCase()}
               {profile.apellido?.charAt(0).toUpperCase()}
             </div>
-            <div className="avatar-status"></div>
+            {/*<div className="avatar-status"></div>*/}
           </div>
 
           {!editMode ? (
@@ -138,7 +138,7 @@ export default function ProfilePage() {
           )}
 
           <button
-            className={`edit-button ${editMode ? "cancel" : ""}`}
+            className={`edit-button-profile ${editMode ? "cancel" : ""}`}
             onClick={() => {
               setEditMode(!editMode);
               setSuccessMessage("");
