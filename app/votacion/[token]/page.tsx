@@ -1,4 +1,3 @@
-// app/votacion/[token]/page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -70,7 +69,7 @@ export default function VotacionPage() {
 
   // Maneja selección de opción(s)
   const handleSelect = (id: number) => {
-    if (votacion.tipo_votacion === "opcion_multiple") {
+    if (votacion?.tipo_votacion === "opcion_multiple") {
       setSelectedOpciones((prev) =>
         prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
       );
@@ -82,6 +81,8 @@ export default function VotacionPage() {
 
   // 3) Envía voto(s)
   const handleVotar = async () => {
+    if (!votacion) return;
+
     // Si no hay selección, mostramos SweetAlert
     if (selectedOpciones.length === 0) {
       await Swal.fire({
@@ -126,12 +127,12 @@ export default function VotacionPage() {
   return (
     <div className="votacion-container">
       <div className="votacion-header">
-        <h1>{votacion.titulo}</h1>
-        <p className="descripcion">{votacion.descripcion}</p>
+        <h1>{votacion?.titulo}</h1>
+        <p className="descripcion">{votacion?.descripcion}</p>
         <div className="fechas">
           <span>Estado de la votación:</span>
-          <div className={`state-label ${votacion.estado}`}>
-            {votacion.estado === "en_progreso" ? "En progreso" : "Expirada"}
+          <div className={`state-label ${votacion?.estado}`}>
+            {votacion?.estado === "en_progreso" ? "En progreso" : "Expirada"}
           </div>
         </div>
       </div>
@@ -145,14 +146,14 @@ export default function VotacionPage() {
       ) : (
         <>
           <div className="info-selection">
-            {votacion.tipo_votacion === "opcion_multiple"
+            {votacion?.tipo_votacion === "opcion_multiple"
               ? "Votación de opción múltiple: Selecciona una o más opciones"
               : "Votación de opción única: Selecciona una sola opción"}
           </div>
           <div className="opciones-container">
             <h2>Opciones:</h2>
             <div className="opciones-grid">
-              {votacion.opcion_votacion.map((op: any) => (
+              {votacion?.opcion_votacion?.map((op: any) => (
                 <div
                   key={op.id}
                   className={`opcion-card ${
@@ -160,7 +161,16 @@ export default function VotacionPage() {
                   }`}
                   onClick={() => handleSelect(op.id)}
                 >
-                  {op.nombre}
+                  {op.imagen_url && (
+                    <div className="opcion-image-container">
+                      <img
+                        src={op.imagen_url}
+                        alt={op.nombre}
+                        className="opcion-image"
+                      />
+                    </div>
+                  )}
+                  <div className="opcion-text">{op.nombre}</div>
                 </div>
               ))}
             </div>

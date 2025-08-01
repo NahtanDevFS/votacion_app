@@ -10,6 +10,13 @@ import "sweetalert2/dist/sweetalert2.min.css";
 
 type VotacionType = "opcion_unica" | "opcion_multiple";
 
+interface Opcion {
+  nombre: string;
+  imagen?: File | null;
+  imagen_url?: string | null;
+  preview?: string;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [votaciones, setVotaciones] = useState<any[]>([]);
@@ -20,7 +27,8 @@ export default function DashboardPage() {
   const [newVotacion, setNewVotacion] = useState({
     titulo: "",
     descripcion: "",
-    opciones: [""],
+    opciones: [""] as string[],
+    opcionesConImagen: [] as Opcion[],
     estado: "en_progreso",
     tipo_votacion: "opcion_unica" as VotacionType,
   });
@@ -42,6 +50,50 @@ export default function DashboardPage() {
     fetchVotaciones();
   }, [fetchVotaciones]);
 
+  const uploadImage = async (
+    file: File,
+    votacionId: number,
+    opcionNombre: string
+  ) => {
+    const fileExt = file.name.split(".").pop();
+    const fileName =
+      `${votacionId}_${opcionNombre}_${Math.random()}.${fileExt}`.replace(
+        /\s+/g,
+        "_"
+      );
+    const filePath = `${fileName}`;
+
+    const { data, error } = await supabase.storage
+      .from("imgs")
+      .upload(filePath, file);
+
+    if (error) {
+      console.error("Error uploading image:", error);
+      return null;
+    }
+
+    // Get public URL
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("imgs").getPublicUrl(filePath);
+
+    return publicUrl;
+  };
+
+  const deleteImage = async (imageUrl: string) => {
+    const fileName = imageUrl.split("/").pop();
+    if (!fileName) return false;
+
+    const { error } = await supabase.storage.from("imgs").remove([fileName]);
+
+    if (error) {
+      console.error("Error deleting image:", error);
+      return false;
+    }
+
+    return true;
+  };
+
   const handleCreateVotacion = async () => {
     if (!newVotacion.titulo || !newVotacion.descripcion) {
       Swal.fire({
@@ -52,7 +104,11 @@ export default function DashboardPage() {
       });
       return;
     }
-    if (newVotacion.opciones.filter((o) => o.trim()).length === 0) {
+
+    const opcionesValidas = newVotacion.opcionesConImagen.filter((o) =>
+      o.nombre.trim()
+    );
+    if (opcionesValidas.length === 0) {
       Swal.fire({
         icon: "warning",
         title: "Sin opciones",
@@ -91,17 +147,31 @@ export default function DashboardPage() {
     }
 
     const votacionId = data[0].id;
+
+    // Upload images and create options
+    const opcionesConImagenes = await Promise.all(
+      opcionesValidas.map(async (opcion) => {
+        let imagen_url = null;
+        if (opcion.imagen) {
+          imagen_url = await uploadImage(
+            opcion.imagen,
+            votacionId,
+            opcion.nombre
+          );
+        }
+        return {
+          votacion_id: votacionId,
+          nombre: opcion.nombre.trim(),
+          imagen_url,
+          creado_en: new Date().toISOString(),
+        };
+      })
+    );
+
     const { error: opcionesError } = await supabase
       .from("opcion_votacion")
-      .insert(
-        newVotacion.opciones
-          .filter((o) => o.trim())
-          .map((opcion) => ({
-            votacion_id: votacionId,
-            nombre: opcion.trim(),
-            creado_en: new Date().toISOString(),
-          }))
-      );
+      .insert(opcionesConImagenes);
+
     if (opcionesError) {
       console.error("Error creating opciones:", opcionesError);
       alert("Error al crear las opciones de votación");
@@ -114,6 +184,7 @@ export default function DashboardPage() {
       titulo: "",
       descripcion: "",
       opciones: [""],
+      opcionesConImagen: [],
       estado: "en_progreso",
       tipo_votacion: "opcion_unica",
     });
@@ -132,6 +203,11 @@ export default function DashboardPage() {
       titulo: votacion.titulo,
       descripcion: votacion.descripcion,
       opciones: votacion.opcion_votacion.map((op: any) => op.nombre),
+      opcionesConImagen: votacion.opcion_votacion.map((op: any) => ({
+        nombre: op.nombre,
+        imagen_url: op.imagen_url,
+        preview: op.imagen_url || undefined,
+      })),
       estado: votacion.estado,
       tipo_votacion: votacion.tipo_votacion,
     });
@@ -148,7 +224,11 @@ export default function DashboardPage() {
       });
       return;
     }
-    if (newVotacion.opciones.filter((o) => o.trim()).length === 0) {
+
+    const opcionesValidas = newVotacion.opcionesConImagen.filter((o) =>
+      o.nombre.trim()
+    );
+    if (opcionesValidas.length === 0) {
       Swal.fire({
         icon: "warning",
         title: "Sin opciones",
@@ -178,21 +258,49 @@ export default function DashboardPage() {
       return;
     }
 
+    // Get current options to compare and delete old images if needed
+    const { data: currentOptions } = await supabase
+      .from("opcion_votacion")
+      .select("*")
+      .eq("votacion_id", currentVotacion.id);
+
+    // Delete old options
     await supabase
       .from("opcion_votacion")
       .delete()
       .eq("votacion_id", currentVotacion.id);
+
+    // Upload new images and create options
+    const opcionesConImagenes = await Promise.all(
+      opcionesValidas.map(async (opcion) => {
+        let imagen_url = opcion.imagen_url || null;
+
+        // If there's a new image, upload it
+        if (opcion.imagen) {
+          // Delete old image if it exists
+          if (opcion.imagen_url) {
+            await deleteImage(opcion.imagen_url);
+          }
+          imagen_url = await uploadImage(
+            opcion.imagen,
+            currentVotacion.id,
+            opcion.nombre
+          );
+        }
+
+        return {
+          votacion_id: currentVotacion.id,
+          nombre: opcion.nombre.trim(),
+          imagen_url,
+          creado_en: new Date().toISOString(),
+        };
+      })
+    );
+
     const { error: opcionesError } = await supabase
       .from("opcion_votacion")
-      .insert(
-        newVotacion.opciones
-          .filter((o) => o.trim())
-          .map((opcion) => ({
-            votacion_id: currentVotacion.id,
-            nombre: opcion.trim(),
-            creado_en: new Date().toISOString(),
-          }))
-      );
+      .insert(opcionesConImagenes);
+
     if (opcionesError) {
       console.error("Error updating opciones:", opcionesError);
       Swal.fire({
@@ -201,6 +309,20 @@ export default function DashboardPage() {
         text: "No se pudo actualizar las opciones de votación.",
       });
       return;
+    }
+
+    // Clean up any images from deleted options
+    if (currentOptions) {
+      const deletedOptions = currentOptions.filter(
+        (op: any) =>
+          !opcionesValidas.some((newOp: any) => newOp.nombre === op.nombre)
+      );
+
+      await Promise.all(
+        deletedOptions
+          .filter((op: any) => op.imagen_url)
+          .map((op: any) => deleteImage(op.imagen_url))
+      );
     }
 
     await fetchVotaciones();
@@ -226,6 +348,21 @@ export default function DashboardPage() {
       cancelButtonColor: "#6200ff",
     });
     if (!result.isConfirmed) return;
+
+    // First get options to delete their images
+    const { data: options } = await supabase
+      .from("opcion_votacion")
+      .select("imagen_url")
+      .eq("votacion_id", id);
+
+    if (options) {
+      await Promise.all(
+        options
+          .filter((op: any) => op.imagen_url)
+          .map((op: any) => deleteImage(op.imagen_url))
+      );
+    }
+
     const { error } = await supabase.from("votacion").delete().eq("id", id);
     if (error) {
       console.error("Error deleting votacion:", error);
@@ -261,6 +398,95 @@ export default function DashboardPage() {
     } else {
       await fetchVotaciones();
     }
+  };
+
+  const handleImageChange = (index: number, file: File | null) => {
+    const newOpciones = [...newVotacion.opcionesConImagen];
+
+    if (!newOpciones[index]) {
+      newOpciones[index] = { nombre: newVotacion.opciones[index] || "" };
+    }
+
+    if (file) {
+      newOpciones[index] = {
+        ...newOpciones[index],
+        imagen: file,
+        preview: URL.createObjectURL(file),
+      };
+    } else {
+      // If file is null (removed), keep the existing imagen_url if it exists
+      newOpciones[index] = {
+        ...newOpciones[index],
+        imagen: null,
+        preview: newOpciones[index].imagen_url || undefined,
+      };
+    }
+
+    setNewVotacion({
+      ...newVotacion,
+      opcionesConImagen: newOpciones,
+    });
+  };
+
+  const handleRemoveImage = (index: number) => {
+    const newOpciones = [...newVotacion.opcionesConImagen];
+
+    if (newOpciones[index]) {
+      newOpciones[index] = {
+        ...newOpciones[index],
+        imagen: null,
+        imagen_url: null,
+        preview: undefined,
+      };
+    }
+
+    setNewVotacion({
+      ...newVotacion,
+      opcionesConImagen: newOpciones,
+    });
+  };
+
+  const handleOpcionChange = (index: number, value: string) => {
+    const newOpciones = [...newVotacion.opciones];
+    newOpciones[index] = value;
+
+    const newOpcionesConImagen = [...newVotacion.opcionesConImagen];
+    if (!newOpcionesConImagen[index]) {
+      newOpcionesConImagen[index] = { nombre: value };
+    } else {
+      newOpcionesConImagen[index] = {
+        ...newOpcionesConImagen[index],
+        nombre: value,
+      };
+    }
+
+    setNewVotacion({
+      ...newVotacion,
+      opciones: newOpciones,
+      opcionesConImagen: newOpcionesConImagen,
+    });
+  };
+
+  const handleAddOpcion = () => {
+    setNewVotacion({
+      ...newVotacion,
+      opciones: [...newVotacion.opciones, ""],
+      opcionesConImagen: [...newVotacion.opcionesConImagen, { nombre: "" }],
+    });
+  };
+
+  const handleRemoveOpcion = (index: number) => {
+    const newOpciones = [...newVotacion.opciones];
+    newOpciones.splice(index, 1);
+
+    const newOpcionesConImagen = [...newVotacion.opcionesConImagen];
+    newOpcionesConImagen.splice(index, 1);
+
+    setNewVotacion({
+      ...newVotacion,
+      opciones: newOpciones,
+      opcionesConImagen: newOpcionesConImagen,
+    });
   };
 
   const votacionesActivas = votaciones.filter(
@@ -352,40 +578,70 @@ export default function DashboardPage() {
             <div className="form-group">
               <label>Opciones de Votación *</label>
               {newVotacion.opciones.map((opcion, index) => (
-                <div key={index} className="opcion-input">
-                  <input
-                    type="text"
-                    value={opcion}
-                    onChange={(e) => {
-                      const newOps = [...newVotacion.opciones];
-                      newOps[index] = e.target.value;
-                      setNewVotacion({ ...newVotacion, opciones: newOps });
-                    }}
-                    placeholder={`Opción ${index + 1}`}
-                  />
-                  {index > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newOps = [...newVotacion.opciones];
-                        newOps.splice(index, 1);
-                        setNewVotacion({ ...newVotacion, opciones: newOps });
-                      }}
-                    >
-                      ✕
-                    </button>
-                  )}
+                <div key={index} className="opcion-input-container">
+                  <div className="opcion-input">
+                    <input
+                      type="text"
+                      value={opcion}
+                      onChange={(e) =>
+                        handleOpcionChange(index, e.target.value)
+                      }
+                      placeholder={`Opción ${index + 1}`}
+                    />
+                    {index > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveOpcion(index)}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                  <div className="image-upload-container">
+                    <label className="image-upload-label">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) =>
+                          handleImageChange(
+                            index,
+                            e.target.files ? e.target.files[0] : null
+                          )
+                        }
+                        style={{ display: "none" }}
+                      />
+                      <span className="upload-button">
+                        {newVotacion.opcionesConImagen[index]?.preview
+                          ? "Cambiar imagen"
+                          : "Agregar imagen"}
+                      </span>
+                    </label>
+                    {newVotacion.opcionesConImagen[index]?.preview && (
+                      <>
+                        <div className="image-preview-container">
+                          <img
+                            src={newVotacion.opcionesConImagen[index]?.preview}
+                            alt="Preview"
+                            className="image-preview"
+                            style={{ width: "30px", height: "30px" }}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          className="remove-image-button"
+                          onClick={() => handleRemoveImage(index)}
+                        >
+                          ✕
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
               <button
                 type="button"
                 className="add-opcion"
-                onClick={() =>
-                  setNewVotacion({
-                    ...newVotacion,
-                    opciones: [...newVotacion.opciones, ""],
-                  })
-                }
+                onClick={handleAddOpcion}
               >
                 + Añadir Opción
               </button>
@@ -405,7 +661,6 @@ export default function DashboardPage() {
         <div className="modal-overlay">
           <div className="modal-content">
             <h2>Editar Votación</h2>
-            {/* … misma estructura que Crear Modal, incluyendo select de tipo_votacion … */}
             <div className="form-group">
               <label>Título *</label>
               <input
@@ -460,40 +715,70 @@ export default function DashboardPage() {
             <div className="form-group">
               <label>Opciones de Votación *</label>
               {newVotacion.opciones.map((opcion, index) => (
-                <div key={index} className="opcion-input">
-                  <input
-                    type="text"
-                    value={opcion}
-                    onChange={(e) => {
-                      const newOps = [...newVotacion.opciones];
-                      newOps[index] = e.target.value;
-                      setNewVotacion({ ...newVotacion, opciones: newOps });
-                    }}
-                    placeholder={`Opción ${index + 1}`}
-                  />
-                  {index > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newOps = [...newVotacion.opciones];
-                        newOps.splice(index, 1);
-                        setNewVotacion({ ...newVotacion, opciones: newOps });
-                      }}
-                    >
-                      ✕
-                    </button>
-                  )}
+                <div key={index} className="opcion-input-container">
+                  <div className="opcion-input">
+                    <input
+                      type="text"
+                      value={opcion}
+                      onChange={(e) =>
+                        handleOpcionChange(index, e.target.value)
+                      }
+                      placeholder={`Opción ${index + 1}`}
+                    />
+                    {index > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveOpcion(index)}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                  <div className="image-upload-container">
+                    <label className="image-upload-label">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) =>
+                          handleImageChange(
+                            index,
+                            e.target.files ? e.target.files[0] : null
+                          )
+                        }
+                        style={{ display: "none" }}
+                      />
+                      <span className="upload-button">
+                        {newVotacion.opcionesConImagen[index]?.preview
+                          ? "Cambiar imagen"
+                          : "Agregar imagen"}
+                      </span>
+                    </label>
+                    {newVotacion.opcionesConImagen[index]?.preview && (
+                      <>
+                        <div className="image-preview-container">
+                          <img
+                            src={newVotacion.opcionesConImagen[index]?.preview}
+                            alt="Preview"
+                            className="image-preview"
+                            style={{ width: "30px", height: "30px" }}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          className="remove-image-button"
+                          onClick={() => handleRemoveImage(index)}
+                        >
+                          ✕
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
               <button
                 type="button"
                 className="add-opcion"
-                onClick={() =>
-                  setNewVotacion({
-                    ...newVotacion,
-                    opciones: [...newVotacion.opciones, ""],
-                  })
-                }
+                onClick={handleAddOpcion}
               >
                 + Añadir Opción
               </button>
@@ -616,7 +901,6 @@ function VotacionCard({
           {votacionUrl}
         </a>
       </div>
-      {/* New code + copy button */}
       <div className="votacion-code">
         <div className="votacion-code-title">Código de votación: </div>
         <div className="votacion-code-container">
@@ -644,7 +928,16 @@ function VotacionCard({
         <strong>Opciones:</strong>
         <ul>
           {votacion.opcion_votacion?.map((op: any) => (
-            <li key={op.id}>{op.nombre}</li>
+            <li key={op.id}>
+              {op.imagen_url && (
+                <img
+                  src={op.imagen_url}
+                  alt={op.nombre}
+                  style={{ width: "30px", height: "30px", marginRight: "8px" }}
+                />
+              )}
+              {op.nombre}
+            </li>
           ))}
         </ul>
       </div>
