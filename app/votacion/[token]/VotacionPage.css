@@ -98,6 +98,22 @@
   border-color: #6c5ce7;
 }
 
+/* Estado de la votación */
+.state-label {
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  color: rgb(46, 46, 46);
+  background: #55efc4;
+  margin-top: 0.5rem;
+}
+.state-label.expirada {
+  background: #ff6b6b;
+  color: #f5f6fa;
+}
+
 .votar-button {
   display: block;
   width: 100%;

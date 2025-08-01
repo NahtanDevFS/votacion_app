@@ -19,9 +19,10 @@ export default function DashboardPage() {
     descripcion: "",
     fecha_fin: "",
     opciones: [""],
+    estado: "en_progreso",
   });
 
-  // 1) Función reutilizable para cargar TODAS las votaciones con sus opciones
+  // 1) Carga las votaciones
   const fetchVotaciones = useCallback(async () => {
     setLoading(true);
     const user = JSON.parse(localStorage.getItem("admin") || "{}");
@@ -29,7 +30,7 @@ export default function DashboardPage() {
       .from("votacion")
       .select("*, opcion_votacion(*)")
       .eq("creado_por", user.id)
-      .order("fecha_fin", { ascending: true });
+      .order("id", { ascending: false });
     if (error) {
       console.error("Error fetching votaciones:", error);
     } else {
@@ -38,12 +39,11 @@ export default function DashboardPage() {
     setLoading(false);
   }, []);
 
-  // 2) Carga inicial
   useEffect(() => {
     fetchVotaciones();
   }, [fetchVotaciones]);
 
-  // 3) Crear nueva votación y luego recargar lista
+  // 2) Crear Votación
   const handleCreateVotacion = async () => {
     if (
       !newVotacion.titulo ||
@@ -60,14 +60,9 @@ export default function DashboardPage() {
 
     const now = new Date();
     const nowUTC = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-    const selectedDateLocal = new Date(newVotacion.fecha_fin);
-    if (selectedDateLocal <= now) {
-      alert("La fecha de finalización debe ser futura");
-      return;
-    }
+    const selected = new Date(newVotacion.fecha_fin);
     const fechaFinUTC = new Date(
-      selectedDateLocal.getTime() -
-        selectedDateLocal.getTimezoneOffset() * 60000
+      selected.getTime() - selected.getTimezoneOffset() * 60000
     ).toISOString();
 
     const user = JSON.parse(localStorage.getItem("admin") || "{}");
@@ -79,9 +74,9 @@ export default function DashboardPage() {
         {
           titulo: newVotacion.titulo,
           descripcion: newVotacion.descripcion,
-          fecha_inicio: nowUTC,
+          fecha_inicio: nowUTC.toISOString(),
           fecha_fin: fechaFinUTC,
-          estado: "en_progreso",
+          estado: newVotacion.estado,
           token_link,
           creado_por: user.id,
         },
@@ -118,10 +113,11 @@ export default function DashboardPage() {
       descripcion: "",
       fecha_fin: "",
       opciones: [""],
+      estado: "en_progreso",
     });
   };
 
-  // 4) Abrir modal de edición cargando datos existentes
+  // 3) Editar Votación
   const handleEditClick = (votacion: any) => {
     setCurrentVotacion(votacion);
     setNewVotacion({
@@ -129,11 +125,11 @@ export default function DashboardPage() {
       descripcion: votacion.descripcion,
       fecha_fin: formatDateTimeLocal(votacion.fecha_fin),
       opciones: votacion.opcion_votacion.map((op: any) => op.nombre),
+      estado: votacion.estado,
     });
     setShowEditModal(true);
   };
 
-  // 5) Actualizar votación y luego recargar lista
   const handleUpdateVotacion = async () => {
     if (
       !newVotacion.titulo ||
@@ -148,15 +144,9 @@ export default function DashboardPage() {
       return;
     }
 
-    const selectedDateLocal = new Date(newVotacion.fecha_fin);
-    const now = new Date();
-    if (selectedDateLocal <= now) {
-      alert("La fecha de finalización debe ser futura");
-      return;
-    }
+    const selected = new Date(newVotacion.fecha_fin);
     const fechaFinUTC = new Date(
-      selectedDateLocal.getTime() -
-        selectedDateLocal.getTimezoneOffset() * 60000
+      selected.getTime() - selected.getTimezoneOffset() * 60000
     ).toISOString();
 
     const { data, error } = await supabase
@@ -165,6 +155,7 @@ export default function DashboardPage() {
         titulo: newVotacion.titulo,
         descripcion: newVotacion.descripcion,
         fecha_fin: fechaFinUTC,
+        estado: newVotacion.estado,
       })
       .eq("id", currentVotacion.id)
       .select();
@@ -201,7 +192,7 @@ export default function DashboardPage() {
     setCurrentVotacion(null);
   };
 
-  // 6) Eliminar votación localmente
+  // 4) Eliminar
   const handleDeleteVotacion = async (id: number) => {
     if (!confirm("¿Estás seguro de eliminar esta votación?")) return;
     const { error } = await supabase.from("votacion").delete().eq("id", id);
@@ -213,19 +204,26 @@ export default function DashboardPage() {
     }
   };
 
-  // 7) Filtrar activas y expiradas
-  const nowUTC = new Date(
-    new Date().getTime() - new Date().getTimezoneOffset() * 60000
-  ).getTime();
-  const getTimestamp = (dbDate: string) =>
-    new Date(dbDate.replace(" ", "T").replace(/\+.*$/, "Z")).getTime();
+  // 5) Toggle estado
+  const handleToggleState = async (v: any) => {
+    const newState = v.estado === "en_progreso" ? "expirada" : "en_progreso";
+    const { error } = await supabase
+      .from("votacion")
+      .update({ estado: newState })
+      .eq("id", v.id);
+    if (error) {
+      console.error("Error toggling estado:", error);
+      alert("Error al cambiar el estado de la votación");
+    } else {
+      await fetchVotaciones();
+    }
+  };
 
+  // 6) Filtrar por estado
   const votacionesActivas = votaciones.filter(
-    (v) => getTimestamp(v.fecha_fin) > nowUTC && v.estado !== "cancelada"
+    (v) => v.estado === "en_progreso"
   );
-  const votacionesExpiradas = votaciones.filter(
-    (v) => getTimestamp(v.fecha_fin) <= nowUTC
-  );
+  const votacionesExpiradas = votaciones.filter((v) => v.estado === "expirada");
 
   if (loading) return <div className="loading">Cargando...</div>;
 
@@ -241,7 +239,7 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {/* --- Modal Crear --- */}
+      {/* Crear Modal */}
       {showCreateModal && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -281,6 +279,21 @@ export default function DashboardPage() {
                 min={formatDateTimeLocal(new Date())}
                 required
               />
+            </div>
+            <div className="form-group">
+              <label>Estado *</label>
+              <select
+                value={newVotacion.estado}
+                onChange={(e) =>
+                  setNewVotacion({
+                    ...newVotacion,
+                    estado: e.target.value,
+                  })
+                }
+              >
+                <option value="en_progreso">En progreso</option>
+                <option value="expirada">Expirada</option>
+              </select>
             </div>
             <div className="form-group">
               <label>Opciones de Votación *</label>
@@ -333,7 +346,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* --- Modal Editar --- */}
+      {/* Editar Modal */}
       {showEditModal && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -373,6 +386,21 @@ export default function DashboardPage() {
                 min={formatDateTimeLocal(new Date())}
                 required
               />
+            </div>
+            <div className="form-group">
+              <label>Estado *</label>
+              <select
+                value={newVotacion.estado}
+                onChange={(e) =>
+                  setNewVotacion({
+                    ...newVotacion,
+                    estado: e.target.value,
+                  })
+                }
+              >
+                <option value="en_progreso">En progreso</option>
+                <option value="expirada">Expirada</option>
+              </select>
             </div>
             <div className="form-group">
               <label>Opciones de Votación *</label>
@@ -423,11 +451,11 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* --- Votaciones Activas --- */}
+      {/* Activas */}
       <section className="votaciones-section">
         <h2 className="votaciones-section-activas">Votaciones Activas</h2>
         {votacionesActivas.length === 0 ? (
-          <p className="no-votaciones">No hay votaciones activas</p>
+          <p className="no-votaciones">No hay votaciones en progreso</p>
         ) : (
           <div className="votaciones-grid">
             {votacionesActivas.map((v) => (
@@ -436,13 +464,14 @@ export default function DashboardPage() {
                 votacion={v}
                 onDelete={handleDeleteVotacion}
                 onEdit={handleEditClick}
+                onToggleState={handleToggleState}
               />
             ))}
           </div>
         )}
       </section>
 
-      {/* --- Votaciones Expiradas --- */}
+      {/* Expiradas */}
       <section className="votaciones-section">
         <h2 className="votaciones-section-expiradas">Votaciones Expiradas</h2>
         {votacionesExpiradas.length === 0 ? (
@@ -455,6 +484,7 @@ export default function DashboardPage() {
                 votacion={v}
                 onDelete={handleDeleteVotacion}
                 onEdit={handleEditClick}
+                onToggleState={handleToggleState}
               />
             ))}
           </div>
@@ -464,7 +494,7 @@ export default function DashboardPage() {
   );
 }
 
-// --- Helpers y componentes auxiliares ---
+// Helpers y componentes
 
 function generateToken() {
   return (
@@ -487,28 +517,24 @@ function VotacionCard({
   votacion,
   onDelete,
   onEdit,
+  onToggleState,
 }: {
   votacion: any;
   onDelete: (id: number) => void;
   onEdit: (votacion: any) => void;
+  onToggleState: (v: any) => void;
 }) {
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
   const votacionUrl = `${baseUrl}/votacion/${votacion.token_link}`;
 
-  const formatDate = (dateString: string) => {
-    try {
-      return new Date(dateString).toLocaleString("es-ES", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        timeZone: "UTC",
-      });
-    } catch {
-      return "Fecha inválida";
-    }
-  };
+  const formatDate = (dateString: string) =>
+    new Date(dateString).toLocaleString("es-ES", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
   return (
     <div className="votacion-card">
@@ -538,9 +564,21 @@ function VotacionCard({
           ))}
         </ul>
       </div>
+      <div className={`state-label ${votacion.estado}`}>
+        <em>
+          Estado:{" "}
+          {votacion.estado === "en_progreso" ? "En progreso" : "Expirada"}
+        </em>
+      </div>
       <div className="card-actions">
         <button className="edit-button" onClick={() => onEdit(votacion)}>
           ✏️ Editar
+        </button>
+        <button
+          className="toggle-button"
+          onClick={() => onToggleState(votacion)}
+        >
+          {votacion.estado === "en_progreso" ? "❌ Expirar" : "✅ Reactivar"}
         </button>
         <button className="delete-button" onClick={() => onDelete(votacion.id)}>
           🗑️ Eliminar

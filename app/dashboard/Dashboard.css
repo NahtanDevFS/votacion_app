@@ -372,6 +372,51 @@
 .stats-button:hover {
   background: #5649c0;
 }
+.form-group select {
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: white;
+}
+
+.state-label {
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  color: white;
+  background: var(--success); /* por defecto “en progreso” verde */
+  max-width: fit-content;
+  margin: 0 auto;
+}
+/* Cuando el estado sea “expirada”, asumimos que el HTML le inyecta la clase .expirada */
+.state-label.expirada {
+  background: var(--error);
+}
+
+/* Botón de alternar estado */
+.toggle-button {
+  flex: 1;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  background: var(--secondary);
+  color: white;
+  transition: background 0.3s ease, transform 0.1s ease;
+}
+.toggle-button:hover {
+  background: var(--primary);
+  transform: translateY(-1px);
+}
 
 /* Responsive */
 @media (max-width: 768px) {
