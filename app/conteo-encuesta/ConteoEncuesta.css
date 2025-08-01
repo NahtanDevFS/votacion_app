@@ -1,0 +1,83 @@
+/* ConteoEncuesta.css */
+.contenedor-estadisticas {
+  max-width: 800px;
+  margin: 2rem auto;
+  background-color: #1e2a38;
+  color: #fff;
+  border-radius: 12px;
+  padding: 2rem;
+}
+
+h1 {
+  text-align: center;
+  color: #61dafb;
+  margin-bottom: 1.5rem;
+}
+
+.seccion-inciso {
+  margin-bottom: 3rem;
+}
+
+.seccion-inciso h2 {
+  color: #fd79a8;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.voto-total {
+  text-align: center;
+  margin-bottom: 1rem;
+  font-weight: bold;
+}
+
+.contenedor-conteo-horizontal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.tarjeta-voto {
+  background: linear-gradient(135deg, #00c3ff, #00ffa5);
+  color: #002b40;
+  padding: 0.5rem 1rem;
+  border-radius: 16px;
+  font-size: 0.9rem;
+}
+
+.barra-votos {
+  margin-bottom: 1.5rem;
+}
+
+.barra-item {
+  margin-bottom: 0.5rem;
+}
+
+.barra-label {
+  display: block;
+  font-size: 0.85rem;
+}
+
+.barra-porcentaje {
+  background: #333;
+  border-radius: 12px;
+  overflow: hidden;
+  height: 20px;
+}
+
+.barra-interna {
+  height: 100%;
+  background: linear-gradient(to right, #00c3ff, #00ffa5);
+  color: #fff;
+  font-size: 0.75rem;
+  text-align: right;
+  padding-right: 0.5rem;
+}
+
+@media (max-width: 600px) {
+  .contenedor-conteo-horizontal {
+    flex-direction: column;
+    align-items: center;
+  }
+}

@@ -33,7 +33,13 @@ export default function AdminLayout({
     typeof window !== "undefined" ? localStorage.getItem("admin") : null;
 
   // Rutas protegidas donde queremos mostrar el sidebar
-  const protectedRoutes = ["/dashboard", "/profile", "/conteo"];
+  const protectedRoutes = [
+    "/dashboard",
+    "/profile",
+    "/conteo",
+    "/dashboard-encuesta",
+    "/conteo-encuesta",
+  ];
 
   // Mostrar sidebar si hay admin y la ruta actual arranca con alguna de protectedRoutes
   const showSidebar =

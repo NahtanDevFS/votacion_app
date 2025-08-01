@@ -81,6 +81,18 @@ export default function Sidebar({ isOpen, onToggle, isMobile }: SidebarProps) {
                 </>
               )}
             </li>
+            <li
+              className={activeItem === "dashboard-encuesta" ? "active" : ""}
+              onClick={() => handleNavigation("dashboard-encuesta")}
+            >
+              <span className="nav-icon">📊</span>
+              {(!isMobile || isOpen) && (
+                <>
+                  <span className="nav-text">Dashboard encuestas</span>
+                  <span className="nav-arrow">→</span>
+                </>
+              )}
+            </li>
 
             <li
               className={activeItem === "profile" ? "active" : ""}

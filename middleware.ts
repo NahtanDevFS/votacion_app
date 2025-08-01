@@ -2,7 +2,13 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-  const protectedRoutes = ["/dashboard", "/profile", "/conteo"];
+  const protectedRoutes = [
+    "/dashboard",
+    "/profile",
+    "/conteo",
+    "/dashboard-encuesta",
+    "/conteo-encuesta",
+  ];
   const path = request.nextUrl.pathname;
 
   // Verificar si la ruta está protegida
