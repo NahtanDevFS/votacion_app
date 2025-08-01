@@ -73,3 +73,9 @@
   background: #ccc;
   cursor: not-allowed;
 }
+
+@media (max-width: 480px) {
+  .entry-viewport {
+    padding: 0.5rem;
+  }
+}
