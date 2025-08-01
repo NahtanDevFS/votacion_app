@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "VoteUp",
   description:
-    "VotaYa es una página web para crear votaciones y encuestas de forma fácil y rápida.",
+    "VoteUp es una página web para crear votaciones y encuestas de forma fácil y rápida.",
 };
 
 export default function RootLayout({
