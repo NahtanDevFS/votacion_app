@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import "./reset_password.css";
 
 export default function ResetPasswordPage() {
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
