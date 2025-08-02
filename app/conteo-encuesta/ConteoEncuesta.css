@@ -60,7 +60,7 @@ h1 {
 }
 
 .barra-porcentaje {
-  background: #333;
+  background: #e4dbff;
   border-radius: 12px;
   overflow: hidden;
   height: 20px;
@@ -69,7 +69,7 @@ h1 {
 .barra-interna {
   height: 100%;
   background: linear-gradient(to right, #00c3ff, #00ffa5);
-  color: #fff;
+  color: #3a3a3a;
   font-size: 0.75rem;
   text-align: right;
   padding-right: 0.5rem;
