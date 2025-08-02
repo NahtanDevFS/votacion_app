@@ -44,6 +44,20 @@ interface Encuesta {
   }>;
 }
 
+export const showLoadingAlert = (title: string = "Procesando...") => {
+  Swal.fire({
+    title: title,
+    html: "Por favor espere...",
+    allowOutsideClick: false,
+    allowEscapeKey: false,
+    showConfirmButton: false,
+    willOpen: () => {
+      Swal.showLoading();
+    },
+  });
+  return Swal; // Devolvemos la instancia para poder cerrarla luego
+};
+
 export default function DashboardEncuestaPage() {
   const router = useRouter();
   const [encuestas, setEncuestas] = useState<Encuesta[]>([]);
@@ -195,10 +209,14 @@ export default function DashboardEncuestaPage() {
 
   async function handleCreate() {
     if (isSubmitting) return;
+
+    const loadingAlert = showLoadingAlert("Creando encuesta");
+
     setIsSubmitting(true);
 
     try {
       if (!newEncuesta.titulo.trim() || !newEncuesta.descripcion.trim()) {
+        loadingAlert.close();
         Swal.fire({
           icon: "warning",
           title: "Campos incompletos",
@@ -209,6 +227,7 @@ export default function DashboardEncuestaPage() {
       }
       for (const inc of newEncuesta.incisos) {
         if (!inc.texto.trim()) {
+          loadingAlert.close();
           Swal.fire({
             icon: "warning",
             title: "Inciso vacío",
@@ -218,6 +237,7 @@ export default function DashboardEncuestaPage() {
           return;
         }
         if (!inc.opciones.some((o) => o.texto.trim())) {
+          loadingAlert.close();
           Swal.fire({
             icon: "warning",
             title: "Opciones faltantes",
@@ -272,6 +292,7 @@ export default function DashboardEncuestaPage() {
           .single();
         if (errInc || !incCreated) {
           console.error(errInc);
+          loadingAlert.close();
           Swal.fire({
             icon: "error",
             title: "Error",
@@ -306,6 +327,7 @@ export default function DashboardEncuestaPage() {
           .insert(opcionesPayload);
         if (errOpc) {
           console.error(errOpc);
+          loadingAlert.close();
           Swal.fire({
             icon: "error",
             title: "Error",
@@ -323,6 +345,7 @@ export default function DashboardEncuestaPage() {
         estado: "en_progreso",
         incisos: [emptyInciso()],
       });
+      loadingAlert.close();
       Swal.fire({
         icon: "success",
         title: "Encuesta creada",
@@ -331,6 +354,7 @@ export default function DashboardEncuestaPage() {
       });
     } catch (error) {
       console.error("Error en handleCreate:", error);
+      loadingAlert.close();
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -367,6 +391,9 @@ export default function DashboardEncuestaPage() {
 
   async function handleUpdate() {
     if (isSubmitting || !currentEncuesta) return;
+
+    const loadingAlert = showLoadingAlert("Actualizando encuesta");
+
     setIsSubmitting(true);
     try {
       if (!currentEncuesta) return;
@@ -381,6 +408,7 @@ export default function DashboardEncuestaPage() {
       }
       for (const inc of newEncuesta.incisos) {
         if (!inc.texto.trim()) {
+          loadingAlert.close();
           Swal.fire({
             icon: "warning",
             title: "Inciso vacío",
@@ -390,6 +418,7 @@ export default function DashboardEncuestaPage() {
           return;
         }
         if (!inc.opciones.some((o) => o.texto.trim())) {
+          loadingAlert.close();
           Swal.fire({
             icon: "warning",
             title: "Opciones faltantes",
@@ -410,6 +439,7 @@ export default function DashboardEncuestaPage() {
         .eq("id", currentEncuesta.id);
       if (errEnc) {
         console.error(errEnc);
+        loadingAlert.close();
         Swal.fire({
           icon: "error",
           title: "Error",
@@ -445,6 +475,7 @@ export default function DashboardEncuestaPage() {
           .single();
         if (errInc || !incCreated) {
           console.error(errInc);
+          loadingAlert.close();
           Swal.fire({
             icon: "error",
             title: "Error",
@@ -486,6 +517,7 @@ export default function DashboardEncuestaPage() {
           .insert(opcionesPayload);
         if (errOpc) {
           console.error(errOpc);
+          loadingAlert.close();
           Swal.fire({
             icon: "error",
             title: "Error",
@@ -514,6 +546,7 @@ export default function DashboardEncuestaPage() {
       await fetchEncuestas();
       setShowEditModal(false);
       setCurrentEncuesta(null);
+      loadingAlert.close();
 
       Swal.fire({
         icon: "success",
@@ -523,6 +556,7 @@ export default function DashboardEncuestaPage() {
       });
     } catch (error) {
       console.error("Error en handleUpdate:", error);
+      loadingAlert.close();
       Swal.fire({
         icon: "error",
         title: "Error",

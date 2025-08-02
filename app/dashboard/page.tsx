@@ -17,6 +17,20 @@ interface Opcion {
   preview?: string;
 }
 
+export const showLoadingAlert = (title: string = "Procesando...") => {
+  Swal.fire({
+    title: title,
+    html: "Por favor espere...",
+    allowOutsideClick: false,
+    allowEscapeKey: false,
+    showConfirmButton: false,
+    willOpen: () => {
+      Swal.showLoading();
+    },
+  });
+  return Swal; // Devolvemos la instancia para poder cerrarla luego
+};
+
 export default function DashboardPage() {
   const router = useRouter();
   const [votaciones, setVotaciones] = useState<any[]>([]);
@@ -98,9 +112,12 @@ export default function DashboardPage() {
   const handleCreateVotacion = async () => {
     if (isSubmitting) return; // Evitar múltiples envíos
 
+    const loadingAlert = showLoadingAlert("Creando votación");
+
     setIsSubmitting(true);
     try {
       if (!newVotacion.titulo || !newVotacion.descripcion) {
+        loadingAlert.close();
         Swal.fire({
           icon: "warning",
           title: "Campos incompletos",
@@ -114,6 +131,7 @@ export default function DashboardPage() {
         o.nombre.trim()
       );
       if (opcionesValidas.length === 0) {
+        loadingAlert.close();
         Swal.fire({
           icon: "warning",
           title: "Sin opciones",
@@ -145,6 +163,7 @@ export default function DashboardPage() {
         .select();
       if (error || !data) {
         console.error("Error creating votacion:", error);
+        loadingAlert.close();
         alert("Error al crear la votación");
         return;
       }
@@ -177,6 +196,7 @@ export default function DashboardPage() {
 
       if (opcionesError) {
         console.error("Error creating opciones:", opcionesError);
+        loadingAlert.close();
         alert("Error al crear las opciones de votación");
         return;
       }
@@ -192,6 +212,7 @@ export default function DashboardPage() {
         tipo_votacion: "opcion_unica",
       });
 
+      loadingAlert.close();
       Swal.fire({
         icon: "success",
         title: "Votación creada",
@@ -200,6 +221,7 @@ export default function DashboardPage() {
       });
     } catch (error) {
       console.error("Error en handleCreateVotacion:", error);
+      loadingAlert.close();
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -234,9 +256,12 @@ export default function DashboardPage() {
   const handleUpdateVotacion = async () => {
     if (isSubmitting) return;
 
+    const loadingAlert = showLoadingAlert("Actualizando votación");
+
     setIsSubmitting(true);
     try {
       if (!newVotacion.titulo || !newVotacion.descripcion) {
+        loadingAlert.close();
         Swal.fire({
           icon: "warning",
           title: "Campos incompletos",
@@ -250,6 +275,7 @@ export default function DashboardPage() {
         o.nombre.trim()
       );
       if (opcionesValidas.length === 0) {
+        loadingAlert.close();
         Swal.fire({
           icon: "warning",
           title: "Sin opciones",
@@ -271,6 +297,7 @@ export default function DashboardPage() {
         .select();
       if (error || !data) {
         console.error("Error updating votacion:", error);
+        loadingAlert.close();
         Swal.fire({
           icon: "error",
           title: "Error",
@@ -324,6 +351,7 @@ export default function DashboardPage() {
 
       if (opcionesError) {
         console.error("Error updating opciones:", opcionesError);
+        loadingAlert.close();
         Swal.fire({
           icon: "error",
           title: "Error",
@@ -349,6 +377,7 @@ export default function DashboardPage() {
       await fetchVotaciones();
       setShowEditModal(false);
       setCurrentVotacion(null);
+      loadingAlert.close();
       Swal.fire({
         icon: "success",
         title: "Votación actualizada",
@@ -357,6 +386,7 @@ export default function DashboardPage() {
       });
     } catch (error) {
       console.error("Error inesperado:", error);
+      loadingAlert.close();
       Swal.fire({
         icon: "error",
         title: "Error",

@@ -22,6 +22,8 @@ h1 {
   color: #fd79a8;
   text-align: center;
   margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #fd79a8;
 }
 
 .voto-total {
