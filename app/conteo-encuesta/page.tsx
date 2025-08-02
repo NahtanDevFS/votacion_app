@@ -27,6 +27,7 @@ export default function ConteoEncuestaPage() {
   const [incisos, setIncisos] = useState<{ id: number; texto: string }[]>([]);
   const [dataMap, setDataMap] = useState<Record<number, Resultado[]>>({});
   const [encuestaId, setEncuestaId] = useState<string | null>(null);
+  const [tituloEncuesta, setTituloEncuesta] = useState<string>("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -37,7 +38,17 @@ export default function ConteoEncuestaPage() {
     if (!encuestaId) return;
 
     const fetchConteo = async () => {
-      // 1) Traer incisos
+      // 1) Traer título de la encuesta
+      const { data: encuestaData } = await supabase
+        .from("encuesta")
+        .select("titulo")
+        .eq("id", parseInt(encuestaId, 10))
+        .single();
+
+      if (encuestaData) {
+        setTituloEncuesta(encuestaData.titulo);
+      }
+      // 2) Traer incisos
       const { data: incs } = await supabase
         .from("inciso_encuesta")
         .select("id, texto")
@@ -45,7 +56,7 @@ export default function ConteoEncuestaPage() {
       if (!incs) return;
       setIncisos(incs);
 
-      // 2) Para cada inciso, contar votos
+      // 3) Para cada inciso, contar votos
       const nuevoMap: Record<number, Resultado[]> = {};
       for (const inc of incs) {
         // traer opciones
@@ -109,6 +120,7 @@ export default function ConteoEncuestaPage() {
   return (
     <div className="contenedor-estadisticas">
       <h1>📊 Resultados de la Encuesta</h1>
+      {tituloEncuesta && <h2 className="titulo-encuesta">{tituloEncuesta}</h2>}
       {incisos.map((inc) => {
         const datos = dataMap[inc.id] || [];
         const total = datos.reduce((s, d) => s + d.votos, 0);

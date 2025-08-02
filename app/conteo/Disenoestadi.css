@@ -108,6 +108,17 @@ h1 {
   font-weight: bold;
 }
 
+.titulo-votacion {
+  text-align: center;
+  font-size: 1.5rem;
+  color: #61dafb;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-weight: bold;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #61dafb;
+}
+
 @keyframes bounce {
   0%,
   100% {

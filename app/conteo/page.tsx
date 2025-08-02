@@ -28,6 +28,7 @@ type GraficaProps = { data: ResultadoVoto[] };
 export default function ConteoPage() {
   const [data, setData] = useState<ResultadoVoto[]>([]);
   const [votacionId, setVotacionId] = useState<string | null>(null);
+  const [tituloVotacion, setTituloVotacion] = useState<string>("");
 
   // 1) Leemos el query param desde window.location.search
   useEffect(() => {
@@ -40,6 +41,17 @@ export default function ConteoPage() {
     if (!votacionId) return;
 
     const fetchVotes = async () => {
+      // Primero obtenemos el título de la votación
+      const { data: votacionData } = await supabase
+        .from("votacion")
+        .select("titulo")
+        .eq("id", parseInt(votacionId, 10))
+        .single();
+
+      if (votacionData) {
+        setTituloVotacion(votacionData.titulo);
+      }
+      // Luego obtenemos los datos de votación
       const { data: opciones } = await supabase
         .from("opcion_votacion")
         .select("id, nombre")
@@ -146,6 +158,7 @@ export default function ConteoPage() {
   return (
     <div className="contenedor-estadisticas">
       <h1>📊 Resultados de la Votación</h1>
+      {tituloVotacion && <h2 className="titulo-votacion">{tituloVotacion}</h2>}
       <div className="voto-total">
         Votos Totales: {data.reduce((s, c) => s + c.votos, 0)}
       </div>
