@@ -119,9 +119,7 @@ export default function DashboardPage() {
     }
 
     const now = new Date();
-    const nowUTC = new Date(
-      now.getTime() - now.getTimezoneOffset() * 60000
-    ).toISOString();
+    const nowUTC = new Date(now.getTime()).toISOString();
 
     const user = JSON.parse(localStorage.getItem("admin") || "{}");
     const token_link = generateToken();

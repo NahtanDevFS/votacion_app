@@ -17,7 +17,7 @@ export function middleware(request: NextRequest) {
   if (isProtected) {
     const admin = request.cookies.get("admin")?.value;
     if (!admin) {
-      const response = NextResponse.redirect(new URL("/login", request.url));
+      const response = NextResponse.redirect(new URL("/", request.url));
       // Limpiar cookie si está corrupta
       response.cookies.delete("admin");
       return response;

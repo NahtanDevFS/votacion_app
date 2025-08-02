@@ -223,9 +223,7 @@ export default function DashboardEncuestaPage() {
       }
     }
 
-    const nowUTC = new Date(
-      Date.now() - new Date().getTimezoneOffset() * 60000
-    ).toISOString();
+    const nowUTC = new Date(Date.now()).toISOString();
     const user = JSON.parse(localStorage.getItem("admin") || "{}");
     const token_link = generateToken();
 

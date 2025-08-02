@@ -22,7 +22,7 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background-color: var(--light);
+  background: linear-gradient(135deg, #8724ff, #a32aff);
   position: relative;
   overflow: hidden;
 }
@@ -40,7 +40,7 @@
 .shape3 {
   position: absolute;
   border-radius: 50%;
-  background: linear-gradient(45deg, var(--primary), var(--secondary));
+  background: linear-gradient(45deg, #4400ff, #1500ff);
   opacity: 0.4;
   animation: float 15s infinite ease-in-out;
 }
