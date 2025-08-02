@@ -32,6 +32,7 @@ export default function DashboardPage() {
     estado: "en_progreso",
     tipo_votacion: "opcion_unica" as VotacionType,
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchVotaciones = useCallback(async () => {
     setLoading(true);
@@ -94,104 +95,122 @@ export default function DashboardPage() {
   };
 
   const handleCreateVotacion = async () => {
-    if (!newVotacion.titulo || !newVotacion.descripcion) {
+    if (isSubmitting) return; // Evitar múltiples envíos
+
+    setIsSubmitting(true);
+    try {
+      if (!newVotacion.titulo || !newVotacion.descripcion) {
+        Swal.fire({
+          icon: "warning",
+          title: "Campos incompletos",
+          text: "Por favor complete todos los campos requeridos.",
+          confirmButtonColor: "#6200ff",
+        });
+        return;
+      }
+
+      const opcionesValidas = newVotacion.opcionesConImagen.filter((o) =>
+        o.nombre.trim()
+      );
+      if (opcionesValidas.length === 0) {
+        Swal.fire({
+          icon: "warning",
+          title: "Sin opciones",
+          text: "Debe agregar al menos una opción de votación.",
+          confirmButtonColor: "#6200ff",
+        });
+        return;
+      }
+
+      const now = new Date();
+      const nowUTC = new Date(now.getTime()).toISOString();
+
+      const user = JSON.parse(localStorage.getItem("admin") || "{}");
+      const token_link = generateToken();
+
+      const { data, error } = await supabase
+        .from("votacion")
+        .insert([
+          {
+            titulo: newVotacion.titulo,
+            descripcion: newVotacion.descripcion,
+            fecha_inicio: nowUTC,
+            estado: newVotacion.estado,
+            tipo_votacion: newVotacion.tipo_votacion,
+            token_link,
+            creado_por: user.id,
+          },
+        ])
+        .select();
+      if (error || !data) {
+        console.error("Error creating votacion:", error);
+        alert("Error al crear la votación");
+        return;
+      }
+
+      const votacionId = data[0].id;
+
+      // Upload images and create options
+      const opcionesConImagenes = await Promise.all(
+        opcionesValidas.map(async (opcion) => {
+          let imagen_url = null;
+          if (opcion.imagen) {
+            imagen_url = await uploadImage(
+              opcion.imagen,
+              votacionId,
+              opcion.nombre
+            );
+          }
+          return {
+            votacion_id: votacionId,
+            nombre: opcion.nombre.trim(),
+            imagen_url,
+            creado_en: new Date().toISOString(),
+          };
+        })
+      );
+
+      const { error: opcionesError } = await supabase
+        .from("opcion_votacion")
+        .insert(opcionesConImagenes);
+
+      if (opcionesError) {
+        console.error("Error creating opciones:", opcionesError);
+        alert("Error al crear las opciones de votación");
+        return;
+      }
+
+      await fetchVotaciones();
+      setShowCreateModal(false);
+      setNewVotacion({
+        titulo: "",
+        descripcion: "",
+        opciones: [""],
+        opcionesConImagen: [],
+        estado: "en_progreso",
+        tipo_votacion: "opcion_unica",
+      });
+
       Swal.fire({
-        icon: "warning",
-        title: "Campos incompletos",
-        text: "Por favor complete todos los campos requeridos.",
+        icon: "success",
+        title: "Votación creada",
+        text: "Tu votación ha sido creada correctamente.",
         confirmButtonColor: "#6200ff",
       });
-      return;
-    }
-
-    const opcionesValidas = newVotacion.opcionesConImagen.filter((o) =>
-      o.nombre.trim()
-    );
-    if (opcionesValidas.length === 0) {
+    } catch (error) {
+      console.error("Error en handleCreateVotacion:", error);
       Swal.fire({
-        icon: "warning",
-        title: "Sin opciones",
-        text: "Debe agregar al menos una opción de votación.",
+        icon: "error",
+        title: "Error",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Ocurrió un error al crear la votación",
         confirmButtonColor: "#6200ff",
       });
-      return;
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const now = new Date();
-    const nowUTC = new Date(now.getTime()).toISOString();
-
-    const user = JSON.parse(localStorage.getItem("admin") || "{}");
-    const token_link = generateToken();
-
-    const { data, error } = await supabase
-      .from("votacion")
-      .insert([
-        {
-          titulo: newVotacion.titulo,
-          descripcion: newVotacion.descripcion,
-          fecha_inicio: nowUTC,
-          estado: newVotacion.estado,
-          tipo_votacion: newVotacion.tipo_votacion,
-          token_link,
-          creado_por: user.id,
-        },
-      ])
-      .select();
-    if (error || !data) {
-      console.error("Error creating votacion:", error);
-      alert("Error al crear la votación");
-      return;
-    }
-
-    const votacionId = data[0].id;
-
-    // Upload images and create options
-    const opcionesConImagenes = await Promise.all(
-      opcionesValidas.map(async (opcion) => {
-        let imagen_url = null;
-        if (opcion.imagen) {
-          imagen_url = await uploadImage(
-            opcion.imagen,
-            votacionId,
-            opcion.nombre
-          );
-        }
-        return {
-          votacion_id: votacionId,
-          nombre: opcion.nombre.trim(),
-          imagen_url,
-          creado_en: new Date().toISOString(),
-        };
-      })
-    );
-
-    const { error: opcionesError } = await supabase
-      .from("opcion_votacion")
-      .insert(opcionesConImagenes);
-
-    if (opcionesError) {
-      console.error("Error creating opciones:", opcionesError);
-      alert("Error al crear las opciones de votación");
-      return;
-    }
-
-    await fetchVotaciones();
-    setShowCreateModal(false);
-    setNewVotacion({
-      titulo: "",
-      descripcion: "",
-      opciones: [""],
-      opcionesConImagen: [],
-      estado: "en_progreso",
-      tipo_votacion: "opcion_unica",
-    });
-
-    Swal.fire({
-      icon: "success",
-      title: "Votación creada",
-      text: "Tu votación ha sido creada correctamente.",
-      confirmButtonColor: "#6200ff",
-    });
   };
 
   const handleEditClick = (votacion: any) => {
@@ -212,125 +231,139 @@ export default function DashboardPage() {
   };
 
   const handleUpdateVotacion = async () => {
-    if (!newVotacion.titulo || !newVotacion.descripcion) {
-      Swal.fire({
-        icon: "warning",
-        title: "Campos incompletos",
-        text: "Por favor complete todos los campos requeridos.",
-        confirmButtonColor: "#6200ff",
-      });
-      return;
-    }
+    if (isSubmitting) return;
 
-    const opcionesValidas = newVotacion.opcionesConImagen.filter((o) =>
-      o.nombre.trim()
-    );
-    if (opcionesValidas.length === 0) {
-      Swal.fire({
-        icon: "warning",
-        title: "Sin opciones",
-        text: "Debe agregar al menos una opción de votación.",
-        confirmButtonColor: "#6200ff",
-      });
-      return;
-    }
+    setIsSubmitting(true);
+    try {
+      if (!newVotacion.titulo || !newVotacion.descripcion) {
+        Swal.fire({
+          icon: "warning",
+          title: "Campos incompletos",
+          text: "Por favor complete todos los campos requeridos.",
+          confirmButtonColor: "#6200ff",
+        });
+        return;
+      }
 
-    const { data, error } = await supabase
-      .from("votacion")
-      .update({
-        titulo: newVotacion.titulo,
-        descripcion: newVotacion.descripcion,
-        estado: newVotacion.estado,
-        tipo_votacion: newVotacion.tipo_votacion,
-      })
-      .eq("id", currentVotacion.id)
-      .select();
-    if (error || !data) {
-      console.error("Error updating votacion:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "No se pudo actualizar la votación.",
-      });
-      return;
-    }
+      const opcionesValidas = newVotacion.opcionesConImagen.filter((o) =>
+        o.nombre.trim()
+      );
+      if (opcionesValidas.length === 0) {
+        Swal.fire({
+          icon: "warning",
+          title: "Sin opciones",
+          text: "Debe agregar al menos una opción de votación.",
+          confirmButtonColor: "#6200ff",
+        });
+        return;
+      }
 
-    // Get current options to compare and delete old images if needed
-    const { data: currentOptions } = await supabase
-      .from("opcion_votacion")
-      .select("*")
-      .eq("votacion_id", currentVotacion.id);
+      const { data, error } = await supabase
+        .from("votacion")
+        .update({
+          titulo: newVotacion.titulo,
+          descripcion: newVotacion.descripcion,
+          estado: newVotacion.estado,
+          tipo_votacion: newVotacion.tipo_votacion,
+        })
+        .eq("id", currentVotacion.id)
+        .select();
+      if (error || !data) {
+        console.error("Error updating votacion:", error);
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "No se pudo actualizar la votación.",
+        });
+        return;
+      }
 
-    // Delete old options
-    await supabase
-      .from("opcion_votacion")
-      .delete()
-      .eq("votacion_id", currentVotacion.id);
+      // Get current options to compare and delete old images if needed
+      const { data: currentOptions } = await supabase
+        .from("opcion_votacion")
+        .select("*")
+        .eq("votacion_id", currentVotacion.id);
 
-    // Upload new images and create options
-    const opcionesConImagenes = await Promise.all(
-      opcionesValidas.map(async (opcion) => {
-        let imagen_url = opcion.imagen_url || null;
+      // Delete old options
+      await supabase
+        .from("opcion_votacion")
+        .delete()
+        .eq("votacion_id", currentVotacion.id);
 
-        // If there's a new image, upload it
-        if (opcion.imagen) {
-          // Delete old image if it exists
-          if (opcion.imagen_url) {
-            await deleteImage(opcion.imagen_url);
+      // Upload new images and create options
+      const opcionesConImagenes = await Promise.all(
+        opcionesValidas.map(async (opcion) => {
+          let imagen_url = opcion.imagen_url || null;
+
+          // If there's a new image, upload it
+          if (opcion.imagen) {
+            // Delete old image if it exists
+            if (opcion.imagen_url) {
+              await deleteImage(opcion.imagen_url);
+            }
+            imagen_url = await uploadImage(
+              opcion.imagen,
+              currentVotacion.id,
+              opcion.nombre
+            );
           }
-          imagen_url = await uploadImage(
-            opcion.imagen,
-            currentVotacion.id,
-            opcion.nombre
-          );
-        }
 
-        return {
-          votacion_id: currentVotacion.id,
-          nombre: opcion.nombre.trim(),
-          imagen_url,
-          creado_en: new Date().toISOString(),
-        };
-      })
-    );
+          return {
+            votacion_id: currentVotacion.id,
+            nombre: opcion.nombre.trim(),
+            imagen_url,
+            creado_en: new Date().toISOString(),
+          };
+        })
+      );
 
-    const { error: opcionesError } = await supabase
-      .from("opcion_votacion")
-      .insert(opcionesConImagenes);
+      const { error: opcionesError } = await supabase
+        .from("opcion_votacion")
+        .insert(opcionesConImagenes);
 
-    if (opcionesError) {
-      console.error("Error updating opciones:", opcionesError);
+      if (opcionesError) {
+        console.error("Error updating opciones:", opcionesError);
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "No se pudo actualizar las opciones de votación.",
+        });
+        return;
+      }
+
+      // Clean up any images from deleted options
+      if (currentOptions) {
+        const deletedOptions = currentOptions.filter(
+          (op: any) =>
+            !opcionesValidas.some((newOp: any) => newOp.nombre === op.nombre)
+        );
+
+        await Promise.all(
+          deletedOptions
+            .filter((op: any) => op.imagen_url)
+            .map((op: any) => deleteImage(op.imagen_url))
+        );
+      }
+
+      await fetchVotaciones();
+      setShowEditModal(false);
+      setCurrentVotacion(null);
+      Swal.fire({
+        icon: "success",
+        title: "Votación actualizada",
+        text: "Los cambios se han guardado correctamente.",
+        confirmButtonColor: "#6200ff",
+      });
+    } catch (error) {
+      console.error("Error inesperado:", error);
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "No se pudo actualizar las opciones de votación.",
+        text: "Ocurrió un error inesperado al actualizar la votación.",
       });
-      return;
+    } finally {
+      setIsSubmitting(false); // <-- Esto se ejecutará siempre, haya éxito o error
     }
-
-    // Clean up any images from deleted options
-    if (currentOptions) {
-      const deletedOptions = currentOptions.filter(
-        (op: any) =>
-          !opcionesValidas.some((newOp: any) => newOp.nombre === op.nombre)
-      );
-
-      await Promise.all(
-        deletedOptions
-          .filter((op: any) => op.imagen_url)
-          .map((op: any) => deleteImage(op.imagen_url))
-      );
-    }
-
-    await fetchVotaciones();
-    setShowEditModal(false);
-    setCurrentVotacion(null);
-    Swal.fire({
-      icon: "success",
-      title: "Votación actualizada",
-      text: "Los cambios se han guardado correctamente.",
-      confirmButtonColor: "#6200ff",
-    });
   };
 
   const handleDeleteVotacion = async (id: number) => {
@@ -644,10 +677,21 @@ export default function DashboardPage() {
               </button>
             </div>
             <div className="modal-actions">
-              <button onClick={() => setShowCreateModal(false)}>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                disabled={isSubmitting}
+              >
                 Cancelar
               </button>
-              <button onClick={handleCreateVotacion}>Crear Votación</button>
+              <button onClick={handleCreateVotacion} disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <span className="spinner"></span> Creando...
+                  </>
+                ) : (
+                  "Crear Votación"
+                )}
+              </button>
             </div>
           </div>
         </div>
@@ -781,8 +825,21 @@ export default function DashboardPage() {
               </button>
             </div>
             <div className="modal-actions">
-              <button onClick={() => setShowEditModal(false)}>Cancelar</button>
-              <button onClick={handleUpdateVotacion}>Guardar Cambios</button>
+              <button
+                onClick={() => setShowEditModal(false)}
+                disabled={isSubmitting}
+              >
+                Cancelar
+              </button>
+              <button onClick={handleUpdateVotacion} disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <span className="spinner"></span> Guardando...
+                  </>
+                ) : (
+                  "Guardar Cambios"
+                )}
+              </button>
             </div>
           </div>
         </div>
