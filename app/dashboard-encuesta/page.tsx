@@ -51,6 +51,7 @@ export default function DashboardEncuestaPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [currentEncuesta, setCurrentEncuesta] = useState<Encuesta | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const emptyInciso = (): Inciso => ({
     texto: "",
@@ -192,137 +193,153 @@ export default function DashboardEncuestaPage() {
   };
 
   async function handleCreate() {
-    if (!newEncuesta.titulo.trim() || !newEncuesta.descripcion.trim()) {
-      Swal.fire({
-        icon: "warning",
-        title: "Campos incompletos",
-        text: "Completa título y descripción",
-        confirmButtonColor: "#6200ff",
-      });
-      return;
-    }
-    for (const inc of newEncuesta.incisos) {
-      if (!inc.texto.trim()) {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
+    try {
+      if (!newEncuesta.titulo.trim() || !newEncuesta.descripcion.trim()) {
         Swal.fire({
           icon: "warning",
-          title: "Inciso vacío",
-          text: "Cada inciso debe tener texto",
+          title: "Campos incompletos",
+          text: "Completa título y descripción",
           confirmButtonColor: "#6200ff",
         });
         return;
       }
-      if (!inc.opciones.some((o) => o.texto.trim())) {
-        Swal.fire({
-          icon: "warning",
-          title: "Opciones faltantes",
-          text: "Cada inciso necesita al menos una opción",
-          confirmButtonColor: "#6200ff",
-        });
-        return;
+      for (const inc of newEncuesta.incisos) {
+        if (!inc.texto.trim()) {
+          Swal.fire({
+            icon: "warning",
+            title: "Inciso vacío",
+            text: "Cada inciso debe tener texto",
+            confirmButtonColor: "#6200ff",
+          });
+          return;
+        }
+        if (!inc.opciones.some((o) => o.texto.trim())) {
+          Swal.fire({
+            icon: "warning",
+            title: "Opciones faltantes",
+            text: "Cada inciso necesita al menos una opción",
+            confirmButtonColor: "#6200ff",
+          });
+          return;
+        }
       }
-    }
 
-    const nowUTC = new Date(Date.now()).toISOString();
-    const user = JSON.parse(localStorage.getItem("admin") || "{}");
-    const token_link = generateToken();
+      const nowUTC = new Date(Date.now()).toISOString();
+      const user = JSON.parse(localStorage.getItem("admin") || "{}");
+      const token_link = generateToken();
 
-    // Insert encuesta
-    const { data: encuestaCreated, error: errEnc } = await supabase
-      .from("encuesta")
-      .insert([
-        {
-          titulo: newEncuesta.titulo,
-          descripcion: newEncuesta.descripcion,
-          fecha_inicio: nowUTC,
-          estado: newEncuesta.estado,
-          token_link,
-          creado_por: user.id,
-        },
-      ])
-      .select()
-      .single();
-    if (errEnc || !encuestaCreated) {
-      console.error(errEnc);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "Error al crear encuesta",
-      });
-      return;
-    }
-
-    // Insert incisos + opciones
-    for (const inc of newEncuesta.incisos) {
-      const { data: incCreated, error: errInc } = await supabase
-        .from("inciso_encuesta")
+      // Insert encuesta
+      const { data: encuestaCreated, error: errEnc } = await supabase
+        .from("encuesta")
         .insert([
           {
-            encuesta_id: encuestaCreated.id,
-            texto: inc.texto,
-            tipo_inciso: inc.tipo_inciso,
+            titulo: newEncuesta.titulo,
+            descripcion: newEncuesta.descripcion,
+            fecha_inicio: nowUTC,
+            estado: newEncuesta.estado,
+            token_link,
+            creado_por: user.id,
           },
         ])
         .select()
         .single();
-      if (errInc || !incCreated) {
-        console.error(errInc);
+      if (errEnc || !encuestaCreated) {
+        console.error(errEnc);
         Swal.fire({
           icon: "error",
           title: "Error",
-          text: "Error al crear incisos",
+          text: "Error al crear encuesta",
         });
         return;
       }
 
-      // Subir imágenes y crear opciones
-      const opcionesPayload = await Promise.all(
-        inc.opciones
-          .filter((o) => o.texto.trim())
-          .map(async (op) => {
-            let imagen_url = null;
-            if (op.imagen) {
-              imagen_url = await uploadImage(
-                op.imagen,
-                encuestaCreated.id,
-                op.texto
-              );
-            }
-            return {
-              inciso_id: incCreated.id,
-              texto: op.texto,
-              imagen_url,
-            };
-          })
-      );
+      // Insert incisos + opciones
+      for (const inc of newEncuesta.incisos) {
+        const { data: incCreated, error: errInc } = await supabase
+          .from("inciso_encuesta")
+          .insert([
+            {
+              encuesta_id: encuestaCreated.id,
+              texto: inc.texto,
+              tipo_inciso: inc.tipo_inciso,
+            },
+          ])
+          .select()
+          .single();
+        if (errInc || !incCreated) {
+          console.error(errInc);
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Error al crear incisos",
+          });
+          return;
+        }
 
-      const { error: errOpc } = await supabase
-        .from("opcion_encuesta")
-        .insert(opcionesPayload);
-      if (errOpc) {
-        console.error(errOpc);
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: "Error al crear opciones",
-        });
-        return;
+        // Subir imágenes y crear opciones
+        const opcionesPayload = await Promise.all(
+          inc.opciones
+            .filter((o) => o.texto.trim())
+            .map(async (op) => {
+              let imagen_url = null;
+              if (op.imagen) {
+                imagen_url = await uploadImage(
+                  op.imagen,
+                  encuestaCreated.id,
+                  op.texto
+                );
+              }
+              return {
+                inciso_id: incCreated.id,
+                texto: op.texto,
+                imagen_url,
+              };
+            })
+        );
+
+        const { error: errOpc } = await supabase
+          .from("opcion_encuesta")
+          .insert(opcionesPayload);
+        if (errOpc) {
+          console.error(errOpc);
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Error al crear opciones",
+          });
+          return;
+        }
       }
+
+      await fetchEncuestas();
+      setShowCreateModal(false);
+      setNewEncuesta({
+        titulo: "",
+        descripcion: "",
+        estado: "en_progreso",
+        incisos: [emptyInciso()],
+      });
+      Swal.fire({
+        icon: "success",
+        title: "Encuesta creada",
+        text: "Tu encuesta se ha creado correctamente.",
+        confirmButtonColor: "#6200ff",
+      });
+    } catch (error) {
+      console.error("Error en handleCreate:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text:
+          error instanceof Error ? error.message : "Error al crear la encuesta",
+        confirmButtonColor: "#6200ff",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    await fetchEncuestas();
-    setShowCreateModal(false);
-    setNewEncuesta({
-      titulo: "",
-      descripcion: "",
-      estado: "en_progreso",
-      incisos: [emptyInciso()],
-    });
-    Swal.fire({
-      icon: "success",
-      title: "Encuesta creada",
-      text: "Tu encuesta se ha creado correctamente.",
-      confirmButtonColor: "#6200ff",
-    });
   }
 
   // Update
@@ -348,158 +365,175 @@ export default function DashboardEncuestaPage() {
   }
 
   async function handleUpdate() {
-    if (!currentEncuesta) return;
-    if (!newEncuesta.titulo.trim() || !newEncuesta.descripcion.trim()) {
+    if (isSubmitting || !currentEncuesta) return;
+    setIsSubmitting(true);
+    try {
+      if (!currentEncuesta) return;
+      if (!newEncuesta.titulo.trim() || !newEncuesta.descripcion.trim()) {
+        Swal.fire({
+          icon: "warning",
+          title: "Campos incompletos",
+          text: "Completa título y descripción",
+          confirmButtonColor: "#6200ff",
+        });
+        return;
+      }
+      for (const inc of newEncuesta.incisos) {
+        if (!inc.texto.trim()) {
+          Swal.fire({
+            icon: "warning",
+            title: "Inciso vacío",
+            text: "Cada inciso debe tener texto",
+            confirmButtonColor: "#6200ff",
+          });
+          return;
+        }
+        if (!inc.opciones.some((o) => o.texto.trim())) {
+          Swal.fire({
+            icon: "warning",
+            title: "Opciones faltantes",
+            text: "Cada inciso necesita al menos una opción",
+            confirmButtonColor: "#6200ff",
+          });
+          return;
+        }
+      }
+
+      const { error: errEnc } = await supabase
+        .from("encuesta")
+        .update({
+          titulo: newEncuesta.titulo,
+          descripcion: newEncuesta.descripcion,
+          estado: newEncuesta.estado,
+        })
+        .eq("id", currentEncuesta.id);
+      if (errEnc) {
+        console.error(errEnc);
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "Error al actualizar encuesta",
+        });
+        return;
+      }
+
+      // Obtener opciones actuales para limpiar imágenes si es necesario
+      const { data: currentOptions } = await supabase
+        .from("opcion_encuesta")
+        .select("*")
+        .eq("inciso_id", currentEncuesta.inciso_encuesta[0].id);
+
+      // Eliminar incisos y opciones existentes
+      await supabase
+        .from("inciso_encuesta")
+        .delete()
+        .eq("encuesta_id", currentEncuesta.id);
+
+      // Crear nuevos incisos y opciones
+      for (const inc of newEncuesta.incisos) {
+        const { data: incCreated, error: errInc } = await supabase
+          .from("inciso_encuesta")
+          .insert([
+            {
+              encuesta_id: currentEncuesta.id,
+              texto: inc.texto,
+              tipo_inciso: inc.tipo_inciso,
+            },
+          ])
+          .select()
+          .single();
+        if (errInc || !incCreated) {
+          console.error(errInc);
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Error al re-crear incisos",
+          });
+          return;
+        }
+
+        // Subir imágenes y crear opciones
+        const opcionesPayload = await Promise.all(
+          inc.opciones
+            .filter((o) => o.texto.trim())
+            .map(async (op) => {
+              let imagen_url = op.imagen_url || null;
+
+              // Si hay una nueva imagen, subirla
+              if (op.imagen) {
+                // Eliminar imagen anterior si existe
+                if (op.imagen_url) {
+                  await deleteImage(op.imagen_url);
+                }
+                imagen_url = await uploadImage(
+                  op.imagen,
+                  currentEncuesta.id,
+                  op.texto
+                );
+              }
+
+              return {
+                inciso_id: incCreated.id,
+                texto: op.texto,
+                imagen_url,
+              };
+            })
+        );
+
+        const { error: errOpc } = await supabase
+          .from("opcion_encuesta")
+          .insert(opcionesPayload);
+        if (errOpc) {
+          console.error(errOpc);
+          Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Error al re-crear opciones",
+          });
+          return;
+        }
+      }
+
+      // Limpiar imágenes de opciones eliminadas
+      if (currentOptions) {
+        const deletedOptions = currentOptions.filter(
+          (op: any) =>
+            !newEncuesta.incisos
+              .flatMap((inc) => inc.opciones)
+              .some((newOp) => newOp.id === op.id)
+        );
+
+        await Promise.all(
+          deletedOptions
+            .filter((op: any) => op.imagen_url)
+            .map((op: any) => deleteImage(op.imagen_url))
+        );
+      }
+
+      await fetchEncuestas();
+      setShowEditModal(false);
+      setCurrentEncuesta(null);
+
       Swal.fire({
-        icon: "warning",
-        title: "Campos incompletos",
-        text: "Completa título y descripción",
+        icon: "success",
+        title: "Encuesta actualizada",
+        text: "Los cambios se guardaron correctamente.",
         confirmButtonColor: "#6200ff",
       });
-      return;
-    }
-    for (const inc of newEncuesta.incisos) {
-      if (!inc.texto.trim()) {
-        Swal.fire({
-          icon: "warning",
-          title: "Inciso vacío",
-          text: "Cada inciso debe tener texto",
-          confirmButtonColor: "#6200ff",
-        });
-        return;
-      }
-      if (!inc.opciones.some((o) => o.texto.trim())) {
-        Swal.fire({
-          icon: "warning",
-          title: "Opciones faltantes",
-          text: "Cada inciso necesita al menos una opción",
-          confirmButtonColor: "#6200ff",
-        });
-        return;
-      }
-    }
-
-    const { error: errEnc } = await supabase
-      .from("encuesta")
-      .update({
-        titulo: newEncuesta.titulo,
-        descripcion: newEncuesta.descripcion,
-        estado: newEncuesta.estado,
-      })
-      .eq("id", currentEncuesta.id);
-    if (errEnc) {
-      console.error(errEnc);
+    } catch (error) {
+      console.error("Error en handleUpdate:", error);
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "Error al actualizar encuesta",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Error al actualizar la encuesta",
+        confirmButtonColor: "#6200ff",
       });
-      return;
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // Obtener opciones actuales para limpiar imágenes si es necesario
-    const { data: currentOptions } = await supabase
-      .from("opcion_encuesta")
-      .select("*")
-      .eq("inciso_id", currentEncuesta.inciso_encuesta[0].id);
-
-    // Eliminar incisos y opciones existentes
-    await supabase
-      .from("inciso_encuesta")
-      .delete()
-      .eq("encuesta_id", currentEncuesta.id);
-
-    // Crear nuevos incisos y opciones
-    for (const inc of newEncuesta.incisos) {
-      const { data: incCreated, error: errInc } = await supabase
-        .from("inciso_encuesta")
-        .insert([
-          {
-            encuesta_id: currentEncuesta.id,
-            texto: inc.texto,
-            tipo_inciso: inc.tipo_inciso,
-          },
-        ])
-        .select()
-        .single();
-      if (errInc || !incCreated) {
-        console.error(errInc);
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: "Error al re-crear incisos",
-        });
-        return;
-      }
-
-      // Subir imágenes y crear opciones
-      const opcionesPayload = await Promise.all(
-        inc.opciones
-          .filter((o) => o.texto.trim())
-          .map(async (op) => {
-            let imagen_url = op.imagen_url || null;
-
-            // Si hay una nueva imagen, subirla
-            if (op.imagen) {
-              // Eliminar imagen anterior si existe
-              if (op.imagen_url) {
-                await deleteImage(op.imagen_url);
-              }
-              imagen_url = await uploadImage(
-                op.imagen,
-                currentEncuesta.id,
-                op.texto
-              );
-            }
-
-            return {
-              inciso_id: incCreated.id,
-              texto: op.texto,
-              imagen_url,
-            };
-          })
-      );
-
-      const { error: errOpc } = await supabase
-        .from("opcion_encuesta")
-        .insert(opcionesPayload);
-      if (errOpc) {
-        console.error(errOpc);
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: "Error al re-crear opciones",
-        });
-        return;
-      }
-    }
-
-    // Limpiar imágenes de opciones eliminadas
-    if (currentOptions) {
-      const deletedOptions = currentOptions.filter(
-        (op: any) =>
-          !newEncuesta.incisos
-            .flatMap((inc) => inc.opciones)
-            .some((newOp) => newOp.id === op.id)
-      );
-
-      await Promise.all(
-        deletedOptions
-          .filter((op: any) => op.imagen_url)
-          .map((op: any) => deleteImage(op.imagen_url))
-      );
-    }
-
-    await fetchEncuestas();
-    setShowEditModal(false);
-    setCurrentEncuesta(null);
-
-    Swal.fire({
-      icon: "success",
-      title: "Encuesta actualizada",
-      text: "Los cambios se guardaron correctamente.",
-      confirmButtonColor: "#6200ff",
-    });
   }
 
   async function handleDelete(id: number) {
@@ -779,10 +813,21 @@ export default function DashboardEncuestaPage() {
             </button>
 
             <div className="modal-actions">
-              <button onClick={() => setShowCreateModal(false)}>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                disabled={isSubmitting}
+              >
                 Cancelar
               </button>
-              <button onClick={handleCreate}>Crear Encuesta</button>
+              <button onClick={handleCreate} disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <span className="spinner"></span> Creando...
+                  </>
+                ) : (
+                  "Crear Encuesta"
+                )}
+              </button>
             </div>
           </div>
         </div>
@@ -968,8 +1013,21 @@ export default function DashboardEncuestaPage() {
             </button>
 
             <div className="modal-actions">
-              <button onClick={() => setShowEditModal(false)}>Cancelar</button>
-              <button onClick={handleUpdate}>Guardar Cambios</button>
+              <button
+                onClick={() => setShowEditModal(false)}
+                disabled={isSubmitting}
+              >
+                Cancelar
+              </button>
+              <button onClick={handleUpdate} disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <span className="spinner"></span> Guardando...
+                  </>
+                ) : (
+                  "Guardar Cambios"
+                )}
+              </button>
             </div>
           </div>
         </div>
