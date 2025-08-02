@@ -552,6 +552,27 @@ button:disabled {
   }
 }
 
+/* En tu archivo Dashboard_encuesta.css */
+.spinner.small {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s ease-in-out infinite;
+  margin-right: 0;
+}
+
+button:disabled .spinner.small {
+  border-top-color: #999;
+}
+
+.card-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 @media (max-width: 768px) {
   .opcion-input-container {
     flex-direction: column;

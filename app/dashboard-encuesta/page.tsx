@@ -52,6 +52,7 @@ export default function DashboardEncuestaPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [currentEncuesta, setCurrentEncuesta] = useState<Encuesta | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const emptyInciso = (): Inciso => ({
     texto: "",
@@ -537,6 +538,7 @@ export default function DashboardEncuestaPage() {
   }
 
   async function handleDelete(id: number) {
+    if (deletingId !== null) return; // Evitar múltiples eliminaciones simultáneas
     const result = await Swal.fire({
       title: "¿Estás seguro?",
       text: "Esta acción eliminará la encuesta.",
@@ -549,59 +551,83 @@ export default function DashboardEncuestaPage() {
     });
     if (!result.isConfirmed) return;
 
-    // Primero obtener opciones para eliminar sus imágenes
-    const { data: options } = await supabase
-      .from("opcion_encuesta")
-      .select("imagen_url")
-      .eq("inciso_id", id);
+    setDeletingId(id); // Bloquear la encuesta que se está eliminando
 
-    if (options) {
-      await Promise.all(
-        options
-          .filter((op: any) => op.imagen_url)
-          .map((op: any) => deleteImage(op.imagen_url))
-      );
-    }
+    try {
+      // Primero obtener opciones para eliminar sus imágenes
+      const { data: options } = await supabase
+        .from("opcion_encuesta")
+        .select("imagen_url")
+        .eq("inciso_id", id);
 
-    const { error } = await supabase.from("encuesta").delete().eq("id", id);
-    if (error) {
+      if (options) {
+        await Promise.all(
+          options
+            .filter((op: any) => op.imagen_url)
+            .map((op: any) => deleteImage(op.imagen_url))
+        );
+      }
+
+      const { error } = await supabase.from("encuesta").delete().eq("id", id);
+      if (error) {
+        console.error(error);
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "No se pudo eliminar la encuesta.",
+        });
+      } else {
+        setEncuestas((es) => es.filter((e) => e.id !== id));
+        Swal.fire({
+          icon: "success",
+          title: "Eliminada",
+          text: "La encuesta fue eliminada.",
+          confirmButtonColor: "#6200ff",
+        });
+      }
+    } catch (error) {
       console.error(error);
       Swal.fire({
         icon: "error",
         title: "Error",
         text: "No se pudo eliminar la encuesta.",
       });
-    } else {
-      setEncuestas((es) => es.filter((e) => e.id !== id));
-      Swal.fire({
-        icon: "success",
-        title: "Eliminada",
-        text: "La encuesta fue eliminada.",
-        confirmButtonColor: "#6200ff",
-      });
+    } finally {
+      setDeletingId(null); // Liberar el bloqueo
     }
   }
 
   async function handleToggle(enc: Encuesta) {
+    if (deletingId !== null) return; // No permitir cambiar estado durante eliminación
     const next = enc.estado === "en_progreso" ? "expirada" : "en_progreso";
-    const { error } = await supabase
-      .from("encuesta")
-      .update({ estado: next })
-      .eq("id", enc.id);
-    if (error) {
+
+    try {
+      const { error } = await supabase
+        .from("encuesta")
+        .update({ estado: next })
+        .eq("id", enc.id);
+      if (error) {
+        console.error(error);
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "No se pudo cambiar el estado.",
+        });
+      } else {
+        fetchEncuestas();
+        Swal.fire({
+          icon: "success",
+          title: "Cambiada",
+          text: "La encuesta fue cambiada de estado",
+          confirmButtonColor: "#6200ff",
+        });
+      }
+    } catch (error) {
       console.error(error);
       Swal.fire({
         icon: "error",
         title: "Error",
         text: "No se pudo cambiar el estado.",
-      });
-    } else {
-      fetchEncuestas();
-      Swal.fire({
-        icon: "success",
-        title: "Cambiada",
-        text: "La encuesta fue cambiada de estado",
-        confirmButtonColor: "#6200ff",
       });
     }
   }
@@ -1046,6 +1072,7 @@ export default function DashboardEncuestaPage() {
                 onEdit={() => handleEditClick(e)}
                 onDelete={() => handleDelete(e.id)}
                 onToggle={() => handleToggle(e)}
+                deletingId={deletingId} // Añade esta línea
               />
             ))}
           </div>
@@ -1065,6 +1092,7 @@ export default function DashboardEncuestaPage() {
                 onEdit={() => handleEditClick(e)}
                 onDelete={() => handleDelete(e.id)}
                 onToggle={() => handleToggle(e)}
+                deletingId={deletingId} // Añade esta línea
               />
             ))}
           </div>
@@ -1079,11 +1107,13 @@ function EncuestaCard({
   onEdit,
   onDelete,
   onToggle,
+  deletingId, // Añade esta línea
 }: {
   encuesta: Encuesta;
   onEdit: () => void;
   onDelete: () => void;
   onToggle: () => void;
+  deletingId: number | null; // Añade esta línea
 }) {
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
   const url = `${baseUrl}/encuesta/${encuesta.token_link}`;
@@ -1179,14 +1209,30 @@ function EncuestaCard({
         </em>
       </div>
       <div className="card-actions">
-        <button className="edit-button" onClick={onEdit}>
+        <button
+          className="edit-button"
+          onClick={onEdit}
+          disabled={deletingId === encuesta.id}
+        >
           ✏️ Editar
         </button>
-        <button className="toggle-button" onClick={onToggle}>
+        <button
+          className="toggle-button"
+          onClick={onToggle}
+          disabled={deletingId === encuesta.id || deletingId !== null}
+        >
           {encuesta.estado === "en_progreso" ? "❌ Expirar" : "✅ Reactivar"}
         </button>
-        <button className="delete-button" onClick={onDelete}>
-          🗑️ Eliminar
+        <button
+          className="delete-button"
+          onClick={onDelete}
+          disabled={deletingId !== null} // Deshabilitar todos los botones de eliminar durante cualquier eliminación
+        >
+          {deletingId === encuesta.id ? (
+            <span className="spinner small"></span>
+          ) : (
+            "🗑️ Eliminar"
+          )}
         </button>
       </div>
       <a

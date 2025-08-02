@@ -24,6 +24,7 @@ export default function DashboardPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [currentVotacion, setCurrentVotacion] = useState<any>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [newVotacion, setNewVotacion] = useState({
     titulo: "",
     descripcion: "",
@@ -367,6 +368,7 @@ export default function DashboardPage() {
   };
 
   const handleDeleteVotacion = async (id: number) => {
+    if (deletingId !== null) return; // Evitar múltiples eliminaciones simultáneas
     const result = await Swal.fire({
       title: "¿Estás seguro?",
       text: "Esta acción no se puede deshacer.",
@@ -379,54 +381,77 @@ export default function DashboardPage() {
     });
     if (!result.isConfirmed) return;
 
-    // First get options to delete their images
-    const { data: options } = await supabase
-      .from("opcion_votacion")
-      .select("imagen_url")
-      .eq("votacion_id", id);
+    setDeletingId(id); // Bloquear la encuesta que se está eliminando
 
-    if (options) {
-      await Promise.all(
-        options
-          .filter((op: any) => op.imagen_url)
-          .map((op: any) => deleteImage(op.imagen_url))
-      );
-    }
+    try {
+      // First get options to delete their images
+      const { data: options } = await supabase
+        .from("opcion_votacion")
+        .select("imagen_url")
+        .eq("votacion_id", id);
 
-    const { error } = await supabase.from("votacion").delete().eq("id", id);
-    if (error) {
-      console.error("Error deleting votacion:", error);
+      if (options) {
+        await Promise.all(
+          options
+            .filter((op: any) => op.imagen_url)
+            .map((op: any) => deleteImage(op.imagen_url))
+        );
+      }
+
+      const { error } = await supabase.from("votacion").delete().eq("id", id);
+      if (error) {
+        console.error("Error deleting votacion:", error);
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "No se pudo eliminar la votación.",
+        });
+      } else {
+        setVotaciones(votaciones.filter((v) => v.id !== id));
+        Swal.fire({
+          icon: "success",
+          title: "Eliminado",
+          text: "La votación ha sido eliminada.",
+          confirmButtonColor: "#6200ff",
+        });
+      }
+    } catch (error) {
+      console.error(error);
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "No se pudo eliminar la votación.",
+        text: "No se pudo eliminar la encuesta.",
       });
-    } else {
-      setVotaciones(votaciones.filter((v) => v.id !== id));
-      Swal.fire({
-        icon: "success",
-        title: "Eliminado",
-        text: "La votación ha sido eliminada.",
-        confirmButtonColor: "#6200ff",
-      });
+    } finally {
+      setDeletingId(null); // Liberar el bloqueo
     }
   };
 
   const handleToggleState = async (v: any) => {
+    if (deletingId !== null) return; // No permitir cambiar estado durante eliminación
     const newState = v.estado === "en_progreso" ? "expirada" : "en_progreso";
-    const { error } = await supabase
-      .from("votacion")
-      .update({ estado: newState })
-      .eq("id", v.id);
-    if (error) {
+    try {
+      const { error } = await supabase
+        .from("votacion")
+        .update({ estado: newState })
+        .eq("id", v.id);
+      if (error) {
+        console.error("Error toggling estado:", error);
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "No se pudo cambiar el estado.",
+        });
+      } else {
+        await fetchVotaciones();
+      }
+    } catch (error) {
       console.error("Error toggling estado:", error);
       Swal.fire({
         icon: "error",
         title: "Error",
         text: "No se pudo cambiar el estado.",
       });
-    } else {
-      await fetchVotaciones();
     }
   };
 
@@ -858,6 +883,7 @@ export default function DashboardPage() {
                 onDelete={handleDeleteVotacion}
                 onEdit={handleEditClick}
                 onToggleState={handleToggleState}
+                deletingId={deletingId} // Nueva prop
               />
             ))}
           </div>
@@ -877,6 +903,7 @@ export default function DashboardPage() {
                 onDelete={handleDeleteVotacion}
                 onEdit={handleEditClick}
                 onToggleState={handleToggleState}
+                deletingId={deletingId} // Nueva prop
               />
             ))}
           </div>
@@ -908,11 +935,13 @@ function VotacionCard({
   onDelete,
   onEdit,
   onToggleState,
+  deletingId, // Nueva prop
 }: {
   votacion: any;
   onDelete: (id: number) => void;
   onEdit: (votacion: any) => void;
   onToggleState: (v: any) => void;
+  deletingId: number | null; // Nueva prop
 }) {
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
   const votacionUrl = `${baseUrl}/votacion/${votacion.token_link}`;
@@ -1002,17 +1031,30 @@ function VotacionCard({
         </em>
       </div>
       <div className="card-actions">
-        <button className="edit-button" onClick={() => onEdit(votacion)}>
+        <button
+          className="edit-button"
+          onClick={() => onEdit(votacion)}
+          disabled={deletingId !== null} // Deshabilitar durante cualquier eliminación
+        >
           ✏️ Editar
         </button>
         <button
           className="toggle-button"
           onClick={() => onToggleState(votacion)}
+          disabled={deletingId !== null} // Deshabilitar durante cualquier eliminación
         >
           {votacion.estado === "en_progreso" ? "❌ Expirar" : "✅ Reactivar"}
         </button>
-        <button className="delete-button" onClick={() => onDelete(votacion.id)}>
-          🗑️ Eliminar
+        <button
+          className="delete-button"
+          onClick={() => onDelete(votacion.id)}
+          disabled={deletingId !== null} // Deshabilitar durante cualquier eliminación
+        >
+          {deletingId === votacion.id ? (
+            <span className="spinner small"></span>
+          ) : (
+            "🗑️ Eliminar"
+          )}
         </button>
       </div>
       <a href={`/conteo?votacion=${votacion.id}`} className="stats-button">
