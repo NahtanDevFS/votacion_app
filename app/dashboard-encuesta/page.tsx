@@ -77,11 +77,10 @@ export default function DashboardEncuestaPage() {
     opcionTexto: string
   ) => {
     const fileExt = file.name.split(".").pop();
-    const fileName =
-      `${encuestaId}_${opcionTexto}_${Math.random()}.${fileExt}`.replace(
-        /\s+/g,
-        "_"
-      );
+    const fileName = `${encuestaId}_${Math.random()}.${fileExt}`.replace(
+      /\s+/g,
+      "_"
+    );
     const filePath = `${fileName}`;
 
     const { data, error } = await supabase.storage

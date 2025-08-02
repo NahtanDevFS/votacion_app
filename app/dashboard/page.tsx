@@ -56,11 +56,10 @@ export default function DashboardPage() {
     opcionNombre: string
   ) => {
     const fileExt = file.name.split(".").pop();
-    const fileName =
-      `${votacionId}_${opcionNombre}_${Math.random()}.${fileExt}`.replace(
-        /\s+/g,
-        "_"
-      );
+    const fileName = `${votacionId}_${Math.random()}.${fileExt}`.replace(
+      /\s+/g,
+      "_"
+    );
     const filePath = `${fileName}`;
 
     const { data, error } = await supabase.storage
