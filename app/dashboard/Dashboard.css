@@ -513,6 +513,36 @@ button:disabled .spinner.small {
   }
 }
 
+.stats-button.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none; /* Esto previene cualquier interacción */
+  text-decoration: none;
+  background-color: #f0f0f0;
+  color: #999;
+}
+
+.stats-button.disabled::after {
+  content: "Espere a que termine la operación actual";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #333;
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.stats-button.disabled:hover::after {
+  opacity: 1;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .dashboard-header {

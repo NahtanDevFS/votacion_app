@@ -1237,9 +1237,14 @@ function EncuestaCard({
       </div>
       <a
         href={`/conteo-encuesta?encuesta=${encuesta.id}`}
-        className="stats-button"
+        className={`stats-button ${deletingId !== null ? "disabled" : ""}`}
+        onClick={(e) => {
+          if (deletingId !== null) {
+            e.preventDefault();
+          }
+        }}
       >
-        📊 Ver Estadísticas
+        Ver Estadísticas
       </a>
     </div>
   );

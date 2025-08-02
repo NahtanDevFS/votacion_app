@@ -1057,7 +1057,15 @@ function VotacionCard({
           )}
         </button>
       </div>
-      <a href={`/conteo?votacion=${votacion.id}`} className="stats-button">
+      <a
+        href={`/conteo?votacion=${votacion.id}`}
+        className={`stats-button ${deletingId !== null ? "disabled" : ""}`}
+        onClick={(e) => {
+          if (deletingId !== null) {
+            e.preventDefault();
+          }
+        }}
+      >
         Ver Estadísticas
       </a>
     </div>
