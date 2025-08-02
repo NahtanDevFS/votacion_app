@@ -7,6 +7,7 @@ import QRCode from "react-qr-code";
 import "./Dashboard.css";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
+import { showLoadingAlert } from "@/lib/loadingAlerts";
 
 type VotacionType = "opcion_unica" | "opcion_multiple";
 
@@ -16,20 +17,6 @@ interface Opcion {
   imagen_url?: string | null;
   preview?: string;
 }
-
-export const showLoadingAlert = (title: string = "Procesando...") => {
-  Swal.fire({
-    title: title,
-    html: "Por favor espere...",
-    allowOutsideClick: false,
-    allowEscapeKey: false,
-    showConfirmButton: false,
-    willOpen: () => {
-      Swal.showLoading();
-    },
-  });
-  return Swal; // Devolvemos la instancia para poder cerrarla luego
-};
 
 export default function DashboardPage() {
   const router = useRouter();

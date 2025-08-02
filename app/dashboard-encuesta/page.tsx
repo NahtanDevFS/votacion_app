@@ -7,6 +7,7 @@ import QRCode from "react-qr-code";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 import "./Dashboard_encuesta.css";
+import { showLoadingAlert } from "@/lib/loadingAlerts";
 
 type Estado = "en_progreso" | "expirada";
 
@@ -43,20 +44,6 @@ interface Encuesta {
     }>;
   }>;
 }
-
-export const showLoadingAlert = (title: string = "Procesando...") => {
-  Swal.fire({
-    title: title,
-    html: "Por favor espere...",
-    allowOutsideClick: false,
-    allowEscapeKey: false,
-    showConfirmButton: false,
-    willOpen: () => {
-      Swal.showLoading();
-    },
-  });
-  return Swal; // Devolvemos la instancia para poder cerrarla luego
-};
 
 export default function DashboardEncuestaPage() {
   const router = useRouter();
