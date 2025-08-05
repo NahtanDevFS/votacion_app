@@ -120,7 +120,7 @@ export default function AuthPage() {
     changeMode("login", /* clearSuccess= */ false);
   };
 
-  // ─── RECUPERAR CONTRASEÑA ─────────────────────────────────────────────────
+  // RECUPERAR CONTRASEÑA
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -165,7 +165,8 @@ export default function AuthPage() {
               <p>
                 {mode === "login" && "Ingresa tus credenciales"}
                 {mode === "register" && "Completa tus datos"}
-                {mode === "forgot" && "Recibe un correo para restablecer"}
+                {mode === "forgot" &&
+                  "Recibe un correo para restablecer tu contraseña"}
               </p>
             </div>
 
@@ -191,7 +192,7 @@ export default function AuthPage() {
                       onChange={(e) => setName(e.target.value)}
                       required
                     />
-                    <span className="input-icon">👤</span>
+                    <span className="input-icon"></span>
                   </div>
                   <div className="input-group">
                     <input
@@ -200,7 +201,7 @@ export default function AuthPage() {
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
                     />
-                    <span className="input-icon">👥</span>
+                    <span className="input-icon"></span>
                   </div>
                 </>
               )}
@@ -213,7 +214,7 @@ export default function AuthPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   required
                 />
-                <span className="input-icon">✉️</span>
+                <span className="input-icon"></span>
               </div>
 
               {(mode === "login" || mode === "register") && (
@@ -228,7 +229,7 @@ export default function AuthPage() {
                     required
                     minLength={6}
                   />
-                  <span className="input-icon">🔒</span>
+                  <span className="input-icon"></span>
                 </div>
               )}
 

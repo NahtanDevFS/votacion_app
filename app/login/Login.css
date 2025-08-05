@@ -148,9 +148,19 @@
   margin-bottom: 1.5rem;
 }
 
+/*
 .input-group input {
   width: 100%;
   padding: 1rem 1rem 1rem 3rem;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+*/
+.input-group input {
+  width: 100%;
+  padding: 1rem 1rem 1rem 1rem;
   border: 2px solid #e0e0e0;
   border-radius: 10px;
   font-size: 1rem;
@@ -230,17 +240,4 @@
 .auth-footer button:hover {
   color: var(--secondary);
   text-decoration: underline;
-}
-
-/* Efectos específicos por modo */
-.auth-container.login .shape1 {
-  background: linear-gradient(45deg, #6c5ce7, #a29bfe);
-}
-
-.auth-container.register .shape1 {
-  background: linear-gradient(45deg, #00b894, #55efc4);
-}
-
-.auth-container.forgot .shape1 {
-  background: linear-gradient(45deg, #fd79a8, #ff7675);
 }
