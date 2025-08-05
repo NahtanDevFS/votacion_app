@@ -73,7 +73,7 @@ export default function Sidebar({ isOpen, onToggle, isMobile }: SidebarProps) {
               className={activeItem === "dashboard" ? "active" : ""}
               onClick={() => handleNavigation("dashboard")}
             >
-              <span className="nav-icon">📊</span>
+              {/*<span className="nav-icon"></span>*/}
               {(!isMobile || isOpen) && (
                 <>
                   <span className="nav-text">Dashboard votaciones</span>
@@ -85,7 +85,7 @@ export default function Sidebar({ isOpen, onToggle, isMobile }: SidebarProps) {
               className={activeItem === "dashboard-encuesta" ? "active" : ""}
               onClick={() => handleNavigation("dashboard-encuesta")}
             >
-              <span className="nav-icon">📊</span>
+              {/*<span className="nav-icon"></span>*/}
               {(!isMobile || isOpen) && (
                 <>
                   <span className="nav-text">Dashboard encuestas</span>
@@ -98,7 +98,7 @@ export default function Sidebar({ isOpen, onToggle, isMobile }: SidebarProps) {
               className={activeItem === "profile" ? "active" : ""}
               onClick={() => handleNavigation("profile")}
             >
-              <span className="nav-icon">👤</span>
+              {/*<span className="nav-icon"></span>*/}
               {(!isMobile || isOpen) && (
                 <>
                   <span className="nav-text">Mi Perfil</span>
@@ -110,7 +110,7 @@ export default function Sidebar({ isOpen, onToggle, isMobile }: SidebarProps) {
               className={activeItem === "home" ? "active" : ""}
               onClick={() => handleNavigation("")}
             >
-              <span className="nav-icon">🏠</span>
+              {/*<span className="nav-icon"></span>*/}
               {(!isMobile || isOpen) && (
                 <>
                   <span className="nav-text">Inicio</span>
@@ -123,7 +123,7 @@ export default function Sidebar({ isOpen, onToggle, isMobile }: SidebarProps) {
               className={activeItem === "settings" ? "active" : ""}
               onClick={() => handleNavigation("settings")}
             >
-              <span className="nav-icon">⚙️</span>
+              <span className="nav-icon"></span>
               {(!isMobile || isOpen) && (
                 <>
                   <span className="nav-text">Configuración</span>
@@ -136,7 +136,7 @@ export default function Sidebar({ isOpen, onToggle, isMobile }: SidebarProps) {
 
         <div className="sidebar-footer">
           <button className="logout-button" onClick={handleLogout}>
-            <span className="logout-icon">🚪</span>
+            {/*<span className="logout-icon"></span>*/}
             {(!isMobile || isOpen) && <span>Cerrar Sesión</span>}
           </button>
         </div>
