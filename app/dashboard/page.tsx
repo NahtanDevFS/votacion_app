@@ -9,6 +9,7 @@ import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 import { showLoadingAlert } from "@/lib/loadingAlerts";
 
+
 type VotacionType = "opcion_unica" | "opcion_multiple";
 
 interface Opcion {
@@ -35,6 +36,8 @@ export default function DashboardPage() {
     tipo_votacion: "opcion_unica" as VotacionType,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  
 
   const fetchVotaciones = useCallback(async () => {
     setLoading(true);
@@ -81,7 +84,7 @@ export default function DashboardPage() {
 
     return publicUrl;
   };
-
+  
   const deleteImage = async (imageUrl: string) => {
     const fileName = imageUrl.split("/").pop();
     if (!fileName) return false;
@@ -897,9 +900,9 @@ export default function DashboardPage() {
               <VotacionCard
                 key={v.id}
                 votacion={v}
-                onDelete={handleDeleteVotacion}
-                onEdit={handleEditClick}
-                onToggleState={handleToggleState}
+                //onDelete={handleDeleteVotacion}
+                //onEdit={handleEditClick}
+                //onToggleState={handleToggleState}
                 deletingId={deletingId} // Nueva prop
               />
             ))}
@@ -917,9 +920,9 @@ export default function DashboardPage() {
               <VotacionCard
                 key={v.id}
                 votacion={v}
-                onDelete={handleDeleteVotacion}
-                onEdit={handleEditClick}
-                onToggleState={handleToggleState}
+                //onDelete={handleDeleteVotacion}
+                //onEdit={handleEditClick}
+                //onToggleState={handleToggleState}
                 deletingId={deletingId} // Nueva prop
               />
             ))}
@@ -949,16 +952,10 @@ function formatDateTimeLocal(dateInput: string | Date): string {
 
 function VotacionCard({
   votacion,
-  onDelete,
-  onEdit,
-  onToggleState,
-  deletingId, // Nueva prop
+  deletingId,
 }: {
   votacion: any;
-  onDelete: (id: number) => void;
-  onEdit: (votacion: any) => void;
-  onToggleState: (v: any) => void;
-  deletingId: number | null; // Nueva prop
+  deletingId: number | null;
 }) {
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
   const votacionUrl = `${baseUrl}/votacion/${votacion.token_link}`;
@@ -972,58 +969,27 @@ function VotacionCard({
       minute: "2-digit",
     });
 
-  const copyCode = async () => {
-    try {
-      await navigator.clipboard.writeText(votacion.token_link);
-      Swal.fire({
-        icon: "success",
-        title: "Código copiado",
-        text: `Códido "${votacion.token_link}" copiado al portapapeles.`,
-        timer: 1500,
-        showConfirmButton: false,
-      });
-    } catch {
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: "No se pudo copiar el código.",
-      });
-    }
-  };
-
   return (
     <div className="votacion-card">
-      <div className="qr-container">
-        <QRCode value={votacionUrl} size={128} level="H" />
-      </div>
-      <div className="votacion-link">
-        <a href={votacionUrl} target="_blank" rel="noopener noreferrer">
-          {votacionUrl}
-        </a>
-      </div>
-      <div className="votacion-code">
-        <div className="votacion-code-title">Código de votación: </div>
-        <div className="votacion-code-container">
-          <code className="code-text">{votacion.token_link}</code>
-          <button className="copy-button" onClick={copyCode}>
-            Copiar
-          </button>
-        </div>
-      </div>
-
       <div className="tipo-label">
         <strong>Tipo de votación:</strong>{" "}
         {votacion.tipo_votacion === "opcion_unica"
           ? "Opción única"
           : "Opción múltiple"}
       </div>
+
       <h3>{votacion.titulo}</h3>
       <p className="descripcion">{votacion.descripcion}</p>
+
       <div className="fechas">
         <div>
-          <strong>Creada:</strong> {formatDate(votacion.fecha_inicio)}
+          <strong>Creada:</strong> {formatDate(votacion.fecha_inicio)} 
+          <br />
+          <br />  
+          <strong>Estado:</strong> {votacion.estado === "en_progreso" ? "En progreso" : "Expirada"}
         </div>
       </div>
+
       <div className="opciones">
         <strong>Opciones:</strong>
         <ul>
@@ -1033,7 +999,11 @@ function VotacionCard({
                 <img
                   src={op.imagen_url}
                   alt={op.nombre}
-                  style={{ width: "30px", height: "30px", marginRight: "8px" }}
+                  style={{
+                    width: "30px",
+                    height: "30px",
+                    marginRight: "8px",
+                  }}
                 />
               )}
               {op.nombre}
@@ -1041,39 +1011,7 @@ function VotacionCard({
           ))}
         </ul>
       </div>
-      <div className={`state-label ${votacion.estado}`}>
-        <em>
-          Estado:{" "}
-          {votacion.estado === "en_progreso" ? "En progreso" : "Expirada"}
-        </em>
-      </div>
-      <div className="card-actions">
-        <button
-          className="edit-button"
-          onClick={() => onEdit(votacion)}
-          disabled={deletingId !== null} // Deshabilitar durante cualquier eliminación
-        >
-          ✏️ Editar
-        </button>
-        <button
-          className="toggle-button"
-          onClick={() => onToggleState(votacion)}
-          disabled={deletingId !== null} // Deshabilitar durante cualquier eliminación
-        >
-          {votacion.estado === "en_progreso" ? "❌ Expirar" : "✅ Reactivar"}
-        </button>
-        <button
-          className="delete-button"
-          onClick={() => onDelete(votacion.id)}
-          disabled={deletingId !== null} // Deshabilitar durante cualquier eliminación
-        >
-          {deletingId === votacion.id ? (
-            <span className="spinner small"></span>
-          ) : (
-            "🗑️ Eliminar"
-          )}
-        </button>
-      </div>
+
       <a
         href={`/conteo?votacion=${votacion.id}`}
         className={`stats-button ${deletingId !== null ? "disabled" : ""}`}
@@ -1083,7 +1021,7 @@ function VotacionCard({
           }
         }}
       >
-        Ver Estadísticas
+        Ver Votación
       </a>
     </div>
   );
