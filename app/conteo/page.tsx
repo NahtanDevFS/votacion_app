@@ -666,7 +666,7 @@ export default function ConteoPage() {
           <XAxis
             dataKey="nombre"
             stroke="#ccc"
-            tick={{ fill: "#aaa", fontSize: 12 }}
+            tick={{ fill: "#aaa", fontSize: 20 }}
             interval={0}
             angle={-10}
             height={60}
@@ -683,7 +683,7 @@ export default function ConteoPage() {
               borderRadius: 8,
               border: "none",
               color: "#fff",
-              fontSize: "0.9rem",
+              fontSize: "1rem",
               boxShadow: "0 0 10px rgba(0,0,0,0.4)",
             }}
             contentStyle={{ backgroundColor: "#1e2a38", border: "none" }}

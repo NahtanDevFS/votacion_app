@@ -1,5 +1,5 @@
 .contenedor-estadisticas {
-  max-width: 800px;
+  max-width: 1200px;
   margin: 2rem auto;
   background-color: #1e2a38;
   color: #fff;
@@ -182,7 +182,7 @@ h1 {
   display: flex;
   gap: 1.5rem;
   align-items: center;
-  justify-content: center;
+  justify-content: left;
   background-color: #273246;
   padding: 1rem 1.5rem;
   border-radius: 12px;

@@ -590,9 +590,22 @@ export default function ConteoEncuestaPage() {
             <h3 className="titulo-seccion-grafica">Gráfica de barras</h3>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={datos} margin={{ bottom: 20 }}>
-                <XAxis dataKey="nombre" tick={{ fontSize: 10 }} />
+                <XAxis dataKey="nombre" tick={{ fill: "#aaa", fontSize: 20 }} />
                 <YAxis allowDecimals={false} />
-                <Tooltip />
+                <Tooltip
+                  cursor={{ fill: "rgba(255,255,255,0.05)" }}
+                  wrapperStyle={{
+                    backgroundColor: "#1e2a38",
+                    borderRadius: 8,
+                    border: "none",
+                    color: "#fff",
+                    fontSize: "1rem",
+                    boxShadow: "0 0 10px rgba(0,0,0,0.4)",
+                  }}
+                  contentStyle={{ backgroundColor: "#1e2a38", border: "none" }}
+                  labelStyle={{ color: "#00ffa5", fontWeight: "bold" }}
+                  itemStyle={{ color: "#fff" }}
+                />
                 <Bar dataKey="votos">
                   {datos.map((d, i) => {
                     const color = hayEmpate
