@@ -1320,7 +1320,7 @@ function EncuestaCard({
           }
         }}
       >
-        Ver Encuesta
+        Ver detalle de encuesta
       </a>
     </div>
   );

@@ -374,7 +374,10 @@ export default function ConteoEncuestaPage() {
     <div className="contenedor-estadisticas">
       <div className="info-votacion-extra">
         <div className="qr-contenedor">
-          <QRCode value={url} size={128} level="H" />
+          <img
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=128x128&data=${window.location.origin}/votacion/${infoEncuesta.token_link}`}
+            alt="QR"
+          />
         </div>
         <div className="info-textos">
           <a

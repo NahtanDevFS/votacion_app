@@ -1061,7 +1061,7 @@ function VotacionCard({
           }
         }}
       >
-        Ver Votación
+        Ver detalle de votación
       </a>
     </div>
   );

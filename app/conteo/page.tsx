@@ -441,6 +441,11 @@ export default function ConteoPage() {
     );
   };
 
+  if (!infoVotacion)
+    return <div className="contenedor-estadisticas">Cargando...</div>;
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+  const url = `${baseUrl}/votacion/${infoVotacion.token_link}`;
+
   return (
     <div className="contenedor-estadisticas">
       {infoVotacion && (
