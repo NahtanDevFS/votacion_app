@@ -88,20 +88,31 @@ export default function ConteoPage() {
     return () => clearInterval(intervalo);
   }, [votacionId]);
 
-  const handleEditClick = (v: any) => {
-    setNewVotacion({
-      titulo: v.titulo,
-      descripcion: v.descripcion,
-      estado: v.estado,
-      tipo_votacion: v.tipo_votacion,
-      opciones: v.opcion_votacion.map((op: any) => op.nombre),
-      opcionesConImagen: v.opcion_votacion.map((op: any) => ({
-        nombre: op.nombre,
-        imagen_url: op.imagen_url,
-        preview: op.imagen_url,
-      })),
+  const handleEditClick = async (v: any) => {
+    const confirm = await Swal.fire({
+      title: "¿Quieres editar esta encuesta?",
+      text: "Cuando guardes los cambios, los votos actuales se borraran ¿Deseas continuar?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Sí, editar",
+      cancelButtonText: "Cancelar",
     });
-    setShowEditModal(true);
+
+    if (confirm.isConfirmed) {
+      setNewVotacion({
+        titulo: v.titulo,
+        descripcion: v.descripcion,
+        estado: v.estado,
+        tipo_votacion: v.tipo_votacion,
+        opciones: v.opcion_votacion.map((op: any) => op.nombre),
+        opcionesConImagen: v.opcion_votacion.map((op: any) => ({
+          nombre: op.nombre,
+          imagen_url: op.imagen_url,
+          preview: op.imagen_url,
+        })),
+      });
+      setShowEditModal(true);
+    }
   };
 
   const handleToggleState = async (v: any) => {
