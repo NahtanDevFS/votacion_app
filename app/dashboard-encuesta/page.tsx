@@ -1169,14 +1169,21 @@ function EncuestaCard({
 
   return (
     <div className="votacion-card">
+      {/* QR  
       <div className="qr-container">
         <QRCode value={url} size={128} level="H" />
       </div>
+      */}
+
+      {/*
       <div className="votacion-link">
         <a href={url} target="_blank" rel="noopener noreferrer">
           {url}
         </a>
       </div>
+      */}
+
+      {/*
       <div className="votacion-code">
         <div className="votacion-code-title">Código de encuesta: </div>
         <div className="votacion-code-container">
@@ -1186,6 +1193,8 @@ function EncuestaCard({
           </button>
         </div>
       </div>
+      */}
+
       <h3>{encuesta.titulo}</h3>
       <p className="descripcion">{encuesta.descripcion}</p>
       <div className="tipo-label">
@@ -1229,6 +1238,8 @@ function EncuestaCard({
           {encuesta.estado === "en_progreso" ? "En progreso" : "Expirada"}
         </em>
       </div>
+
+      {/*
       <div className="card-actions">
         <button
           className="edit-button"
@@ -1256,6 +1267,8 @@ function EncuestaCard({
           )}
         </button>
       </div>
+      */}
+
       <a
         href={`/conteo-encuesta?encuesta=${encuesta.id}`}
         className={`stats-button ${deletingId !== null ? "disabled" : ""}`}
@@ -1265,7 +1278,7 @@ function EncuestaCard({
           }
         }}
       >
-        Ver Estadísticas
+        Ver Encuesta
       </a>
     </div>
   );

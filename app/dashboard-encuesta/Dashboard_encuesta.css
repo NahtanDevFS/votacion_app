@@ -18,12 +18,12 @@
 
 /* Leyenda de tipo de inciso */
 .tipo-info {
-  background: #f5f6fa;
+  background: #273246;
   border-left: 4px solid var(--primary);
   padding: 1rem;
   border-radius: 8px;
   margin-bottom: 2rem;
-  color: var(--dark);
+  color: #000000;
 }
 .tipo-info p {
   margin: 0.5rem 0;
@@ -625,4 +625,142 @@ button:disabled .spinner.small {
   .votaciones-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* Fondo general del dashboard */
+.dashboard-container {
+  /*background: linear-gradient(to bottom right, #7a05a8, #65078a);*/
+  min-height: 100vh;
+  padding: 2rem;
+  font-family: "Segoe UI", sans-serif;
+}
+
+/* Título principal */
+.dashboard-title {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #070707;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Secciones de activas y expiradas */
+.votaciones-section-activas {
+  color: #40c717;
+  border-left: 4px solid #40c717;
+  padding-left: 10px;
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+}
+.votaciones-section-expiradas {
+  color: #ff0000;
+  border-left: 4px solid #ff0000;
+  padding-left: 10px;
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+}
+
+/* Tarjeta de votación */
+.votacion-card {
+  background: #273246;
+  color: #f9f3f1;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+  margin-bottom: 1.5rem;
+  transition: transform 0.3s ease;
+}
+.votacion-card:hover {
+  transform: translateY(-4px);
+}
+
+.votacion-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+}
+
+/* Título de cada votación */
+.votacion-card h3 {
+  margin-bottom: 0.6rem;
+  font-size: 1.4rem;
+  color: #000000;
+}
+
+.votacion-card button {
+  background: #ffffffe1;
+  color: #fff;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  transition: background 0.3s;
+}
+.votacion-card button:hover {
+  background: #7c3aed;
+}
+
+.seccion-subtitulo {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #38bdf8;
+  border-left: 4px solid #7c3aed;
+  padding-left: 0.5rem;
+  margin-top: 2rem;
+}
+
+/* Descripción */
+.votacion-card p {
+  margin-bottom: 0.4rem;
+  color: #000000;
+  line-height: 1.4;
+}
+
+/* Opciones y fechas */
+.opciones,
+.fechas {
+  background-color: #52668b4b;
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  color: #000000;
+}
+
+/* Tipo de votación */
+.tipo-label {
+  background: #52668b4b;
+  color: #000000;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  display: inline-block;
+  margin-bottom: 0.6rem;
+  font-size: 0.85rem;
+}
+
+/* Botón de ver votación */
+.stats-button {
+  display: block;
+  margin-top: 1rem;
+  text-align: center;
+  background: #52668b4b;
+  color: white;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  font-weight: bold;
+  text-decoration: none;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.stats-button:hover {
+  background: #4c00b4;
+  transform: scale(1.05);
+}
+
+/* Mensaje de vacío */
+.mensaje-vacio {
+  text-align: center;
+  font-style: italic;
+  color: #f7f6f6;
+  margin-top: 2rem;
+  font-size: 1.1rem;
 }
