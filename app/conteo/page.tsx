@@ -452,7 +452,7 @@ export default function ConteoPage() {
         </div>
       )}
 
-      <h1>📊 Resultados de la Votación</h1>
+      <h1>Resultados de la Votación</h1>
       {infoVotacion?.titulo && (
         <h2 className="titulo-votacion">{infoVotacion.titulo}</h2>
       )}
@@ -470,7 +470,7 @@ export default function ConteoPage() {
         ))}
       </div>
 
-      <h2 className="titulo-seccion">📊 Porcentaje por voto</h2>
+      <h2 className="titulo-seccion">Porcentaje por voto</h2>
       <div className="barra-votos">
         {data.map((op) => {
           const tot = data.reduce((s, c) => s + c.votos, 0);
@@ -491,7 +491,7 @@ export default function ConteoPage() {
         })}
       </div>
 
-      <h2 className="titulo-seccion">📉 Representación Gráfica</h2>
+      <h2 className="titulo-seccion">Grafica de barras</h2>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart
           data={data}
@@ -542,7 +542,7 @@ export default function ConteoPage() {
           <Customized component={CoronaGanador} />
         </BarChart>
       </ResponsiveContainer>
-
+      <h2 className="titulo-seccion">Grafica de pastel</h2>
       <GraficaPastel data={data} />
 
       {showEditModal && (

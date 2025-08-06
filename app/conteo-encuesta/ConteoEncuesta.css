@@ -976,6 +976,15 @@ button:disabled .spinner.small {
   opacity: 1;
 }
 
+.titulo-seccion-grafica {
+  text-align: center;
+  font-size: 1.4rem;
+  color: #61dafb;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-weight: bold;
+}
+
 @media (max-width: 768px) {
   .opcion-input-container {
     flex-direction: column;

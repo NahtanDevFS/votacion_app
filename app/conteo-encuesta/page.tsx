@@ -367,7 +367,7 @@ export default function ConteoEncuestaPage() {
         </div>
       </div>
 
-      <h1>📊 Resultados de la Encuesta</h1>
+      <h1>Resultados de la Encuesta</h1>
       {infoEncuesta?.titulo && (
         <h2 className="titulo-encuesta">{infoEncuesta.titulo}</h2>
       )}
@@ -406,7 +406,7 @@ export default function ConteoEncuestaPage() {
                 );
               })}
             </div>
-            <h3>📉 Gráfico de barras</h3>
+            <h3 className="titulo-seccion-grafica">Gráfica de barras</h3>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={datos} margin={{ bottom: 20 }}>
                 <XAxis dataKey="nombre" tick={{ fontSize: 10 }} />
@@ -424,7 +424,7 @@ export default function ConteoEncuestaPage() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-            <h3>📊 Gráfico de pastel</h3>
+            <h3 className="titulo-seccion-grafica">Grafica de pastel</h3>
             <GraficaPastel data={datos} />
           </section>
         );
