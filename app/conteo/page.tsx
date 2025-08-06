@@ -298,8 +298,49 @@ export default function ConteoPage() {
   };
 
   const handleUpdateVotacion = async () => {
+    if (!infoVotacion) return;
     const loadingAlert = showLoadingAlert("Actualizando votación");
     setIsSubmitting(true);
+    // ─── VALIDACIONES ──────────────────────────────────────────────────────────
+    if (!newVotacion.titulo.trim() || !newVotacion.descripcion.trim()) {
+      loadingAlert.close();
+      Swal.fire({
+        icon: "warning",
+        title: "Campos incompletos",
+        text: "Completa título y descripción",
+        confirmButtonColor: "#6200ff",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+    const opcionesValidas = newVotacion.opcionesConImagen.filter((o) =>
+      o.nombre.trim()
+    );
+    if (opcionesValidas.length === 0) {
+      loadingAlert.close();
+      Swal.fire({
+        icon: "warning",
+        title: "Sin opciones",
+        text: "Agrega al menos una opción de votación",
+        confirmButtonColor: "#6200ff",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+    const sinTexto = newVotacion.opcionesConImagen.some(
+      (o) => !o.nombre.trim()
+    );
+    if (sinTexto) {
+      loadingAlert.close();
+      Swal.fire({
+        icon: "warning",
+        title: "Opción vacía",
+        text: "Todas las opciones deben tener texto",
+        confirmButtonColor: "#6200ff",
+      });
+      setIsSubmitting(false);
+      return;
+    }
     try {
       await supabase
         .from("votacion")
@@ -446,14 +487,33 @@ export default function ConteoPage() {
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
   const url = `${baseUrl}/votacion/${infoVotacion.token_link}`;
 
+  const handleQRCodeClick = () => {
+    const url = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${window.location.origin}/votacion/${infoVotacion.token_link}`;
+    Swal.fire({
+      title: "Código QR",
+      imageUrl: url,
+      imageWidth: 300,
+      imageHeight: 300,
+      imageAlt: "QR code",
+      showCloseButton: true,
+      showConfirmButton: false,
+      background: "#fff",
+    });
+  };
+
   return (
     <div className="contenedor-estadisticas">
+      <button className="btn-volver" onClick={() => window.history.back()}>
+        Volver
+      </button>
       {infoVotacion && (
         <div className="info-votacion-extra">
           <div className="qr-contenedor">
             <img
               src={`https://api.qrserver.com/v1/create-qr-code/?size=128x128&data=${window.location.origin}/votacion/${infoVotacion.token_link}`}
               alt="QR"
+              onClick={handleQRCodeClick}
+              style={{ cursor: "pointer" }}
             />
           </div>
           <div className="info-textos">

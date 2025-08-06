@@ -185,6 +185,54 @@ export default function ConteoEncuestaPage() {
     const loadingAlert = showLoadingAlert("Actualizando votación");
     setIsSubmitting(true);
 
+    // ─── VALIDACIONES ──────────────────────────────────────────────────────────
+    if (!newEncuesta.titulo.trim() || !newEncuesta.descripcion.trim()) {
+      loadingAlert.close();
+      Swal.fire({
+        icon: "warning",
+        title: "Campos incompletos",
+        text: "Completa título y descripción",
+        confirmButtonColor: "#6200ff",
+      });
+      setIsSubmitting(false);
+      return;
+    }
+    for (const inc of newEncuesta.incisos) {
+      if (!inc.texto.trim()) {
+        loadingAlert.close();
+        Swal.fire({
+          icon: "warning",
+          title: "Inciso vacío",
+          text: "Cada inciso debe tener texto",
+          confirmButtonColor: "#6200ff",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      if (!inc.opciones.some((o) => o.texto.trim())) {
+        loadingAlert.close();
+        Swal.fire({
+          icon: "warning",
+          title: "Opciones faltantes",
+          text: "Cada inciso necesita al menos una opción",
+          confirmButtonColor: "#6200ff",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      if (inc.opciones.some((o) => !o.texto.trim())) {
+        loadingAlert.close();
+        Swal.fire({
+          icon: "warning",
+          title: "Opción vacía",
+          text: "Ninguna opción puede quedar sin texto",
+          confirmButtonColor: "#6200ff",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     try {
       await supabase
         .from("encuesta")
@@ -387,13 +435,32 @@ export default function ConteoEncuestaPage() {
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
   const url = `${baseUrl}/encuesta/${infoEncuesta.token_link}`;
 
+  const handleQRCodeClick = () => {
+    const url = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${window.location.origin}/encuesta/${infoEncuesta.token_link}`;
+    Swal.fire({
+      title: "Código QR",
+      imageUrl: url,
+      imageWidth: 300,
+      imageHeight: 300,
+      imageAlt: "QR code",
+      showCloseButton: true,
+      showConfirmButton: false,
+      background: "#fff",
+    });
+  };
+
   return (
     <div className="contenedor-estadisticas">
+      <button className="btn-volver" onClick={() => window.history.back()}>
+        Volver
+      </button>
       <div className="info-votacion-extra">
         <div className="qr-contenedor">
           <img
             src={`https://api.qrserver.com/v1/create-qr-code/?size=128x128&data=${window.location.origin}/votacion/${infoEncuesta.token_link}`}
             alt="QR"
+            onClick={handleQRCodeClick}
+            style={{ cursor: "pointer" }}
           />
         </div>
         <div className="info-textos">
