@@ -521,6 +521,27 @@ export default function ConteoPage() {
     }
   };
 
+  const handleCopyUrl = async () => {
+    if (!infoVotacion) return;
+    const fullUrl = `${window.location.origin}/votacion/${infoVotacion.token_link}`;
+    try {
+      await navigator.clipboard.writeText(fullUrl);
+      Swal.fire({
+        icon: "success",
+        title: "URL copiada",
+        text: fullUrl,
+        timer: 750,
+        showConfirmButton: false,
+      });
+    } catch {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudo copiar la URL",
+      });
+    }
+  };
+
   return (
     <div className="contenedor-estadisticas">
       <button className="btn-volver" onClick={() => window.history.back()}>
@@ -537,14 +558,23 @@ export default function ConteoPage() {
             />
           </div>
           <div className="info-textos">
-            <a
-              href={`${window.location.origin}/votacion/${infoVotacion.token_link}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="votacion-link-estilo"
-            >
-              {`${window.location.origin}/votacion/${infoVotacion.token_link}`}
-            </a>
+            <div className="url-votacion-container">
+              <a
+                href={`${window.location.origin}/votacion/${infoVotacion.token_link}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="votacion-link-estilo"
+              >
+                url_votación
+              </a>
+              <button
+                className="btn-copiar-url-votacion"
+                onClick={handleCopyUrl}
+                type="button"
+              >
+                Copiar URL
+              </button>
+            </div>
             <p>
               <strong>Código:</strong> {infoVotacion.token_link}
               <button

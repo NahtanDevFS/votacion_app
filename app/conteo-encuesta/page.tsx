@@ -376,6 +376,26 @@ export default function ConteoEncuestaPage() {
       });
     }
   };
+  const handleCopyUrl = async () => {
+    if (!infoEncuesta) return;
+    const fullUrl = `${window.location.origin}/encuesta/${infoEncuesta.token_link}`;
+    try {
+      await navigator.clipboard.writeText(fullUrl);
+      Swal.fire({
+        icon: "success",
+        title: "URL copiada",
+        text: fullUrl,
+        timer: 750,
+        showConfirmButton: false,
+      });
+    } catch {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudo copiar la URL",
+      });
+    }
+  };
 
   const handleToggleState = async () => {
     if (!infoEncuesta) return;
@@ -479,14 +499,23 @@ export default function ConteoEncuestaPage() {
           />
         </div>
         <div className="info-textos">
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="votacion-link-estilo"
-          >
-            {url}
-          </a>
+          <div className="url-encuesta-container">
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="votacion-link-estilo"
+            >
+              url_encuesta
+            </a>
+            <button
+              className="btn-copiar-url-encuesta"
+              onClick={handleCopyUrl}
+              type="button"
+            >
+              Copiar URL
+            </button>
+          </div>
           <p>
             <strong>Código:</strong> {infoEncuesta.token_link}
             <button

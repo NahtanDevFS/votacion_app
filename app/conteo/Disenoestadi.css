@@ -391,7 +391,6 @@ h1 {
 }
 
 .votacion-link-estilo {
-  display: block;
   word-break: break-all;
   font-size: 0.9rem;
   color: #61dafb;
@@ -439,6 +438,22 @@ h1 {
 }
 
 .btn-copiar-code-votacion:hover {
+  background-color: #4a00c9;
+}
+
+.btn-copiar-url-votacion {
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background-color: #6200ff;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-copiar-url-votacion:hover {
   background-color: #4a00c9;
 }
 
