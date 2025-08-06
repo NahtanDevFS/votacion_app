@@ -310,7 +310,7 @@ export default function ConteoPage() {
         showConfirmButton: false,
       });
 
-      setTimeout(() => window.location.reload(), 1600);
+      setTimeout(() => window.location.reload(), 1000);
     } catch (error) {
       console.error(error);
       Swal.close();
