@@ -506,7 +506,7 @@ export default function ConteoEncuestaPage() {
               rel="noopener noreferrer"
               className="votacion-link-estilo"
             >
-              url_encuesta
+              ir_a_url_encuesta
             </a>
             <button
               className="btn-copiar-url-encuesta"

@@ -565,7 +565,7 @@ export default function ConteoPage() {
                 rel="noopener noreferrer"
                 className="votacion-link-estilo"
               >
-                url_votación
+                ir_a_url_votación
               </a>
               <button
                 className="btn-copiar-url-votacion"
