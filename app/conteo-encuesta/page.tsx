@@ -90,8 +90,9 @@ export default function ConteoEncuestaPage() {
     descripcion: "",
     estado: "en_progreso",
     incisos: [] as {
+      id?: number;
       texto: string;
-      tipo_inciso: string;
+      tipo_inciso: "opcion_unica" | "opcion_multiple";
       opciones: {
         texto: string;
         imagen?: File | null;
@@ -108,16 +109,29 @@ export default function ConteoEncuestaPage() {
   }, [infoEncuesta]);
 
   const fetchIncisosForEdit = async (id: number) => {
-    const { data: incs } = await supabase
+    const { data: incs, error } = await supabase
       .from("inciso_encuesta")
-      .select("id, texto, opcion_encuesta(id, texto, imagen_url)")
+      .select(
+        `
+      id,
+      texto,
+      tipo_inciso,
+      opcion_encuesta (
+        id,
+        texto,
+        imagen_url
+      )
+    `
+      )
       .eq("encuesta_id", id);
 
-    if (!incs) return;
-
+    if (error || !incs) {
+      console.error("Error al leer incisos:", error);
+      return;
+    }
     const incisosFormateados = incs.map((inc: any) => ({
       texto: inc.texto,
-      tipo_inciso: "opcion_unica", // o inc.tipo_inciso si lo tienes en la tabla
+      tipo_inciso: inc.tipo_inciso,
       opciones: inc.opcion_encuesta.map((op: any) => ({
         texto: op.texto,
         imagen_url: op.imagen_url,
@@ -187,15 +201,18 @@ export default function ConteoEncuestaPage() {
         .eq("encuesta_id", infoEncuesta.id);
 
       for (const inc of newEncuesta.incisos) {
-        const { data: incInserted } = await supabase
+        const { data: incInserted, error: incError } = await supabase
           .from("inciso_encuesta")
           .insert({
             encuesta_id: infoEncuesta.id,
             texto: inc.texto,
-            tipo_inciso: "opcion_unica",
+            tipo_inciso: inc.tipo_inciso,
           })
           .select()
           .single();
+        if (incError || !incInserted) {
+          throw incError || new Error("No se pudo crear el inciso");
+        }
 
         const opcionesFinal = await Promise.all(
           inc.opciones.map(async (op) => {
