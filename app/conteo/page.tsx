@@ -33,6 +33,47 @@ type Opcion = {
   preview?: string;
 };
 
+async function compressImage(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      if (!reader.result) return reject(new Error("Error reading file"));
+      const img = new Image();
+      img.src = reader.result as string;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_WIDTH = 800;
+        const width = img.width > MAX_WIDTH ? MAX_WIDTH : img.width;
+        const scaleSize = width / img.width;
+        const height = img.height * scaleSize;
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) return reject(new Error("Canvas is empty"));
+            const compressedFile = new File(
+              [blob],
+              file.name.replace(/\.[^.]+$/, ".jpg"),
+              {
+                type: "image/jpeg",
+                lastModified: Date.now(),
+              }
+            );
+            resolve(compressedFile);
+          },
+          "image/jpeg",
+          0.6 // 60% quality
+        );
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+}
+
 export default function ConteoPage() {
   const [data, setData] = useState<ResultadoVoto[]>([]);
   const [votacionId, setVotacionId] = useState<string | null>(null);
@@ -280,11 +321,14 @@ export default function ConteoPage() {
           let imagen_url = op.imagen_url || null;
 
           if (op.imagen) {
-            const ext = op.imagen.name.split(".").pop();
-            const fileName = `${infoVotacion.id}_${Math.random()}.${ext}`;
+            // comprimimos la imagen antes
+            const compressed = await compressImage(op.imagen);
+            const fileName = `${infoVotacion.id}_${Math.random()
+              .toString(36)
+              .substring(2)}.jpg`;
             const { data, error } = await supabase.storage
               .from("imgs")
-              .upload(fileName, op.imagen);
+              .upload(fileName, compressed);
             if (!error) {
               imagen_url = supabase.storage.from("imgs").getPublicUrl(fileName)
                 .data.publicUrl;
