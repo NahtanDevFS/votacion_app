@@ -14,6 +14,15 @@ html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
+  -webkit-text-size-adjust: 100%; /* Fix para zoom */
+  -webkit-tap-highlight-color: transparent; /* Quita borde azul */
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
 }
 
 body {
