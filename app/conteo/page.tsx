@@ -501,6 +501,26 @@ export default function ConteoPage() {
     });
   };
 
+  const handleCopyCode = async () => {
+    if (!infoVotacion) return;
+    try {
+      await navigator.clipboard.writeText(infoVotacion.token_link);
+      Swal.fire({
+        icon: "success",
+        title: "Copiado",
+        text: `Código "${infoVotacion.token_link}" copiado`,
+        timer: 750,
+        showConfirmButton: false,
+      });
+    } catch {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudo copiar el código",
+      });
+    }
+  };
+
   return (
     <div className="contenedor-estadisticas">
       <button className="btn-volver" onClick={() => window.history.back()}>
@@ -527,7 +547,14 @@ export default function ConteoPage() {
             </a>
             <p>
               <strong>Código:</strong> {infoVotacion.token_link}
+              <button
+                onClick={handleCopyCode}
+                className="btn-copiar-code-votacion"
+              >
+                Copiar
+              </button>
             </p>
+
             <p>
               <strong>Estado:</strong>{" "}
               {infoVotacion.estado === "en_progreso"

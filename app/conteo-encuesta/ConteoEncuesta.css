@@ -1006,7 +1006,26 @@ button:disabled .spinner.small {
   background-color: #33008f;
 }
 
+.btn-copiar-code-encuesta {
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  background-color: #6200ff;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-copiar-code-votacion:hover {
+  background-color: #4a00c9;
+}
+
 @media (max-width: 768px) {
+  .btn-copiar-code-encuesta {
+    margin-top: 0.5rem;
+  }
   .opcion-input-container {
     flex-direction: column;
   }

@@ -357,9 +357,24 @@ export default function ConteoEncuestaPage() {
     return () => clearInterval(timer);
   }, [encuestaId]);
 
-  const handleCopy = async (text: string) => {
-    await navigator.clipboard.writeText(text);
-    Swal.fire("Copiado", "Texto copiado al portapapeles", "success");
+  const handleCopyCode = async () => {
+    if (!infoEncuesta) return;
+    try {
+      await navigator.clipboard.writeText(infoEncuesta.token_link);
+      Swal.fire({
+        icon: "success",
+        title: "Copiado",
+        text: `Código "${infoEncuesta.token_link}" copiado`,
+        timer: 750,
+        showConfirmButton: false,
+      });
+    } catch {
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: "No se pudo copiar el código",
+      });
+    }
   };
 
   const handleToggleState = async () => {
@@ -474,6 +489,12 @@ export default function ConteoEncuestaPage() {
           </a>
           <p>
             <strong>Código:</strong> {infoEncuesta.token_link}
+            <button
+              onClick={handleCopyCode}
+              className="btn-copiar-code-encuesta"
+            >
+              Copiar
+            </button>
           </p>
           <p>
             <strong>Estado:</strong>{" "}
