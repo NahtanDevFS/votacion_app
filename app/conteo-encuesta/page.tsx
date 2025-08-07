@@ -573,13 +573,19 @@ export default function ConteoEncuestaPage() {
             <div className="barra-votos">
               {datos.map((d) => {
                 const pct = total > 0 ? Math.round((d.votos / total) * 100) : 0;
+                const isWinner = !hayEmpate && d.votos === maxVotos;
                 return (
                   <div className="barra-item" key={d.nombre}>
                     <span className="barra-label">{d.nombre}</span>
                     <div className="barra-porcentaje">
                       <div
                         className="barra-interna"
-                        style={{ width: `${pct}%` }}
+                        style={{
+                          width: `${pct}%`,
+                          background: isWinner
+                            ? "linear-gradient(to right, #ffb728ff, #f3c027ff)"
+                            : "linear-gradient(to right, #00c3ff, #00ffa5)",
+                        }}
                       >
                         {pct}%
                       </div>

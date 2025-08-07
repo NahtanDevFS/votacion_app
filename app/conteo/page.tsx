@@ -640,23 +640,34 @@ export default function ConteoPage() {
 
       <h2 className="titulo-seccion">Porcentaje por voto</h2>
       <div className="barra-votos">
-        {data.map((op) => {
-          const tot = data.reduce((s, c) => s + c.votos, 0);
-          const porcentaje = tot > 0 ? Math.round((op.votos / tot) * 100) : 0;
-          return (
-            <div className="barra-item" key={op.nombre}>
-              <span className="barra-label">{op.nombre}</span>
-              <div className="barra-porcentaje">
-                <div
-                  className="barra-interna"
-                  style={{ width: `${porcentaje}%` }}
-                >
-                  {porcentaje}%
+        {(() => {
+          const total = data.reduce((s, c) => s + c.votos, 0);
+          const maxVotos = Math.max(...data.map((d) => d.votos), 0);
+          const hayEmpate = data.filter((d) => d.votos === maxVotos).length > 1;
+          return data.map((op) => {
+            const porcentaje =
+              total > 0 ? Math.round((op.votos / total) * 100) : 0;
+            const isWinner = !hayEmpate && op.votos === maxVotos;
+            return (
+              <div className="barra-item" key={op.nombre}>
+                <span className="barra-label">{op.nombre}</span>
+                <div className="barra-porcentaje">
+                  <div
+                    className="barra-interna"
+                    style={{
+                      width: `${porcentaje}%`,
+                      background: isWinner
+                        ? "linear-gradient(to right, #ffb728ff, #f3c027ff)" // amarillo ganador
+                        : "linear-gradient(to right, #00c3ff, #00ffa5)", // azul normal
+                    }}
+                  >
+                    {porcentaje}%
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          });
+        })()}
       </div>
 
       <h2 className="titulo-seccion">Grafica de barras</h2>
