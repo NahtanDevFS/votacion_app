@@ -602,7 +602,9 @@ export default function ConteoPage() {
                 className="btn-accion"
                 onClick={() => handleToggleState(infoVotacion)}
               >
-                ❌ Cambiar estado
+                {infoVotacion.estado === "en_progreso"
+                  ? "❌ Finalizar"
+                  : "✅ Activar"}
               </button>
               <button
                 className="btn-accion"

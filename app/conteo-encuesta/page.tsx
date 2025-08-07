@@ -534,8 +534,9 @@ export default function ConteoEncuestaPage() {
               ✏️ Editar
             </button>
             <button className="btn-accion" onClick={handleToggleState}>
-              {" "}
-              ❌ Cambiar estado{" "}
+              {infoEncuesta.estado === "en_progreso"
+                ? "❌ Finalizar"
+                : "✅ Activar"}
             </button>
             <button
               className="btn-accion"
