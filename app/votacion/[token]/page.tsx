@@ -18,76 +18,15 @@ export default function VotacionPage() {
   const [fingerprint, setFingerprint] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Función para generar un UUID persistente
-  const generatePersistentId = async () => {
-    // Primero intentamos con localStorage (funciona en la mayoría de navegadores)
-    if (typeof window !== "undefined" && window.localStorage) {
-      let persistentId = localStorage.getItem("persistent_voter_id");
-      if (!persistentId) {
-        persistentId = crypto.randomUUID();
-        localStorage.setItem("persistent_voter_id", persistentId);
-      }
-      return persistentId;
-    }
-
-    // Si no hay localStorage, intentamos con IndexedDB
-    try {
-      return await new Promise<string>((resolve, reject) => {
-        const request = indexedDB.open("VoterIDDatabase", 1);
-
-        request.onupgradeneeded = (event) => {
-          const db = (event.target as IDBOpenDBRequest).result;
-          if (!db.objectStoreNames.contains("voter")) {
-            db.createObjectStore("voter", { keyPath: "id" });
-          }
-        };
-
-        request.onsuccess = (event) => {
-          const db = (event.target as IDBOpenDBRequest).result;
-          const transaction = db.transaction("voter", "readwrite");
-          const store = transaction.objectStore("voter");
-
-          const getRequest = store.get("persistent_id");
-          getRequest.onsuccess = () => {
-            if (getRequest.result) {
-              resolve(getRequest.result.value);
-            } else {
-              const newId = crypto.randomUUID();
-              store.put({ id: "persistent_id", value: newId });
-              resolve(newId);
-            }
-          };
-          getRequest.onerror = () => reject(getRequest.error);
-        };
-
-        request.onerror = (event) => {
-          reject((event.target as IDBOpenDBRequest).error);
-        };
-      });
-    } catch (error) {
-      console.error("Error con IndexedDB:", error);
-      // Si todo falla, usamos solo fingerprint
-      const fp = await FingerprintJS.load();
-      const { visitorId } = await fp.get();
-      return visitorId;
-    }
-  };
-
   // 1) Obtiene fingerprint
   useEffect(() => {
     (async () => {
       try {
-        const persistentId = await generatePersistentId();
-        setFingerprint(persistentId);
+        const fp = await FingerprintJS.load();
+        const { visitorId } = await fp.get();
+        setFingerprint(visitorId);
       } catch {
-        try {
-          // Fallback a fingerprint tradicional
-          const fp = await FingerprintJS.load();
-          const { visitorId } = await fp.get();
-          setFingerprint(visitorId);
-        } catch {
-          setError("No se pudo identificar tu dispositivo");
-        }
+        setError("No se pudo identificar tu dispositivo");
       }
     })();
   }, []);
