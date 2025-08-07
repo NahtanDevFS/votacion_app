@@ -583,7 +583,7 @@ export default function ConteoEncuestaPage() {
                         style={{
                           width: `${pct}%`,
                           background: isWinner
-                            ? "linear-gradient(to right, #ffb728ff, #f3c027ff)"
+                            ? "linear-gradient(to right, #ffb728ff, #ffe74fff)"
                             : "linear-gradient(to right, #00c3ff, #00ffa5)",
                         }}
                       >

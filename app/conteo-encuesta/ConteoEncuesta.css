@@ -57,8 +57,8 @@ h1 {
 }
 
 .barra-label {
-  display: block;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
+  margin-left: 5px;
 }
 
 .barra-porcentaje {
@@ -71,10 +71,13 @@ h1 {
 .barra-interna {
   height: 100%;
   background: linear-gradient(to right, #00c3ff, #00ffa5);
-  color: #3a3a3a;
-  font-size: 0.75rem;
-  text-align: right;
+  color: #2a2a2a;
+  font-size: 0.9rem;
   padding-right: 0.5rem;
+  padding-left: 10px;
+  display: flex;
+  font-weight: bold;
+  align-items: center;
 }
 
 .titulo-encuesta {

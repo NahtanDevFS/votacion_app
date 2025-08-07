@@ -34,7 +34,6 @@ h1 {
 }
 
 .barra-label {
-  color: #ddd;
   font-size: 0.95rem;
   margin-left: 5px;
 }
@@ -50,8 +49,8 @@ h1 {
 .barra-interna {
   height: 100%;
   background: linear-gradient(to right, #00c3ff, #00ffa5);
-  color: #3a3a3a;
-  font-size: 0.8rem;
+  color: #2a2a2a;
+  font-size: 0.9rem;
   padding-left: 10px;
   display: flex;
   align-items: center;

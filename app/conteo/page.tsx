@@ -657,7 +657,7 @@ export default function ConteoPage() {
                     style={{
                       width: `${porcentaje}%`,
                       background: isWinner
-                        ? "linear-gradient(to right, #ffb728ff, #f3c027ff)" // amarillo ganador
+                        ? "linear-gradient(to right, #ffb728ff, #ffe74fff)" // amarillo ganador
                         : "linear-gradient(to right, #00c3ff, #00ffa5)", // azul normal
                     }}
                   >
