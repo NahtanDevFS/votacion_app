@@ -1019,14 +1019,15 @@ function VotacionCard({
 
       <h3>{votacion.titulo}</h3>
       <p className="descripcion">{votacion.descripcion}</p>
+      <div className={`state-label ${votacion.estado}`}>
+        <em>
+          {votacion.estado === "en_progreso" ? "En progreso" : "Expirada"}
+        </em>
+      </div>
 
       <div className="fechas">
         <div>
           <strong>Creada:</strong> {formatDate(votacion.fecha_inicio)}
-          <br />
-          <br />
-          <strong>Estado:</strong>{" "}
-          {votacion.estado === "en_progreso" ? "En progreso" : "Expirada"}
         </div>
       </div>
 

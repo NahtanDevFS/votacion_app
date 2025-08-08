@@ -1242,6 +1242,11 @@ function EncuestaCard({
       <div className="tipo-label">
         <strong>N. incisos:</strong> {encuesta.inciso_encuesta.length}
       </div>
+      <div className={`state-label ${encuesta.estado}`}>
+        <em>
+          {encuesta.estado === "en_progreso" ? "En progreso" : "Expirada"}
+        </em>
+      </div>
       <div className="fechas">
         <div>
           <strong>Creada:</strong> {formatDate(encuesta.fecha_inicio)}
@@ -1275,41 +1280,6 @@ function EncuestaCard({
           )}
         </ul>
       </div>
-      <div className={`state-label ${encuesta.estado}`}>
-        <em>
-          {encuesta.estado === "en_progreso" ? "En progreso" : "Expirada"}
-        </em>
-      </div>
-
-      {/*
-      <div className="card-actions">
-        <button
-          className="edit-button"
-          onClick={onEdit}
-          disabled={deletingId === encuesta.id}
-        >
-          ✏️ Editar
-        </button>
-        <button
-          className="toggle-button"
-          onClick={onToggle}
-          disabled={deletingId === encuesta.id || deletingId !== null}
-        >
-          {encuesta.estado === "en_progreso" ? "❌ Expirar" : "✅ Reactivar"}
-        </button>
-        <button
-          className="delete-button"
-          onClick={onDelete}
-          disabled={deletingId !== null} // Deshabilitar todos los botones de eliminar durante cualquier eliminación
-        >
-          {deletingId === encuesta.id ? (
-            <span className="spinner small"></span>
-          ) : (
-            "🗑️ Eliminar"
-          )}
-        </button>
-      </div>
-      */}
 
       <a
         href={`/conteo-encuesta?encuesta=${encuesta.id}`}
