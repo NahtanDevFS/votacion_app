@@ -330,11 +330,11 @@ export default function ConteoPage() {
       return;
     }
 
-    // ─── CONFIRMAR borrado de votos si el checkbox está marcado ───────────────
+    //confirmar borrado de votos si el checkbox está marcado
     if (deleteVotes) {
       const confirm = await Swal.fire({
-        title: "¿Quieres borrar los votos de esta votación?",
-        text: "Cuando guardes los cambios, los votos actuales se borraran ¿Deseas continuar?",
+        title: "¿Quieres reiniciar los votos de esta votación?",
+        text: "Cuando guardes los cambios, la votación se reiniciará y se perderán todos los votos actuales ¿Deseas continuar?",
         icon: "warning",
         showCancelButton: true,
         confirmButtonText: "Sí, editar",
@@ -894,7 +894,7 @@ export default function ConteoPage() {
                   checked={deleteVotes}
                   onChange={(e) => setDeleteVotes(e.target.checked)}
                 />{" "}
-                Borrar votos existentes al guardar cambios
+                Reiniciar votación al guardar cambios
               </label>
             </div>
 

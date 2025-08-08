@@ -219,8 +219,8 @@ export default function ConteoEncuestaPage() {
     // ─── CONFIRMAR borrado de votos si el checkbox está marcado ───────────────
     if (deleteVotes) {
       const confirm = await Swal.fire({
-        title: "¿Quieres borrar los votos de esta encuesta?",
-        text: "Cuando guardes los cambios, los votos actuales se borraran ¿Deseas continuar?",
+        title: "¿Quieres reiniciar los votos de esta encuesta?",
+        text: "Cuando guardes los cambios, la encuesta se reiniciará y se perderán todos los votos actuales ¿Deseas continuar?",
         icon: "warning",
         showCancelButton: true,
         confirmButtonText: "Sí, editar",
@@ -960,7 +960,7 @@ export default function ConteoEncuestaPage() {
                 checked={deleteVotes}
                 onChange={(e) => setDeleteVotes(e.target.checked)}
               />{" "}
-              Borrar votos existentes al guardar cambios
+              Reiniciar encuesta al guardar cambios
             </label>
 
             <div className="modal-actions">

@@ -137,6 +137,26 @@ export default function EncuestaVotarPage() {
     setIsSubmitting(true);
 
     try {
+      // 1) REFRESCAR estado justo antes de votar (evita carreras)
+      const { data: fresh, error: freshErr } = await supabase
+        .from("encuesta")
+        .select("estado")
+        .eq("id", encuesta.id)
+        .single();
+
+      if (freshErr) throw freshErr;
+
+      if (!fresh || fresh.estado !== "en_progreso") {
+        // Marcar localmente como expirada y avisar
+        setEncuesta((prev) => (prev ? { ...prev, estado: "expirada" } : prev));
+        await Swal.fire({
+          icon: "info",
+          title: "La encuesta ha expirado",
+          text: "No es posible registrar votos.",
+          confirmButtonColor: "#6200ff",
+        });
+        return;
+      }
       // VERIFICACIÓN EN TIEMPO REAL DE VOTO EXISTENTE
       const { data: existingVote, error: checkError } = await supabase
         .from("voto_participante_encuesta")
