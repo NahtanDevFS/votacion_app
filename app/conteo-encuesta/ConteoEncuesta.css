@@ -1082,6 +1082,9 @@ button:disabled .spinner.small {
     flex-direction: column;
     align-items: flex-start;
   }
+  .info-votacion-extra {
+    justify-content: center;
+  }
 }
 
 /* Responsive */

@@ -514,4 +514,7 @@ h1 {
   .votaciones-grid {
     grid-template-columns: 1fr;
   }
+  .info-votacion-extra {
+    justify-content: center;
+  }
 }
