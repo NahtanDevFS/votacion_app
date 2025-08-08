@@ -634,24 +634,26 @@ export default function ConteoPage() {
                 className="btn-accion"
                 onClick={() => handleEditClick(infoVotacion)}
               >
-                ✏️ Editar
+                Editar
               </button>
               <button
-                className="btn-accion"
+                className={`btn-accion ${
+                  infoVotacion.estado === "en_progreso"
+                    ? "btn-finalizar"
+                    : "btn-activar"
+                }`}
                 onClick={() => handleToggleState(infoVotacion)}
               >
                 {infoVotacion.estado === "en_progreso"
-                  ? "❌ Finalizar"
-                  : "✅ Activar"}
+                  ? "Finalizar"
+                  : "Activar"}
               </button>
               <button
-                className="btn-accion"
+                className="btn-accion btn-eliminar"
                 onClick={() => handleDeleteVotacion(infoVotacion.id)}
                 disabled={deletingId === infoVotacion.id}
               >
-                {deletingId === infoVotacion.id
-                  ? "Eliminando..."
-                  : "🗑️ Eliminar"}
+                {deletingId === infoVotacion.id ? "Eliminando..." : "Eliminar"}
               </button>
             </div>
           </div>

@@ -161,7 +161,7 @@ export default function VotacionPage() {
     }
   };
 
-  // 4) Comprueba si la votación está expirada
+  // Comprueba si la votación está expirada
   const expired = votacion?.estado === "expirada";
 
   if (loading) return <div className="loading">Cargando...</div>;

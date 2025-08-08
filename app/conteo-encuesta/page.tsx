@@ -1,4 +1,3 @@
-// app/conteo-encuesta/page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -132,11 +131,11 @@ export default function ConteoEncuestaPage() {
       return;
     }
     const incisosFormateados = incs.map((inc: any) => ({
-      id: inc.id, // <-- guarda id del inciso
+      id: inc.id, //guarda id del inciso
       texto: inc.texto,
       tipo_inciso: inc.tipo_inciso,
       opciones: inc.opcion_encuesta.map((op: any) => ({
-        id: op.id, // <-- guarda id de la opción
+        id: op.id, //guarda id de la opción
         texto: op.texto,
         imagen_url: op.imagen_url,
         preview: op.imagen_url,
@@ -216,7 +215,7 @@ export default function ConteoEncuestaPage() {
       }
     }
 
-    // ─── CONFIRMAR borrado de votos si el checkbox está marcado ───────────────
+    //confirmar borrado de votos si el checkbox está marcado
     if (deleteVotes) {
       const confirm = await Swal.fire({
         title: "¿Quieres reiniciar los votos de esta encuesta?",
@@ -233,7 +232,7 @@ export default function ConteoEncuestaPage() {
     setIsSubmitting(true);
 
     try {
-      // 1) Actualizar datos básicos de la encuesta
+      //Actualizar datos básicos de la encuesta
       await supabase
         .from("encuesta")
         .update({
@@ -243,7 +242,7 @@ export default function ConteoEncuestaPage() {
         })
         .eq("id", infoEncuesta.id);
 
-      // 2) Traer estado actual (incisos + opciones) para calcular el diff
+      //Traer estado actual (incisos + opciones) para calcular el diff
       const { data: oldIncs, error: oldErr } = await supabase
         .from("inciso_encuesta")
         .select(
@@ -271,7 +270,7 @@ export default function ConteoEncuestaPage() {
         (id: number) => !newIncisoIds.includes(id)
       );
 
-      // 3) Manejo de votos
+      //Manejo de votos
       if (deleteVotes) {
         // borra todos los votos de esta encuesta (vinculados a sus incisos)
         if (oldIncisoIds.length) {
@@ -281,7 +280,7 @@ export default function ConteoEncuestaPage() {
             .in("inciso_id", oldIncisoIds);
         }
       } else {
-        // borra sólo los votos ligados a incisos u opciones eliminados
+        //borra sólo los votos ligados a incisos u opciones eliminados
         if (removedIncisoIds.length) {
           await supabase
             .from("voto_participante_encuesta")
@@ -289,7 +288,7 @@ export default function ConteoEncuestaPage() {
             .in("inciso_id", removedIncisoIds);
         }
 
-        // por cada inciso que se mantiene, detectar opciones eliminadas
+        //por cada inciso que se mantiene, detectar opciones eliminadas
         const oldIncMap = new Map<number, any>(
           (oldIncs || []).map((inc: any) => [inc.id, inc])
         );
@@ -315,7 +314,7 @@ export default function ConteoEncuestaPage() {
         }
       }
 
-      // 4) Borrar únicamente los incisos eliminados (sus votos ya se limpiaron o caerán por cascade)
+      //Borrar únicamente los incisos eliminados (sus votos ya se limpiaron o caerán por cascade)
       if (removedIncisoIds.length) {
         await supabase
           .from("inciso_encuesta")
@@ -323,7 +322,7 @@ export default function ConteoEncuestaPage() {
           .in("id", removedIncisoIds);
       }
 
-      // 5) Upsert por inciso y sus opciones
+      //Upsert por inciso y sus opciones
       const oldIncMap = new Map<number, any>(
         (oldIncs || []).map((inc: any) => [inc.id, inc])
       );
@@ -332,7 +331,7 @@ export default function ConteoEncuestaPage() {
         let incisoId = inc.id;
 
         if (incisoId) {
-          // UPDATE inciso existente
+          //update inciso existente
           await supabase
             .from("inciso_encuesta")
             .update({
@@ -391,7 +390,7 @@ export default function ConteoEncuestaPage() {
             }
           }
         } else {
-          // INSERT inciso nuevo
+          //insert inciso nuevo
           const { data: incInserted, error: incErr } = await supabase
             .from("inciso_encuesta")
             .insert({
@@ -405,7 +404,7 @@ export default function ConteoEncuestaPage() {
             throw incErr || new Error("No se pudo crear el inciso");
           incisoId = incInserted.id;
 
-          // insertar TODAS las opciones del inciso nuevo
+          //insertar todas las opciones del inciso nuevo
           const opcionesFinal = await Promise.all(
             inc.opciones.map(async (op) => {
               let imagen_url = op.imagen_url || null;
@@ -672,19 +671,24 @@ export default function ConteoEncuestaPage() {
           </p>
           <div className="botones-accion">
             <button className="btn-accion" onClick={handleEditClick}>
-              ✏️ Editar
-            </button>
-            <button className="btn-accion" onClick={handleToggleState}>
-              {infoEncuesta.estado === "en_progreso"
-                ? "❌ Finalizar"
-                : "✅ Activar"}
+              Editar
             </button>
             <button
-              className="btn-accion"
+              className={`btn-accion ${
+                infoEncuesta.estado === "en_progreso"
+                  ? "btn-finalizar"
+                  : "btn-activar"
+              }`}
+              onClick={handleToggleState}
+            >
+              {infoEncuesta.estado === "en_progreso" ? "Finalizar" : "Activar"}
+            </button>
+            <button
+              className="btn-accion btn-eliminar"
               onClick={handleDeleteEncuesta}
               disabled={deletingId === infoEncuesta.id}
             >
-              🗑️ Eliminar
+              Eliminar
             </button>
           </div>
         </div>
