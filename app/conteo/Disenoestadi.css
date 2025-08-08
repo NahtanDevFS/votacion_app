@@ -214,29 +214,29 @@ h1 {
 
 /* Estado: Activar (positivo) */
 .btn-activar {
-  background: linear-gradient(135deg, #16a34a, #22c55e); /* verdes */
+  background: #22c55e;
   color: #0b1f14;
 }
 .btn-activar:hover:not(:disabled) {
-  background: linear-gradient(135deg, #18b34f, #31d06b);
+  background: #31d06b;
 }
 
 /* Estado: Finalizar (atención) */
 .btn-finalizar {
-  background: linear-gradient(135deg, #ff6a00, #ff8c3a); /* ámbar */
+  background: #ff6a00;
   color: #2b1a00;
 }
 .btn-finalizar:hover:not(:disabled) {
-  background: linear-gradient(135deg, #ffa81b, #fccc49);
+  background: #ff8c3a;
 }
 
 /* Eliminar (peligro) */
 .btn-eliminar {
-  background: linear-gradient(135deg, #ef4444, #f87171); /* rojos */
+  background: #ef4444;
   color: #3a0b0b;
 }
 .btn-eliminar:hover:not(:disabled) {
-  background: linear-gradient(135deg, #f25555, #fa8a8a);
+  background: #ff5a5a;
 }
 
 .modal-overlay {
