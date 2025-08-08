@@ -27,6 +27,7 @@ const supabase = createClient(
 
 type ResultadoVoto = { nombre: string; votos: number };
 type Opcion = {
+  id?: number;
   nombre: string;
   imagen?: File | null;
   imagen_url?: string | null;
@@ -89,6 +90,7 @@ export default function ConteoPage() {
     opciones: [""],
     opcionesConImagen: [] as Opcion[],
   });
+  const [deleteVotes, setDeleteVotes] = useState(true);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -130,30 +132,20 @@ export default function ConteoPage() {
   }, [votacionId]);
 
   const handleEditClick = async (v: any) => {
-    const confirm = await Swal.fire({
-      title: "¿Quieres editar esta encuesta?",
-      text: "Cuando guardes los cambios, los votos actuales se borraran ¿Deseas continuar?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Sí, editar",
-      cancelButtonText: "Cancelar",
+    setNewVotacion({
+      titulo: v.titulo,
+      descripcion: v.descripcion,
+      estado: v.estado,
+      tipo_votacion: v.tipo_votacion,
+      opciones: v.opcion_votacion.map((op: any) => op.nombre),
+      opcionesConImagen: v.opcion_votacion.map((op: any) => ({
+        id: op.id,
+        nombre: op.nombre,
+        imagen_url: op.imagen_url,
+        preview: op.imagen_url,
+      })),
     });
-
-    if (confirm.isConfirmed) {
-      setNewVotacion({
-        titulo: v.titulo,
-        descripcion: v.descripcion,
-        estado: v.estado,
-        tipo_votacion: v.tipo_votacion,
-        opciones: v.opcion_votacion.map((op: any) => op.nombre),
-        opcionesConImagen: v.opcion_votacion.map((op: any) => ({
-          nombre: op.nombre,
-          imagen_url: op.imagen_url,
-          preview: op.imagen_url,
-        })),
-      });
-      setShowEditModal(true);
-    }
+    setShowEditModal(true);
   };
 
   const handleToggleState = async (v: any) => {
@@ -299,48 +291,60 @@ export default function ConteoPage() {
 
   const handleUpdateVotacion = async () => {
     if (!infoVotacion) return;
-    const loadingAlert = showLoadingAlert("Actualizando votación");
-    setIsSubmitting(true);
+
     // ─── VALIDACIONES ──────────────────────────────────────────────────────────
     if (!newVotacion.titulo.trim() || !newVotacion.descripcion.trim()) {
-      loadingAlert.close();
       Swal.fire({
         icon: "warning",
         title: "Campos incompletos",
         text: "Completa título y descripción",
         confirmButtonColor: "#6200ff",
       });
-      setIsSubmitting(false);
+
       return;
     }
     const opcionesValidas = newVotacion.opcionesConImagen.filter((o) =>
       o.nombre.trim()
     );
     if (opcionesValidas.length === 0) {
-      loadingAlert.close();
       Swal.fire({
         icon: "warning",
         title: "Sin opciones",
         text: "Agrega al menos una opción de votación",
         confirmButtonColor: "#6200ff",
       });
-      setIsSubmitting(false);
+
       return;
     }
     const sinTexto = newVotacion.opcionesConImagen.some(
       (o) => !o.nombre.trim()
     );
     if (sinTexto) {
-      loadingAlert.close();
       Swal.fire({
         icon: "warning",
         title: "Opción vacía",
         text: "Todas las opciones deben tener texto",
         confirmButtonColor: "#6200ff",
       });
-      setIsSubmitting(false);
+
       return;
     }
+
+    // ─── CONFIRMAR borrado de votos si el checkbox está marcado ───────────────
+    if (deleteVotes) {
+      const confirm = await Swal.fire({
+        title: "¿Quieres borrar los votos de esta votación?",
+        text: "Cuando guardes los cambios, los votos actuales se borraran ¿Deseas continuar?",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Sí, editar",
+        cancelButtonText: "Cancelar",
+      });
+      if (!confirm.isConfirmed) return; // cancelar operación completa
+    }
+
+    const loadingAlert = showLoadingAlert("Actualizando votacion...");
+    setIsSubmitting(true);
     try {
       await supabase
         .from("votacion")
@@ -352,40 +356,74 @@ export default function ConteoPage() {
         })
         .eq("id", infoVotacion.id);
 
-      await supabase
-        .from("opcion_votacion")
-        .delete()
-        .eq("votacion_id", infoVotacion.id);
+      // 2) Calcula IDs viejos y nuevos
+      const oldIds = infoVotacion.opcion_votacion.map((op: any) => op.id);
+      const newIds = newVotacion.opcionesConImagen
+        .map((o) => o.id)
+        .filter((id): id is number => typeof id === "number");
 
-      const opcionesFinal = await Promise.all(
-        newVotacion.opcionesConImagen.map(async (op: any) => {
-          let imagen_url = op.imagen_url || null;
+      const removedIds = oldIds.filter((id: number) => !newIds.includes(id));
 
-          if (op.imagen) {
-            // comprimimos la imagen antes
-            const compressed = await compressImage(op.imagen);
-            const fileName = `${infoVotacion.id}_${Math.random()
-              .toString(36)
-              .substring(2)}.jpg`;
-            const { data, error } = await supabase.storage
-              .from("imgs")
-              .upload(fileName, compressed);
-            if (!error) {
-              imagen_url = supabase.storage.from("imgs").getPublicUrl(fileName)
-                .data.publicUrl;
-            }
+      // 3) Manejo de votos
+      if (deleteVotes) {
+        // borra TODO
+        await supabase
+          .from("voto_participante")
+          .delete()
+          .eq("votacion_id", infoVotacion.id);
+      } else {
+        // borra sólo los votos de las opciones que se eliminaron
+        if (removedIds.length) {
+          await supabase
+            .from("voto_participante")
+            .delete()
+            .in("opcion_votacion_id", removedIds);
+        }
+      }
+
+      // 4) Borra únicamente las opciones “eliminadas”
+      if (removedIds.length) {
+        await supabase.from("opcion_votacion").delete().in("id", removedIds);
+      }
+
+      // 5) Para cada nueva opción:
+      //    - si tiene id: UPDATE
+      //    - si no: INSERT
+      for (const op of newVotacion.opcionesConImagen) {
+        let imagen_url = op.imagen_url || null;
+
+        if (op.imagen) {
+          const compressed = await compressImage(op.imagen);
+          const fileName = `${infoVotacion.id}_${Math.random()
+            .toString(36)
+            .substring(2)}.jpg`;
+          const { error: uploadErr, data: uploadData } = await supabase.storage
+            .from("imgs")
+            .upload(fileName, compressed);
+          if (!uploadErr) {
+            imagen_url = supabase.storage.from("imgs").getPublicUrl(fileName)
+              .data.publicUrl;
           }
+        }
 
-          return {
-            votacion_id: infoVotacion.id,
-            nombre: op.nombre,
-            imagen_url,
-          };
-        })
-      );
+        const payload = {
+          votacion_id: infoVotacion.id,
+          nombre: op.nombre,
+          imagen_url,
+        };
 
-      await supabase.from("opcion_votacion").insert(opcionesFinal);
-      Swal.close();
+        if (op.id) {
+          // UPDATE existente
+          await supabase
+            .from("opcion_votacion")
+            .update(payload)
+            .eq("id", op.id);
+        } else {
+          // INSERT nuevo
+          await supabase.from("opcion_votacion").insert(payload);
+        }
+      }
+      loadingAlert.close();
       Swal.fire({
         icon: "success",
         title: "Votación actualizada",
@@ -849,6 +887,15 @@ export default function ConteoPage() {
               >
                 + Añadir Opción
               </button>
+              <label className="checkbox-label-borrar-votos">
+                <input
+                  className="checkbox-borrar-votos"
+                  type="checkbox"
+                  checked={deleteVotes}
+                  onChange={(e) => setDeleteVotes(e.target.checked)}
+                />{" "}
+                Borrar votos existentes al guardar cambios
+              </label>
             </div>
 
             <div className="modal-actions">

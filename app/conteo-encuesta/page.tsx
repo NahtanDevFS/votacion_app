@@ -94,6 +94,7 @@ export default function ConteoEncuestaPage() {
       texto: string;
       tipo_inciso: "opcion_unica" | "opcion_multiple";
       opciones: {
+        id?: number;
         texto: string;
         imagen?: File | null;
         imagen_url?: string | null;
@@ -101,6 +102,7 @@ export default function ConteoEncuestaPage() {
       }[];
     }[],
   });
+  const [deleteVotes, setDeleteVotes] = useState(true); // estado del checkbox
 
   useEffect(() => {
     if (infoEncuesta) {
@@ -130,9 +132,11 @@ export default function ConteoEncuestaPage() {
       return;
     }
     const incisosFormateados = incs.map((inc: any) => ({
+      id: inc.id, // <-- guarda id del inciso
       texto: inc.texto,
       tipo_inciso: inc.tipo_inciso,
       opciones: inc.opcion_encuesta.map((op: any) => ({
+        id: op.id, // <-- guarda id de la opción
         texto: op.texto,
         imagen_url: op.imagen_url,
         preview: op.imagen_url,
@@ -148,18 +152,7 @@ export default function ConteoEncuestaPage() {
   };
 
   const handleEditClick = async () => {
-    const confirm = await Swal.fire({
-      title: "¿Quieres editar esta encuesta?",
-      text: "Cuando guardes los cambios, los votos actuales se borraran ¿Deseas continuar?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Sí, editar",
-      cancelButtonText: "Cancelar",
-    });
-
-    if (confirm.isConfirmed) {
-      setShowEditModal(true);
-    }
+    setShowEditModal(true);
   };
 
   const handleImageChange = (i: number, j: number, file: File | null) => {
@@ -182,58 +175,65 @@ export default function ConteoEncuestaPage() {
 
   const handleUpdateEncuesta = async () => {
     if (!infoEncuesta) return;
-    const loadingAlert = showLoadingAlert("Actualizando votación");
-    setIsSubmitting(true);
 
     // ─── VALIDACIONES ──────────────────────────────────────────────────────────
     if (!newEncuesta.titulo.trim() || !newEncuesta.descripcion.trim()) {
-      loadingAlert.close();
       Swal.fire({
         icon: "warning",
         title: "Campos incompletos",
         text: "Completa título y descripción",
         confirmButtonColor: "#6200ff",
       });
-      setIsSubmitting(false);
       return;
     }
     for (const inc of newEncuesta.incisos) {
       if (!inc.texto.trim()) {
-        loadingAlert.close();
         Swal.fire({
           icon: "warning",
           title: "Inciso vacío",
           text: "Cada inciso debe tener texto",
           confirmButtonColor: "#6200ff",
         });
-        setIsSubmitting(false);
         return;
       }
       if (!inc.opciones.some((o) => o.texto.trim())) {
-        loadingAlert.close();
         Swal.fire({
           icon: "warning",
           title: "Opciones faltantes",
           text: "Cada inciso necesita al menos una opción",
           confirmButtonColor: "#6200ff",
         });
-        setIsSubmitting(false);
         return;
       }
       if (inc.opciones.some((o) => !o.texto.trim())) {
-        loadingAlert.close();
         Swal.fire({
           icon: "warning",
           title: "Opción vacía",
           text: "Ninguna opción puede quedar sin texto",
           confirmButtonColor: "#6200ff",
         });
-        setIsSubmitting(false);
         return;
       }
     }
 
+    // ─── CONFIRMAR borrado de votos si el checkbox está marcado ───────────────
+    if (deleteVotes) {
+      const confirm = await Swal.fire({
+        title: "¿Quieres borrar los votos de esta encuesta?",
+        text: "Cuando guardes los cambios, los votos actuales se borraran ¿Deseas continuar?",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Sí, editar",
+        cancelButtonText: "Cancelar",
+      });
+      if (!confirm.isConfirmed) return; // cancelar operación completa
+    }
+
+    const loadingAlert = showLoadingAlert("Actualizando encuesta...");
+    setIsSubmitting(true);
+
     try {
+      // 1) Actualizar datos básicos de la encuesta
       await supabase
         .from("encuesta")
         .update({
@@ -243,55 +243,196 @@ export default function ConteoEncuestaPage() {
         })
         .eq("id", infoEncuesta.id);
 
-      await supabase
+      // 2) Traer estado actual (incisos + opciones) para calcular el diff
+      const { data: oldIncs, error: oldErr } = await supabase
         .from("inciso_encuesta")
-        .delete()
+        .select(
+          `
+        id,
+        texto,
+        tipo_inciso,
+        opcion_encuesta (
+          id,
+          texto,
+          imagen_url
+        )
+      `
+        )
         .eq("encuesta_id", infoEncuesta.id);
 
-      for (const inc of newEncuesta.incisos) {
-        const { data: incInserted, error: incError } = await supabase
-          .from("inciso_encuesta")
-          .insert({
-            encuesta_id: infoEncuesta.id,
-            texto: inc.texto,
-            tipo_inciso: inc.tipo_inciso,
-          })
-          .select()
-          .single();
-        if (incError || !incInserted) {
-          throw incError || new Error("No se pudo crear el inciso");
+      if (oldErr) throw oldErr;
+
+      const oldIncisoIds = (oldIncs || []).map((i: any) => i.id);
+      const newIncisoIds = newEncuesta.incisos
+        .map((i) => i.id)
+        .filter((id): id is number => typeof id === "number");
+
+      const removedIncisoIds = oldIncisoIds.filter(
+        (id: number) => !newIncisoIds.includes(id)
+      );
+
+      // 3) Manejo de votos
+      if (deleteVotes) {
+        // borra todos los votos de esta encuesta (vinculados a sus incisos)
+        if (oldIncisoIds.length) {
+          await supabase
+            .from("voto_participante_encuesta")
+            .delete()
+            .in("inciso_id", oldIncisoIds);
+        }
+      } else {
+        // borra sólo los votos ligados a incisos u opciones eliminados
+        if (removedIncisoIds.length) {
+          await supabase
+            .from("voto_participante_encuesta")
+            .delete()
+            .in("inciso_id", removedIncisoIds);
         }
 
-        const opcionesFinal = await Promise.all(
-          inc.opciones.map(async (op) => {
+        // por cada inciso que se mantiene, detectar opciones eliminadas
+        const oldIncMap = new Map<number, any>(
+          (oldIncs || []).map((inc: any) => [inc.id, inc])
+        );
+
+        for (const inc of newEncuesta.incisos) {
+          if (!inc.id) continue; // inciso nuevo, no hay votos que limpiar aún
+          const oldOpts = (oldIncMap.get(inc.id)?.opcion_encuesta ||
+            []) as any[];
+          const oldOptIds = oldOpts.map((o) => o.id);
+          const newOptIds = inc.opciones
+            .map((o) => o.id)
+            .filter((id): id is number => typeof id === "number");
+          const removedOptIds = oldOptIds.filter(
+            (id: number) => !newOptIds.includes(id)
+          );
+
+          if (removedOptIds.length) {
+            await supabase
+              .from("voto_participante_encuesta")
+              .delete()
+              .in("opcion_id", removedOptIds);
+          }
+        }
+      }
+
+      // 4) Borrar únicamente los incisos eliminados (sus votos ya se limpiaron o caerán por cascade)
+      if (removedIncisoIds.length) {
+        await supabase
+          .from("inciso_encuesta")
+          .delete()
+          .in("id", removedIncisoIds);
+      }
+
+      // 5) Upsert por inciso y sus opciones
+      const oldIncMap = new Map<number, any>(
+        (oldIncs || []).map((inc: any) => [inc.id, inc])
+      );
+
+      for (const inc of newEncuesta.incisos) {
+        let incisoId = inc.id;
+
+        if (incisoId) {
+          // UPDATE inciso existente
+          await supabase
+            .from("inciso_encuesta")
+            .update({
+              texto: inc.texto,
+              tipo_inciso: inc.tipo_inciso,
+            })
+            .eq("id", incisoId);
+
+          // opciones: diff contra las antiguas
+          const oldOpts = (oldIncMap.get(incisoId)?.opcion_encuesta ||
+            []) as any[];
+          const oldOptIds = oldOpts.map((o) => o.id);
+          const newOptIds = inc.opciones
+            .map((o) => o.id)
+            .filter((id): id is number => typeof id === "number");
+          const removedOptIds = oldOptIds.filter(
+            (id: number) => !newOptIds.includes(id)
+          );
+
+          // borrar sólo opciones removidas
+          if (removedOptIds.length) {
+            await supabase
+              .from("opcion_encuesta")
+              .delete()
+              .in("id", removedOptIds);
+          }
+
+          // upsert de opciones restantes/nuevas
+          for (const op of inc.opciones) {
             let imagen_url = op.imagen_url || null;
 
             if (op.imagen) {
-              // comprimimos la imagen antes
               const compressed = await compressImage(op.imagen);
               const fileName = `${infoEncuesta.id}_${Math.random()
                 .toString(36)
                 .substring(2)}.jpg`;
-              const { error } = await supabase.storage
+              const { error: uploadErr } = await supabase.storage
                 .from("imgs")
                 .upload(fileName, compressed);
-              if (!error) {
+              if (!uploadErr) {
                 imagen_url = supabase.storage
                   .from("imgs")
                   .getPublicUrl(fileName).data.publicUrl;
               }
             }
 
-            return {
-              inciso_id: incInserted.id,
-              texto: op.texto,
-              imagen_url,
-            };
-          })
-        );
+            if (op.id) {
+              await supabase
+                .from("opcion_encuesta")
+                .update({ texto: op.texto, imagen_url })
+                .eq("id", op.id);
+            } else {
+              await supabase
+                .from("opcion_encuesta")
+                .insert({ inciso_id: incisoId, texto: op.texto, imagen_url });
+            }
+          }
+        } else {
+          // INSERT inciso nuevo
+          const { data: incInserted, error: incErr } = await supabase
+            .from("inciso_encuesta")
+            .insert({
+              encuesta_id: infoEncuesta.id,
+              texto: inc.texto,
+              tipo_inciso: inc.tipo_inciso,
+            })
+            .select()
+            .single();
+          if (incErr || !incInserted)
+            throw incErr || new Error("No se pudo crear el inciso");
+          incisoId = incInserted.id;
 
-        await supabase.from("opcion_encuesta").insert(opcionesFinal);
+          // insertar TODAS las opciones del inciso nuevo
+          const opcionesFinal = await Promise.all(
+            inc.opciones.map(async (op) => {
+              let imagen_url = op.imagen_url || null;
+              if (op.imagen) {
+                const compressed = await compressImage(op.imagen);
+                const fileName = `${infoEncuesta.id}_${Math.random()
+                  .toString(36)
+                  .substring(2)}.jpg`;
+                const { error: uploadErr } = await supabase.storage
+                  .from("imgs")
+                  .upload(fileName, compressed);
+                if (!uploadErr) {
+                  imagen_url = supabase.storage
+                    .from("imgs")
+                    .getPublicUrl(fileName).data.publicUrl;
+                }
+              }
+              return { inciso_id: incisoId!, texto: op.texto, imagen_url };
+            })
+          );
+          if (opcionesFinal.length) {
+            await supabase.from("opcion_encuesta").insert(opcionesFinal);
+          }
+        }
       }
+
+      loadingAlert.close();
 
       Swal.fire("Actualizado", "Encuesta actualizada correctamente", "success");
       setShowEditModal(false);
@@ -812,6 +953,15 @@ export default function ConteoEncuestaPage() {
             >
               + Añadir Inciso
             </button>
+            <label className="checkbox-label-borrar-votos">
+              <input
+                className="checkbox-borrar-votos"
+                type="checkbox"
+                checked={deleteVotes}
+                onChange={(e) => setDeleteVotes(e.target.checked)}
+              />{" "}
+              Borrar votos existentes al guardar cambios
+            </label>
 
             <div className="modal-actions">
               <button

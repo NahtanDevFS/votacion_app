@@ -151,7 +151,7 @@ h1 {
   display: flex;
   gap: 1.5rem;
   align-items: center;
-  justify-content: center;
+  justify-content: left;
   background-color: #273246;
   padding: 1rem 1.5rem;
   border-radius: 12px;
@@ -361,9 +361,12 @@ h1 {
 
 .votacion-link-estilo {
   word-break: break-all;
-  font-size: 0.9rem;
+  font-size: 1rem;
   color: #61dafb;
   margin-bottom: 0.5rem;
+  background-color: #1a2d51;
+  border-radius: 10px;
+  padding: 0.5rem 1rem;
   text-decoration: none;
   transition: color 0.2s;
 }
@@ -1038,6 +1041,33 @@ button:disabled .spinner.small {
 
 .btn-copiar-url-encuesta:hover {
   background-color: #4a00c9;
+}
+
+.checkbox-label-borrar-votos {
+  display: flex;
+  flex-direction: row;
+  align-items: center; /* centra el checkbox verticalmente */
+  justify-content: flex-start; /* fuerza alineación a la izquierda */
+  margin: 0; /* elimina márgenes que puedan centrarlo */
+  text-align: left; /* en caso de que herede text-align */
+  gap: 0.5rem; /* espaciado entre checkbox y texto */
+  margin-top: 2rem !important;
+}
+
+.modal-content .form-group label.checkbox-label-borrar-votos {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+  width: auto !important;
+  margin: 0; /* quita márgenes extra */
+  text-align: left;
+}
+
+.checkbox-borrar-votos {
+  margin: 0; /* quita márgenes extra */
+  /* no es necesario display:flex aquí */
+  width: fit-content !important;
 }
 
 @media (max-width: 768px) {
