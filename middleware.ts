@@ -8,6 +8,9 @@ export function middleware(request: NextRequest) {
     "/conteo",
     "/dashboard-encuesta",
     "/conteo-encuesta",
+    "/dashboard-votacion-tesis",
+    "/conteo-votacion-tesis",
+    "/crear-votacion-tesis",
   ];
   const path = request.nextUrl.pathname;
 

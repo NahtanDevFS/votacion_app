@@ -70,6 +70,20 @@ export default function Sidebar({ isOpen, onToggle, isMobile }: SidebarProps) {
         <nav className="sidebar-nav">
           <ul>
             <li
+              className={
+                activeItem === "dashboard-votacion-tesis" ? "active" : ""
+              }
+              onClick={() => handleNavigation("dashboard-votacion-tesis")}
+            >
+              {/*<span className="nav-icon"></span>*/}
+              {(!isMobile || isOpen) && (
+                <>
+                  <span className="nav-text">Votaciones de tesis</span>
+                  <span className="nav-arrow">→</span>
+                </>
+              )}
+            </li>
+            <li
               className={activeItem === "dashboard" ? "active" : ""}
               onClick={() => handleNavigation("dashboard")}
             >

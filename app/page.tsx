@@ -27,6 +27,17 @@ export default function Home() {
         </p>
 
         <p className="home-description-button">
+          Participa en las votaciones de tesis
+        </p>
+        <div className="home-buttons">
+          <button
+            onClick={() => router.push("/tesis-votaciones-autenticacion")}
+          >
+            Ingresar a votaciones de tesis
+          </button>
+        </div>
+
+        <p className="home-description-button">
           Participa en votaciones y encuestas
         </p>
         <div className="home-buttons">
