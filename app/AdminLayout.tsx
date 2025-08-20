@@ -10,7 +10,7 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Estado para sidebar y móvil
+  //Estado para sidebar y móvil
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -25,14 +25,14 @@ export default function AdminLayout({
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Ruta actual de Next.js
+  //Ruta actual de Next.js
   const pathname = usePathname() ?? "";
 
-  // Usuario admin en localStorage
+  //Usuario admin en localStorage
   const adminUser =
     typeof window !== "undefined" ? localStorage.getItem("admin") : null;
 
-  // Rutas protegidas donde queremos mostrar el sidebar
+  //Rutas protegidas donde queremos mostrar el sidebar
   const protectedRoutes = [
     "/dashboard",
     "/profile",
@@ -41,12 +41,12 @@ export default function AdminLayout({
     "/conteo-encuesta",
   ];
 
-  // Mostrar sidebar si hay admin y la ruta actual arranca con alguna de protectedRoutes
+  //Mostrar sidebar si hay admin y la ruta actual arranca con alguna de protectedRoutes
   const showSidebar =
     Boolean(adminUser) &&
     protectedRoutes.some((route) => pathname.startsWith(route));
 
-  // Layout sin sidebar
+  //Layout sin sidebar
   if (!showSidebar) {
     return (
       <div className="admin-container">
@@ -55,7 +55,7 @@ export default function AdminLayout({
     );
   }
 
-  // Layout con sidebar
+  //Layout con sidebar
   return (
     <div className="admin-container">
       <Sidebar

@@ -66,7 +66,7 @@ async function compressImage(file: File): Promise<File> {
             resolve(compressedFile);
           },
           "image/jpeg",
-          0.6 // 60% quality
+          0.6 //60% de calidad
         );
       };
       img.onerror = (err) => reject(err);
@@ -101,7 +101,7 @@ export default function ConteoEncuestaPage() {
       }[];
     }[],
   });
-  const [deleteVotes, setDeleteVotes] = useState(true); // estado del checkbox
+  const [deleteVotes, setDeleteVotes] = useState(true); //estado del checkbox
 
   useEffect(() => {
     if (infoEncuesta) {
@@ -175,7 +175,7 @@ export default function ConteoEncuestaPage() {
   const handleUpdateEncuesta = async () => {
     if (!infoEncuesta) return;
 
-    // ─── VALIDACIONES ──────────────────────────────────────────────────────────
+    //validaciones
     if (!newEncuesta.titulo.trim() || !newEncuesta.descripcion.trim()) {
       Swal.fire({
         icon: "warning",
@@ -225,7 +225,7 @@ export default function ConteoEncuestaPage() {
         confirmButtonText: "Sí, editar",
         cancelButtonText: "Cancelar",
       });
-      if (!confirm.isConfirmed) return; // cancelar operación completa
+      if (!confirm.isConfirmed) return; //cancelar operación completa
     }
 
     const loadingAlert = showLoadingAlert("Actualizando encuesta...");
@@ -314,7 +314,7 @@ export default function ConteoEncuestaPage() {
         }
       }
 
-      //Borrar únicamente los incisos eliminados (sus votos ya se limpiaron o caerán por cascade)
+      //Borrar únicamente los incisos eliminados (sus votos ya se limpiaron o se eliminarán por cascade)
       if (removedIncisoIds.length) {
         await supabase
           .from("inciso_encuesta")
@@ -340,7 +340,7 @@ export default function ConteoEncuestaPage() {
             })
             .eq("id", incisoId);
 
-          // opciones: diff contra las antiguas
+          //opciones: diff contra las antiguas
           const oldOpts = (oldIncMap.get(incisoId)?.opcion_encuesta ||
             []) as any[];
           const oldOptIds = oldOpts.map((o) => o.id);
@@ -351,7 +351,7 @@ export default function ConteoEncuestaPage() {
             (id: number) => !newOptIds.includes(id)
           );
 
-          // borrar sólo opciones removidas
+          //borrar solo opciones removidas
           if (removedOptIds.length) {
             await supabase
               .from("opcion_encuesta")
@@ -359,7 +359,7 @@ export default function ConteoEncuestaPage() {
               .in("id", removedOptIds);
           }
 
-          // upsert de opciones restantes/nuevas
+          //upsert de opciones restantes/nuevas
           for (const op of inc.opciones) {
             let imagen_url = op.imagen_url || null;
 

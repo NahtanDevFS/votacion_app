@@ -1176,7 +1176,7 @@ function EncuestaCard({
   onEdit: () => void;
   onDelete: () => void;
   onToggle: () => void;
-  deletingId: number | null; // Añade esta línea
+  deletingId: number | null;
 }) {
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
   const url = `${baseUrl}/encuesta/${encuesta.token_link}`;

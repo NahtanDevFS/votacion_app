@@ -1,4 +1,3 @@
-// app/verify/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -10,14 +9,14 @@ export default function VerifyPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // 1) Parsear el fragmento de la URL
+    //Parsear el fragmento de la URL
     const hash = window.location.hash.substring(1);
     const params = new URLSearchParams(hash);
     const access_token = params.get("access_token");
     const refresh_token = params.get("refresh_token");
 
     if (access_token && refresh_token) {
-      // 2) Crear la sesión
+      //Crear la sesión
       supabase.auth
         .setSession({ access_token, refresh_token })
         .then(({ error }) => {
@@ -25,7 +24,7 @@ export default function VerifyPage() {
             setMsg("Error al verificar: " + error.message);
           } else {
             setMsg("¡Cuenta verificada correctamente!");
-            // 3) Redirigir tras 2s
+            //Redirigir tras 2s
             setTimeout(() => router.push("/dashboard"), 2000);
           }
         });

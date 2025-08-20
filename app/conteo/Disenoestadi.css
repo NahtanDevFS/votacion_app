@@ -212,7 +212,6 @@ h1 {
   background-color: #00ffdd;
 }
 
-/* Estado: Activar (positivo) */
 .btn-activar {
   background: #22c55e;
   color: #0b1f14;
@@ -221,7 +220,6 @@ h1 {
   background: #31d06b;
 }
 
-/* Estado: Finalizar (atención) */
 .btn-finalizar {
   background: #ff6a00;
   color: #2b1a00;
@@ -230,7 +228,6 @@ h1 {
   background: #ff8c3a;
 }
 
-/* Eliminar (peligro) */
 .btn-eliminar {
   background: #ef4444;
   color: #3a0b0b;
@@ -475,11 +472,11 @@ h1 {
 .checkbox-label-borrar-votos {
   display: flex;
   flex-direction: row;
-  align-items: center; /* centra el checkbox verticalmente */
-  justify-content: flex-start; /* fuerza alineación a la izquierda */
-  margin: 0; /* elimina márgenes que puedan centrarlo */
-  text-align: left; /* en caso de que herede text-align */
-  gap: 0.5rem; /* espaciado entre checkbox y texto */
+  align-items: center;
+  justify-content: flex-start;
+  margin: 0;
+  text-align: left;
+  gap: 0.5rem;
   margin-top: 2rem !important;
 }
 
@@ -489,13 +486,12 @@ h1 {
   justify-content: flex-start !important;
   align-items: center !important;
   width: auto !important;
-  margin: 0; /* quita márgenes extra */
+  margin: 0;
   text-align: left;
 }
 
 .checkbox-borrar-votos {
-  margin: 0; /* quita márgenes extra */
-  /* no es necesario display:flex aquí */
+  margin: 0;
   width: fit-content !important;
 }
 
@@ -516,7 +512,6 @@ h1 {
   }
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .dashboard-header {
     justify-content: center;

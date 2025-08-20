@@ -115,8 +115,7 @@ export default function EncuestaVotarPage() {
     });
   };
 
-  // 3) Enviar voto(s)
-  // 3) Enviar voto(s) con verificación en tiempo real
+  //Enviar voto con verificación en tiempo real
   const handleVotar = async () => {
     if (!encuesta || !fingerprint) return;
 
@@ -137,7 +136,7 @@ export default function EncuestaVotarPage() {
     setIsSubmitting(true);
 
     try {
-      // 1) REFRESCAR estado justo antes de votar (evita carreras)
+      //refrescar estado justo antes de votar (evita carreras)
       const { data: fresh, error: freshErr } = await supabase
         .from("encuesta")
         .select("estado")

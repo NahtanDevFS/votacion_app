@@ -68,7 +68,7 @@ export default function VotacionPage() {
     })();
   }, [fingerprint, token]);
 
-  // Maneja selección de opción(s)
+  // Maneja selección de opción
   const handleSelect = (id: number) => {
     if (votacion?.tipo_votacion === "opcion_multiple") {
       setSelectedOpciones((prev) =>
@@ -80,11 +80,11 @@ export default function VotacionPage() {
     setError("");
   };
 
-  // 3) Envía voto(s) con verificación en tiempo real
+  //Envía voto(s) con verificación en tiempo real
   const handleVotar = async () => {
     if (!votacion || !fingerprint) return;
 
-    // Validación de selección
+    //Validación de selección
     if (selectedOpciones.length === 0) {
       await Swal.fire({
         icon: "warning",
@@ -98,7 +98,7 @@ export default function VotacionPage() {
     setIsSubmitting(true);
 
     try {
-      // refrescar estado justo antes de votar (evita carreras)
+      //refrescar estado justo antes de votar (evita carreras)
       const { data: fresh, error: freshErr } = await supabase
         .from("votacion")
         .select("estado")
@@ -108,7 +108,7 @@ export default function VotacionPage() {
       if (freshErr) throw freshErr;
 
       if (!fresh || fresh.estado !== "en_progreso") {
-        // Marcar localmente como expirada y avisar
+        //Marcar localmente como expirada y avisar
         setVotacion((prev: any) =>
           prev ? { ...prev, estado: "expirada" } : prev
         );
@@ -120,7 +120,7 @@ export default function VotacionPage() {
         });
         return;
       }
-      // VERIFICACIÓN EN TIEMPO REAL DE VOTO EXISTENTE
+      //verificar votos en tiempo real
       const { data: existingVote, error: checkError } = await supabase
         .from("voto_participante")
         .select("id")
@@ -136,7 +136,7 @@ export default function VotacionPage() {
         return;
       }
 
-      // Si no existe voto previo, proceder con el registro
+      //Si no existe voto previo, proceder con el registro
       const inserts = selectedOpciones.map((id) => ({
         votacion_id: votacion.id,
         opcion_votacion_id: id,
@@ -161,7 +161,7 @@ export default function VotacionPage() {
     }
   };
 
-  // Comprueba si la votación está expirada
+  //Comprueba si la votación está expirada
   const expired = votacion?.estado === "expirada";
 
   if (loading) return <div className="loading">Cargando...</div>;

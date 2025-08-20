@@ -1,4 +1,3 @@
-// app/conteo/page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -127,7 +126,7 @@ export default function ConteoPage() {
     };
 
     fetchVotes();
-    const intervalo = setInterval(fetchVotes, 500);
+    const intervalo = setInterval(fetchVotes, 500); //trae los votos
     return () => clearInterval(intervalo);
   }, [votacionId]);
 
@@ -292,7 +291,7 @@ export default function ConteoPage() {
   const handleUpdateVotacion = async () => {
     if (!infoVotacion) return;
 
-    // ─── VALIDACIONES ──────────────────────────────────────────────────────────
+    //validaciones
     if (!newVotacion.titulo.trim() || !newVotacion.descripcion.trim()) {
       Swal.fire({
         icon: "warning",
@@ -340,7 +339,7 @@ export default function ConteoPage() {
         confirmButtonText: "Sí, editar",
         cancelButtonText: "Cancelar",
       });
-      if (!confirm.isConfirmed) return; // cancelar operación completa
+      if (!confirm.isConfirmed) return; //cancelar operación completa
     }
 
     const loadingAlert = showLoadingAlert("Actualizando votacion...");
@@ -356,7 +355,7 @@ export default function ConteoPage() {
         })
         .eq("id", infoVotacion.id);
 
-      // 2) Calcula IDs viejos y nuevos
+      //Calcular ids viejos y nuevos
       const oldIds = infoVotacion.opcion_votacion.map((op: any) => op.id);
       const newIds = newVotacion.opcionesConImagen
         .map((o) => o.id)
@@ -364,15 +363,15 @@ export default function ConteoPage() {
 
       const removedIds = oldIds.filter((id: number) => !newIds.includes(id));
 
-      // 3) Manejo de votos
+      //manejo de votos
       if (deleteVotes) {
-        // borra TODO
+        //borra todo
         await supabase
           .from("voto_participante")
           .delete()
           .eq("votacion_id", infoVotacion.id);
       } else {
-        // borra sólo los votos de las opciones que se eliminaron
+        //borra solo los votos de las opciones que se eliminaron
         if (removedIds.length) {
           await supabase
             .from("voto_participante")
@@ -381,14 +380,14 @@ export default function ConteoPage() {
         }
       }
 
-      // 4) Borra únicamente las opciones “eliminadas”
+      //Borra únicamente las opciones “eliminadas”
       if (removedIds.length) {
         await supabase.from("opcion_votacion").delete().in("id", removedIds);
       }
 
-      // 5) Para cada nueva opción:
-      //    - si tiene id: UPDATE
-      //    - si no: INSERT
+      //Para cada nueva opción:
+      //si tiene id: UPDATE
+      //si no: INSERT
       for (const op of newVotacion.opcionesConImagen) {
         let imagen_url = op.imagen_url || null;
 
@@ -413,13 +412,13 @@ export default function ConteoPage() {
         };
 
         if (op.id) {
-          // UPDATE existente
+          //update existente
           await supabase
             .from("opcion_votacion")
             .update(payload)
             .eq("id", op.id);
         } else {
-          // INSERT nuevo
+          //insert nuevo
           await supabase.from("opcion_votacion").insert(payload);
         }
       }
@@ -447,7 +446,7 @@ export default function ConteoPage() {
     }
   };
 
-  // Memoizado con nombre para el pie chart
+  //Memoizado con nombre para el pie chart
   const GraficaPastel = React.memo(
     function GraficaPastel({ data }: GraficaProps) {
       const total = data.reduce((s, o) => s + o.votos, 0);
@@ -697,8 +696,8 @@ export default function ConteoPage() {
                     style={{
                       width: `${porcentaje}%`,
                       background: isWinner
-                        ? "linear-gradient(to right, #ffb728ff, #ffe74fff)" // amarillo ganador
-                        : "linear-gradient(to right, #00c3ff, #00ffa5)", // azul normal
+                        ? "linear-gradient(to right, #ffb728ff, #ffe74fff)" //ganador
+                        : "linear-gradient(to right, #00c3ff, #00ffa5)", //normal
                     }}
                   >
                     {porcentaje}%

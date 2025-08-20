@@ -1,4 +1,3 @@
-// utils/loadingAlerts.ts
 import Swal, { SweetAlertResult } from "sweetalert2";
 
 export const showLoadingAlert = (

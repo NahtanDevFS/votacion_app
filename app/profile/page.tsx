@@ -23,7 +23,7 @@ export default function ProfilePage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [isMobile, setIsMobile] = useState(false);
 
-  // 1️⃣ Detectar móvil
+  //detectar movil
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
     checkMobile();
@@ -31,7 +31,7 @@ export default function ProfilePage() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // 2️⃣ Cargar perfil desde Supabase
+  //cargar perfil desde Supabase
   useEffect(() => {
     const loadProfile = async () => {
       const {
@@ -44,7 +44,7 @@ export default function ProfilePage() {
         return;
       }
 
-      // Buscamos su fila en admin_votacion
+      //Buscamos su fila en admin_votacion
       const { data, error } = await supabase
         .from("admin_votacion")
         .select("*")
@@ -70,7 +70,7 @@ export default function ProfilePage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // 3️⃣ Submit: actualizar en Supabase
+  //Submit: actualizar en Supabase
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
@@ -121,7 +121,6 @@ export default function ProfilePage() {
               {profile.nombre.charAt(0).toUpperCase()}
               {profile.apellido?.charAt(0).toUpperCase()}
             </div>
-            {/*<div className="avatar-status"></div>*/}
           </div>
 
           {!editMode ? (
@@ -175,23 +174,7 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <div className="stats-container">
-                {/*<div className="stat-card">
-                  <div className="stat-icon">📅</div>
-                  <div className="stat-value">0</div>
-                  <div className="stat-label">Votaciones creadas</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-icon">👥</div>
-                  <div className="stat-value">0</div>
-                  <div className="stat-label">Participantes</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-icon">🏆</div>
-                  <div className="stat-value">0</div>
-                  <div className="stat-label">Votaciones activas</div>
-                </div>*/}
-              </div>
+              <div className="stats-container"></div>
             </div>
           ) : (
             <form className="profile-form" onSubmit={handleSubmit}>

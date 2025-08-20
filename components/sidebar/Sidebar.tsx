@@ -14,7 +14,7 @@ export default function Sidebar({ isOpen, onToggle, isMobile }: SidebarProps) {
   const router = useRouter();
   const [activeItem, setActiveItem] = useState("");
 
-  // Sincronizar ítem activo con la ruta
+  //sincronizar ítem activo con la ruta
   useEffect(() => {
     const path = window.location.pathname.split("/").pop() || "dashboard";
     setActiveItem(path);
@@ -44,7 +44,7 @@ export default function Sidebar({ isOpen, onToggle, isMobile }: SidebarProps) {
         </button>
       )}
 
-      {/* Overlay para móviles - solo cuando el sidebar está abierto en mobile */}
+      {/* Overlay para móviles, solo cuando el sidebar está abierto en mobile */}
       {isMobile && isOpen && (
         <div className="sidebar-overlay" onClick={onToggle} />
       )}
@@ -59,7 +59,7 @@ export default function Sidebar({ isOpen, onToggle, isMobile }: SidebarProps) {
           <div className="user-avatar">
             <span>👤</span>
           </div>
-          {(!isMobile || isOpen) && ( // Solo muestra texto si no es mobile o está abierto
+          {(!isMobile || isOpen) && ( //Solo muestra texto si no es mobile o está abierto
             <>
               <h3>Panel</h3>
               <p>Bienvenido</p>

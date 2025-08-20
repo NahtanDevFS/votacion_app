@@ -422,12 +422,12 @@ export default function DashboardPage() {
         text: "Ocurrió un error inesperado al actualizar la votación.",
       });
     } finally {
-      setIsSubmitting(false); // <-- Esto se ejecutará siempre, haya éxito o error
+      setIsSubmitting(false); //Esto se ejecutará siempre, haya éxito o error
     }
   };
 
   const handleDeleteVotacion = async (id: number) => {
-    if (deletingId !== null) return; // Evitar múltiples eliminaciones simultáneas
+    if (deletingId !== null) return; //Evitar múltiples eliminaciones simultáneas
     const result = await Swal.fire({
       title: "¿Estás seguro?",
       text: "Esta acción no se puede deshacer.",
@@ -443,7 +443,7 @@ export default function DashboardPage() {
     setDeletingId(id); // Bloquear la encuesta que se está eliminando
 
     try {
-      // First get options to delete their images
+      //primero obtiene las opciones para obtener las imágenes
       const { data: options } = await supabase
         .from("opcion_votacion")
         .select("imagen_url")
@@ -482,12 +482,12 @@ export default function DashboardPage() {
         text: "No se pudo eliminar la encuesta.",
       });
     } finally {
-      setDeletingId(null); // Liberar el bloqueo
+      setDeletingId(null); //Liberar el bloqueo
     }
   };
 
   const handleToggleState = async (v: any) => {
-    if (deletingId !== null) return; // No permitir cambiar estado durante eliminación
+    if (deletingId !== null) return; //No permitir cambiar estado durante eliminación
     const newState = v.estado === "en_progreso" ? "expirada" : "en_progreso";
     try {
       const { error } = await supabase
@@ -528,7 +528,7 @@ export default function DashboardPage() {
         preview: URL.createObjectURL(file),
       };
     } else {
-      // If file is null (removed), keep the existing imagen_url if it exists
+      //si el archivo es null, mantiene la imagen_existente si existe
       newOpciones[index] = {
         ...newOpciones[index],
         imagen: null,

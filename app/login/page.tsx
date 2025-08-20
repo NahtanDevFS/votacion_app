@@ -21,7 +21,6 @@ export default function AuthPage() {
   const router = useRouter();
 
   /**
-   * Cambia de modo de formulario.
    * @param newMode Modo al que cambiar ("login"|"register"|"forgot")
    * @param clearSuccess Si true limpia también success; si false, preserva el mensaje
    */
@@ -35,13 +34,13 @@ export default function AuthPage() {
     }, 300);
   };
 
-  // ─── LOGIN ────────────────────────────────────────────────────────────────
+  //login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
 
-    // 1) Autenticar con Supabase Auth
+    //Autenticar con Supabase Auth
     const { data: loginData, error: loginError } =
       await supabase.auth.signInWithPassword({ email, password });
     if (loginError || !loginData.session) {
@@ -49,7 +48,7 @@ export default function AuthPage() {
       return;
     }
 
-    // 2) Traer perfil desde tu tabla por id_auth
+    //Traer perfil desde tu tabla por id_auth
     const { data: profile, error: profileError } = await supabase
       .from("admin_votacion")
       .select("*")
@@ -60,12 +59,12 @@ export default function AuthPage() {
       return;
     }
 
-    // 3) Guardar sesión y redirigir
+    //Guardar sesión y redirigir
     document.cookie = `admin=${JSON.stringify(profile)}; path=/; max-age=${
       60 * 60 * 24 * 365
     }`;
     localStorage.setItem("admin", JSON.stringify(profile));
-    // SweetAlert de éxito antes de redirigir
+    //SweetAlert de éxito antes de redirigir
     await Swal.fire({
       icon: "success",
       title: "¡Bienvenido!",
@@ -77,14 +76,13 @@ export default function AuthPage() {
     router.refresh();
   };
 
-  // ─── REGISTRO ─────────────────────────────────────────────────────────────
+  //registro
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
 
-    // 1) Crear usuario en Supabase Auth (envía correo de verificación)
-    // 1) Crear usuario en Supabase Auth (envía correo de verificación)
+    //Crear usuario en Supabase Auth (envía correo de verificación)
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp(
       {
         email,
@@ -113,20 +111,20 @@ export default function AuthPage() {
       console.error("Error al crear perfil:", profileError.message);
     }
 
-    // 3) Mostrar mensaje y cambiar a login, preservando success
+    //Mostrar mensaje y cambiar a login, preservando success
     setSuccess(
       "¡Registro exitoso! Revisa tu correo para verificar tu cuenta (puede estar en spam)."
     );
     changeMode("login", /* clearSuccess= */ false);
   };
 
-  // RECUPERAR CONTRASEÑA
+  //recuperar contro
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
 
-    // 1) Enviar correo de reset de contraseña
+    //Enviar correo de reset de contraseña
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(
       email,
       {
@@ -138,7 +136,7 @@ export default function AuthPage() {
       return;
     }
 
-    // 2) Mostrar mensaje y cambiar a login, preservando success
+    //Mostrar mensaje y cambiar a login, preservando success
     setSuccess(
       "Revisa tu correo para restablecer la contraseña (puede estar en spam)."
     );

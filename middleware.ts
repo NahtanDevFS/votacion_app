@@ -11,14 +11,14 @@ export function middleware(request: NextRequest) {
   ];
   const path = request.nextUrl.pathname;
 
-  // Verificar si la ruta está protegida
+  //Verificar si la ruta está protegida
   const isProtected = protectedRoutes.some((route) => path.startsWith(route));
 
   if (isProtected) {
     const admin = request.cookies.get("admin")?.value;
     if (!admin) {
       const response = NextResponse.redirect(new URL("/", request.url));
-      // Limpiar cookie si está corrupta
+      //Limpiar cookie si está corrupta
       response.cookies.delete("admin");
       return response;
     }
