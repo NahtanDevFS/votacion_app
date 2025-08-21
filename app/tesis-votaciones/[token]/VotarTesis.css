@@ -1,4 +1,4 @@
-/* /app/votar-tesis/[token]/Votar.css */
+/* /app/tesis-votaciones/[token]/VotarTesis.css */
 
 .votar-container {
   display: flex;
@@ -158,4 +158,38 @@
   cursor: pointer;
   margin-top: 1rem;
   font-weight: 600;
+}
+
+/* --- NUEVO: Media Queries para Responsividad --- */
+@media (max-width: 600px) {
+  .votar-container {
+    padding: 1rem; /* Menos padding en pantallas pequeñas */
+  }
+
+  .votar-card {
+    padding: 2rem 1.5rem; /* Ajusta padding vertical y horizontal */
+  }
+
+  .votar-header h1 {
+    font-size: 1.5rem; /* Título más pequeño */
+  }
+
+  .votar-header p {
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .nota-display {
+    font-size: 3.5rem; /* Tamaño de la nota reducido */
+  }
+
+  .slider::-webkit-slider-thumb {
+    width: 26px; /* Hacemos el control del slider un poco más pequeño */
+    height: 26px;
+  }
+
+  .submit-voto-button {
+    padding: 0.9rem;
+    font-size: 1.1rem; /* Botón ligeramente más pequeño */
+  }
 }

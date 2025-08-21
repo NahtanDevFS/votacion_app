@@ -1,11 +1,11 @@
-// pages/dashboard/tesis/page.tsx
+// pages/dashboard-votacion-tesis/page.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import "./dashboard_tesis.css"; // Crearemos este nuevo archivo CSS
-import VotacionTesisCard from "@/components/VotacionTesisCard"; // Creamos este nuevo componente
+import "./dashboard_tesis.css";
+import VotacionTesisCard from "@/components/VotacionTesisCard";
 
 // Definimos los tipos de datos para mayor seguridad y claridad
 export interface ImagenTesis {
@@ -17,143 +17,109 @@ export interface ImagenTesis {
 export interface VotacionTesis {
   id: number;
   titulo: string;
-  nombre_tesista: string;
+  nombre_tesista: string | null; // Permitimos que sea nulo
   estado: "inactiva" | "activa" | "finalizada";
   duracion_segundos: number;
   fecha_activacion: string | null;
   imagen_votacion_tesis: ImagenTesis[];
-  // Añadiremos la nota final cuando la calculemos
   nota_final?: number;
 }
 
 export default function TesisDashboardPage() {
   const router = useRouter();
   const [votaciones, setVotaciones] = useState<VotacionTesis[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // Solo para la carga inicial
   const [error, setError] = useState<string | null>(null);
 
-  const fetchVotacionesTesis = useCallback(async () => {
-    setLoading(true);
-    const user = JSON.parse(localStorage.getItem("admin") || "{}");
-
-    // Hacemos el fetch a la nueva tabla 'votacion_tesis' y traemos las imágenes relacionadas
-    const { data: votacionesData, error } = await supabase
-      .from("votacion_tesis")
-      .select(
-        `
-        id,
-        titulo,
-        nombre_tesista,
-        estado,
-        duracion_segundos,
-        fecha_activacion,
-        imagen_votacion_tesis (id, url_imagen)
-      `
-      )
-      .eq("creado_por", user.id)
-      .order("id", { ascending: false });
-
-    if (error) {
-      console.error("Error fetching votaciones:", error);
-      setError("No se pudieron cargar las votaciones.");
-      setVotaciones([]);
-      setLoading(false);
-      return;
-    }
-    if (votacionesData) {
-      const votacionesConNotasPromises = votacionesData.map(
-        async (votacion): Promise<VotacionTesis> => {
-          // 1. Indicamos explícitamente el tipo de retorno
-          let nota_final: number | undefined = undefined;
-
-          if (votacion.estado === "finalizada") {
-            const { data, error: rpcError } = await supabase.rpc(
-              "calcular_nota_final",
-              {
-                id_votacion: votacion.id,
-              }
-            );
-
-            if (rpcError) {
-              console.error(
-                `Error calculating score for votacion ${votacion.id}:`,
-                rpcError
-              );
-              nota_final = 0; // Asignamos un valor por defecto en caso de error
-            } else {
-              nota_final = data || 0;
-            }
-          }
-
-          // 2. Devolvemos un objeto que siempre coincide con la interfaz VotacionTesis
-          return {
-            ...votacion,
-            nota_final, // Puede ser un número o undefined, lo cual es correcto
-          };
-        }
-      );
-
-      const votacionesFinales = await Promise.all(votacionesConNotasPromises);
-      setVotaciones(votacionesFinales); // 3. El error desaparece
-      setError(null);
-    }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    fetchVotacionesTesis();
-  }, [fetchVotacionesTesis]);
-
-  // --- NUEVA LÓGICA ---
-  // Este efecto se encarga de llamar a la función de la base de datos periódicamente
-  useEffect(() => {
-    // Llama a la función inmediatamente al cargar la página
-    // para limpiar cualquier votación que haya expirado mientras no estabas.
-    const checkExpired = async () => {
-      const { error } = await supabase.rpc("finalizar_votaciones_expiradas");
-      if (error) {
-        console.error("Error checking for expired votaciones:", error);
+  // Función unificada para obtener y procesar los datos
+  const fetchAndProcessVotaciones = useCallback(
+    async (isInitialLoad = false) => {
+      // El loader solo se muestra en la carga inicial
+      if (isInitialLoad) {
+        setLoading(true);
       }
-    };
-    checkExpired();
 
-    // Establece un intervalo para que se ejecute cada 1 segundos
-    const intervalId = setInterval(checkExpired, 1000);
-
-    // Limpieza: Detiene el intervalo cuando el componente se desmonta
-    return () => clearInterval(intervalId);
-  }, []);
-
-  // --- Suscripción a cambios en tiempo real ---
-  useEffect(() => {
-    const channel = supabase
-      .channel("votacion_tesis_dashboard_changes")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "votacion_tesis" },
-        (payload) => {
-          console.log("Cambio en tiempo real detectado, recargando datos...");
-          // La forma más simple y segura de actualizar es volver a cargar todo.
-          fetchVotacionesTesis();
+      try {
+        const user = JSON.parse(localStorage.getItem("admin") || "{}");
+        if (!user.id) {
+          throw new Error("No se pudo identificar al administrador.");
         }
-      )
-      .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [fetchVotacionesTesis]);
+        // 1. Llama a la función de la DB para actualizar votaciones expiradas
+        const { error: rpcError } = await supabase.rpc(
+          "finalizar_votaciones_expiradas"
+        );
+        if (rpcError) {
+          console.error("Error al finalizar votaciones expiradas:", rpcError);
+          // No detenemos el proceso, solo lo registramos
+        }
 
-  // Filtramos las votaciones por estado
+        // 2. Obtiene la lista actualizada de votaciones
+        const { data: votacionesData, error: fetchError } = await supabase
+          .from("votacion_tesis")
+          .select(`*, imagen_votacion_tesis(id, url_imagen)`)
+          .eq("creado_por", user.id)
+          .order("id", { ascending: false });
+
+        if (fetchError) throw fetchError;
+
+        // 3. Calcula las notas finales para las votaciones finalizadas
+        const votacionesConNotas = await Promise.all(
+          votacionesData.map(async (votacion) => {
+            if (votacion.estado === "finalizada") {
+              const { data: nota_final } = await supabase.rpc(
+                "calcular_nota_final",
+                {
+                  id_votacion: votacion.id,
+                }
+              );
+              return { ...votacion, nota_final: nota_final || 0 };
+            }
+            return votacion;
+          })
+        );
+
+        setVotaciones(votacionesConNotas as VotacionTesis[]);
+        setError(null);
+      } catch (err: any) {
+        console.error("Error al refrescar las votaciones:", err);
+        setError("No se pudieron cargar las votaciones.");
+      } finally {
+        if (isInitialLoad) {
+          setLoading(false);
+        }
+      }
+    },
+    []
+  );
+
+  // Hook principal para manejar la carga inicial y el polling
+  useEffect(() => {
+    // Carga inicial
+    fetchAndProcessVotaciones(true);
+
+    // Configura el polling para que se ejecute cada 1 segundos
+    const intervalId = setInterval(() => {
+      console.log("Polling: Refrescando votaciones silenciosamente...");
+      fetchAndProcessVotaciones(false); // 'false' para que no muestre el loader
+    }, 1000); // 1 segundos
+
+    // Limpieza: detiene el polling cuando el componente se desmonta
+    return () => clearInterval(intervalId);
+  }, [fetchAndProcessVotaciones]);
+
+  if (loading) {
+    return <div className="loading">Cargando votaciones de tesis...</div>;
+  }
+  if (error) {
+    return <div className="error-message">{error}</div>;
+  }
+
   const votacionesInactivas = votaciones.filter((v) => v.estado === "inactiva");
   const votacionesActivas = votaciones.filter((v) => v.estado === "activa");
   const votacionesFinalizadas = votaciones.filter(
     (v) => v.estado === "finalizada"
   );
-
-  if (loading)
-    return <div className="loading">Cargando votaciones de tesis...</div>;
-  if (error) return <div className="error-message">{error}</div>;
 
   return (
     <div className="tesis-dashboard-container">
@@ -167,11 +133,10 @@ export default function TesisDashboardPage() {
         </button>
       </div>
 
-      {/* Sección de Votaciones Activas */}
       <section className="votaciones-section">
         <h2 className="section-title activas">Activas</h2>
         {votacionesActivas.length > 0 ? (
-          <div className="votaciones-grid-tesis">
+          <div className="votaciones-list-tesis">
             {votacionesActivas.map((votacion) => (
               <VotacionTesisCard key={votacion.id} votacion={votacion} />
             ))}
@@ -183,7 +148,6 @@ export default function TesisDashboardPage() {
         )}
       </section>
 
-      {/* Sección de Votaciones Inactivas */}
       <section className="votaciones-section">
         <h2 className="section-title inactivas">Inactivas</h2>
         {votacionesInactivas.length > 0 ? (
@@ -197,11 +161,10 @@ export default function TesisDashboardPage() {
         )}
       </section>
 
-      {/* Sección de Votaciones Finalizadas */}
       <section className="votaciones-section">
         <h2 className="section-title finalizadas">Finalizadas</h2>
         {votacionesFinalizadas.length > 0 ? (
-          <div className="votaciones-grid-tesis">
+          <div className="votaciones-list-tesis">
             {votacionesFinalizadas.map((votacion) => (
               <VotacionTesisCard key={votacion.id} votacion={votacion} />
             ))}

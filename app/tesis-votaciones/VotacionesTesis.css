@@ -203,3 +203,49 @@
 .votacion-list-item.clickable:hover .click-indicator {
   transform: translateX(5px);
 }
+
+/* --- NUEVO: Media Queries para Responsividad --- */
+@media (max-width: 600px) {
+  .votaciones-participante-container {
+    padding: 1rem; /* Menos padding en los lados */
+  }
+
+  .votaciones-header h1 {
+    font-size: 1.8rem; /* Título principal más pequeño */
+  }
+
+  .votaciones-header p {
+    font-size: 1rem; /* Subtítulo más pequeño */
+  }
+
+  .votacion-list-item {
+    gap: 1rem; /* Menos espacio entre imagen y texto */
+    padding: 0.8rem;
+  }
+
+  .list-item-image-carousel {
+    width: 100px; /* Imagen mucho más pequeña */
+    height: 80px;
+  }
+
+  .list-item-title {
+    font-size: 1rem; /* Título de la tarjeta más pequeño */
+  }
+
+  .list-item-tesista {
+    font-size: 0.9rem; /* Nombre del tesista más pequeño */
+  }
+
+  .estado-tag {
+    font-size: 0.7rem; /* Etiqueta de estado más pequeña */
+    padding: 0.2rem 0.6rem;
+  }
+
+  .info-chip {
+    font-size: 0.75rem; /* Chip de información más pequeño */
+  }
+
+  .click-indicator {
+    display: none; /* Ocultamos la flecha para ahorrar espacio */
+  }
+}

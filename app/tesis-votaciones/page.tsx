@@ -4,8 +4,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import VotacionParticipanteCard from "@/components/VotacionParticipanteCard"; // Crearemos este nuevo componente
-import "./VotacionesTesis.css"; // Crearemos este nuevo CSS
+import VotacionParticipanteCard from "@/components/VotacionParticipanteCard";
+import "./VotacionesTesis.css";
 
 // Interfaces para tipado
 export interface ImagenTesis {
@@ -33,79 +33,62 @@ export default function VotacionesTesisPage() {
     null
   );
 
-  // 1. Guardia de Autenticación
+  // 1. Guardia de Autenticación (sin cambios)
   useEffect(() => {
     const token = localStorage.getItem("token_participante_tesis_vote_up");
     if (!token) {
-      // Si no hay token, redirige a la página de autenticación
       router.replace("/tesis-votaciones-autenticacion");
     } else {
       setParticipanteCodigo(token);
     }
   }, [router]);
 
-  // 2. Función para obtener los datos iniciales
-  const fetchVotaciones = useCallback(async () => {
-    setLoading(true);
-    // Traemos solo las votaciones que el participante puede ver (activas e inactivas)
-    const { data, error } = await supabase
-      .from("votacion_tesis")
-      .select(`*, imagen_votacion_tesis(*)`)
-      .in("estado", ["activa", "inactiva"])
-      .order("fecha_creacion", { ascending: false });
+  // 2. Función unificada para obtener los datos
+  const fetchVotaciones = useCallback(async (isInitialLoad = false) => {
+    if (isInitialLoad) setLoading(true);
 
-    if (error) {
-      console.error("Error fetching votaciones:", error);
-      setError("No se pudieron cargar las votaciones.");
-    } else {
+    try {
+      // No es necesario llamar a finalizar_votaciones_expiradas aquí,
+      // ya que el dashboard del admin se encarga de esa tarea.
+      // Simplemente obtenemos el estado actual.
+      const { data, error: fetchError } = await supabase
+        .from("votacion_tesis")
+        .select(`*, imagen_votacion_tesis(*)`)
+        .in("estado", ["activa", "inactiva"]) // Solo nos interesan estas
+        .order("fecha_creacion", { ascending: false });
+
+      if (fetchError) throw fetchError;
+
       setVotaciones(data || []);
+      setError(null);
+    } catch (err: any) {
+      console.error("Error al refrescar votaciones:", err);
+      setError("No se pudieron cargar las votaciones.");
+    } finally {
+      if (isInitialLoad) setLoading(false);
     }
-    setLoading(false);
   }, []);
 
-  // Carga inicial de datos cuando el componente se monta y el participante está verificado
+  // 3. Hook principal para carga inicial y polling
   useEffect(() => {
     if (participanteCodigo) {
-      fetchVotaciones();
+      fetchVotaciones(true); // Carga inicial
+
+      const intervalId = setInterval(() => {
+        console.log(
+          "Polling: Refrescando lista de votaciones para participante..."
+        );
+        fetchVotaciones(false); // Refresco silencioso
+      }, 1000); // Cada 1 segundos
+
+      return () => clearInterval(intervalId);
     }
   }, [participanteCodigo, fetchVotaciones]);
 
-  // 3. Suscripción a cambios en tiempo real
-  useEffect(() => {
-    // Asegurarse de no ejecutar la suscripción hasta que tengamos el código del participante
-    if (!participanteCodigo) return;
-
-    const channel = supabase
-      .channel("votacion_tesis_changes")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "votacion_tesis" },
-        (payload) => {
-          console.log("Cambio recibido:", payload.new);
-          // Actualizamos el estado local con la nueva información de la votación
-          setVotaciones((currentVotaciones) =>
-            currentVotaciones.map((votacion) =>
-              votacion.id === payload.new.id
-                ? ({ ...votacion, ...payload.new } as VotacionParaParticipante)
-                : votacion
-            )
-          );
-        }
-      )
-      .subscribe();
-
-    // Limpieza: Desuscribirse del canal cuando el componente se desmonte
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [participanteCodigo]);
-
-  if (!participanteCodigo) {
-    // Muestra un estado de carga o nulo mientras se verifica el token
-    return <div className="loading">Verificando acceso...</div>;
+  if (!participanteCodigo || loading) {
+    return <div className="loading">Cargando votaciones...</div>;
   }
 
-  if (loading) return <div className="loading">Cargando votaciones...</div>;
   if (error) return <div className="error-message">{error}</div>;
 
   const votacionesActivas = votaciones.filter((v) => v.estado === "activa");

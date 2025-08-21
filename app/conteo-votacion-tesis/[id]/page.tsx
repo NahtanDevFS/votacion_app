@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import Swal from "sweetalert2";
 import "./DetalleVotacion.css";
 
-// --- Interfaces de Tipos de Datos (Sin cambios) ---
+// --- Interfaces de Tipos de Datos ---
 interface ImagenTesis {
   id: number;
   url_imagen: string;
@@ -55,81 +55,99 @@ export default function DetalleVotacionPage() {
   const [tiempoRestante, setTiempoRestante] = useState(0);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
 
-  // --- Lógica de Fetching con CORRECCIONES ---
-  const fetchData = useCallback(async () => {
-    if (!id) return;
-    setLoading(true);
-    try {
-      const { data: votacionData, error: votacionError } = await supabase
-        .from("votacion_tesis")
-        .select(`*, imagen_votacion_tesis(*)`)
-        .eq("id", id)
-        .single();
-      if (votacionError) throw new Error("No se encontró la votación.");
-      setVotacion(votacionData);
+  // Función unificada para obtener y procesar todos los datos de la página
+  const fetchData = useCallback(
+    async (isInitialLoad = false) => {
+      if (!id) return;
+      if (isInitialLoad) setLoading(true);
 
-      const { data: juradosData, error: juradosError } = await supabase
-        .from("jurado_por_votacion")
-        .select(`participantes!inner(id, nombre_completo)`)
-        .eq("votacion_tesis_id", id);
-      if (juradosError) throw juradosError;
+      try {
+        await supabase.rpc("finalizar_votaciones_expiradas");
 
-      // MODIFICACIÓN 1: Transformar los datos de los jurados aquí.
-      // Extraemos el objeto 'participantes' del array que devuelve Supabase.
-      const transformedJurados = juradosData.map((j) => ({
-        participantes: Array.isArray(j.participantes)
-          ? j.participantes[0]
-          : j.participantes,
-      }));
-      setJuradosAsignados(transformedJurados);
+        const { data: votacionData, error: votacionError } = await supabase
+          .from("votacion_tesis")
+          .select(`*, imagen_votacion_tesis(*)`)
+          .eq("id", id)
+          .single();
+        if (votacionError) throw new Error("No se encontró la votación.");
+        setVotacion(votacionData);
 
-      const { data: votosData, error: votosError } = await supabase
-        .from("voto_tesis")
-        .select(`nota, rol_al_votar, participantes!inner(nombre_completo)`)
-        .eq("votacion_tesis_id", id);
-      if (votosError) throw votosError;
+        // CORRECCIÓN 1: Obtenemos los datos y los transformamos manualmente
+        const { data: juradosData, error: juradosError } = await supabase
+          .from("jurado_por_votacion")
+          .select(`participantes(id, nombre_completo)`)
+          .eq("votacion_tesis_id", id);
+        if (juradosError) throw juradosError;
+        // Supabase devuelve 'participantes' como un array, lo convertimos a objeto
+        const transformedJurados = juradosData.map((j) => ({
+          ...j,
+          participantes: Array.isArray(j.participantes)
+            ? j.participantes[0]
+            : j.participantes,
+        })) as JuradoAsignado[];
+        setJuradosAsignados(transformedJurados);
 
-      const juradoVotos = votosData.filter((v) => v.rol_al_votar === "jurado");
-      const publicoVotos = votosData.filter(
-        (v) => v.rol_al_votar === "publico"
-      );
+        const { data: votosData, error: votosError } = await supabase
+          .from("voto_tesis")
+          .select(`nota, rol_al_votar, participantes(nombre_completo)`)
+          .eq("votacion_tesis_id", id);
+        if (votosError) throw votosError;
 
-      const puntajeJurados = juradoVotos.reduce((acc, v) => acc + v.nota, 0);
-      const puntajePublico =
-        publicoVotos.length > 0
-          ? publicoVotos.reduce((acc, v) => acc + v.nota, 0) /
-            publicoVotos.length
-          : 0;
-      const puntajeTotal = puntajeJurados + puntajePublico;
+        const juradoVotos = votosData.filter(
+          (v) => v.rol_al_votar === "jurado"
+        );
+        const publicoVotos = votosData.filter(
+          (v) => v.rol_al_votar === "publico"
+        );
+        const puntajeJurados = juradoVotos.reduce((acc, v) => acc + v.nota, 0);
+        const puntajePublico =
+          publicoVotos.length > 0
+            ? publicoVotos.reduce((acc, v) => acc + v.nota, 0) /
+              publicoVotos.length
+            : 0;
+        const puntajeTotal = puntajeJurados + puntajePublico;
+        let color = "rojo";
+        if (puntajeTotal >= 30) color = "verde";
+        else if (puntajeTotal >= 15) color = "amarillo";
 
-      let color = "rojo";
-      if (puntajeTotal >= 30) color = "verde";
-      else if (puntajeTotal >= 15) color = "amarillo";
+        setResultados({
+          puntajeJurados,
+          puntajePublico,
+          puntajeTotal,
+          color,
+          // CORRECCIÓN 2: Accedemos al objeto 'participantes' correctamente
+          votosJuradoDetallado: juradoVotos.map((v) => {
+            const participanteInfo = Array.isArray(v.participantes)
+              ? v.participantes[0]
+              : v.participantes;
+            return {
+              nombre: participanteInfo?.nombre_completo || "N/A",
+              nota: v.nota,
+            };
+          }),
+          conteoVotosJurado: juradoVotos.length,
+          conteoVotosPublico: publicoVotos.length,
+        });
+        setError(null);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        if (isInitialLoad) setLoading(false);
+      }
+    },
+    [id]
+  );
 
-      setResultados({
-        puntajeJurados,
-        puntajePublico,
-        puntajeTotal,
-        color,
-        votosJuradoDetallado: juradoVotos.map((v) => ({
-          // MODIFICACIÓN 2: Acceder al primer elemento del array 'participantes'.
-          nombre: v.participantes?.[0]?.nombre_completo || "N/A",
-          nota: v.nota,
-        })),
-        conteoVotosJurado: juradoVotos.length,
-        conteoVotosPublico: publicoVotos.length,
-      });
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
+  // Hook para la carga inicial y el polling
   useEffect(() => {
-    fetchData();
+    fetchData(true);
+    const intervalId = setInterval(() => {
+      fetchData(false);
+    }, 15000);
+    return () => clearInterval(intervalId);
   }, [fetchData]);
 
+  // Hook para el temporizador visual
   useEffect(() => {
     if (votacion?.estado === "activa" && votacion.fecha_activacion) {
       const fechaFin =
@@ -141,16 +159,13 @@ export default function DetalleVotacionPage() {
           Math.floor((fechaFin - Date.now()) / 1000)
         );
         setTiempoRestante(restante);
-        if (restante === 0) {
-          setVotacion((v) => (v ? { ...v, estado: "finalizada" } : null));
-          fetchData();
-          clearInterval(interval);
-        }
+        if (restante === 0) clearInterval(interval);
       }, 1000);
       return () => clearInterval(interval);
     }
-  }, [votacion, fetchData]);
+  }, [votacion]);
 
+  // Handlers
   const handleActivateVotacion = async () => {
     Swal.fire({
       title: "¿Activar esta votación?",
