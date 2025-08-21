@@ -1,0 +1,88 @@
+/* /app/tesis-votaciones-autenticacion/Autenticacion.css */
+
+.auth-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #1a1a2e; /* Fondo oscuro principal */
+  padding: 2rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+.auth-card {
+  background-color: #2c2c3e;
+  padding: 3rem;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  max-width: 550px;
+  text-align: center;
+  border: 1px solid #444;
+}
+
+.auth-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #f5f6fa;
+  margin: 0;
+}
+
+.auth-subtitle {
+  font-size: 1rem;
+  color: #b0b0c0;
+  margin-top: 0.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.auth-input {
+  background-color: #3a3a5a;
+  border: 1px solid #5a5a7a;
+  border-radius: 10px;
+  padding: 1rem;
+  color: #f5f6fa;
+  font-size: 1.1rem;
+  text-align: center;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.auth-input::placeholder {
+  color: #888;
+}
+
+.auth-input:focus {
+  outline: none;
+  border-color: #8724ff;
+  box-shadow: 0 0 0 4px rgba(135, 36, 255, 0.3);
+}
+
+.auth-button {
+  background: linear-gradient(90deg, #8724ff, #6200ff);
+  color: white;
+  border: none;
+  padding: 1rem;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 0, 255, 0.3);
+}
+
+.auth-button:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(102, 0, 255, 0.5);
+}
+
+.auth-button:disabled {
+  background: #5a5a7a;
+  cursor: not-allowed;
+  opacity: 0.7;
+}

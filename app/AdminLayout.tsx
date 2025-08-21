@@ -42,6 +42,7 @@ export default function AdminLayout({
     "/dashboard-votacion-tesis",
     "/conteo-votacion-tesis",
     "/crear-votacion-tesis",
+    "/editar-votacion-tesis",
   ];
 
   //Mostrar sidebar si hay admin y la ruta actual arranca con alguna de protectedRoutes

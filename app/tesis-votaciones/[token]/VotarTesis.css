@@ -1,0 +1,161 @@
+/* /app/votar-tesis/[token]/Votar.css */
+
+.votar-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #1a1a2e;
+  padding: 2rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+.votar-card {
+  position: relative;
+  background-color: #2c2c3e;
+  padding: 2.5rem;
+  border-radius: 20px;
+  box-shadow: 0 10px 50px rgba(0, 0, 0, 0.4);
+  width: 100%;
+  max-width: 500px;
+  text-align: center;
+  border-top: 4px solid #8724ff;
+  color: #f5f6fa;
+}
+
+.timer {
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #29f68c;
+  color: #1a1a2e;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.votar-header h1 {
+  font-size: 2rem;
+  margin: 1rem 0 0.5rem;
+}
+.votar-header p {
+  font-size: 1.1rem;
+  color: #b0b0c0;
+  margin: 0 0 2rem;
+}
+
+.votar-slider-container {
+  margin-bottom: 2.5rem;
+}
+.votar-slider-container label {
+  display: block;
+  font-size: 1rem;
+  color: #c0c0d0;
+  margin-bottom: 1rem;
+}
+
+.nota-display {
+  font-size: 4.5rem;
+  font-weight: bold;
+  margin-bottom: 1.5rem;
+  transition: color 0.3s ease;
+}
+.nota-display.verde {
+  color: #29f68c;
+}
+.nota-display.amarillo {
+  color: #f1c40f;
+}
+.nota-display.rojo {
+  color: #ff7675;
+}
+
+.slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 15px;
+  border-radius: 10px;
+  background: #4a4a6a;
+  outline: none;
+  opacity: 0.9;
+  transition: opacity 0.2s;
+}
+.slider:hover {
+  opacity: 1;
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  border: 4px solid;
+  transition: border-color 0.3s ease;
+}
+.slider.verde::-webkit-slider-thumb {
+  border-color: #29f68c;
+}
+.slider.amarillo::-webkit-slider-thumb {
+  border-color: #f1c40f;
+}
+.slider.rojo::-webkit-slider-thumb {
+  border-color: #ff7675;
+}
+
+.slider-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: #888;
+}
+
+.submit-voto-button {
+  width: 100%;
+  background: linear-gradient(90deg, #8724ff, #6200ff);
+  color: white;
+  border: none;
+  padding: 1rem;
+  border-radius: 12px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 0, 255, 0.3);
+}
+.submit-voto-button:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(102, 0, 255, 0.5);
+}
+.submit-voto-button:disabled {
+  background: #5a5a7a;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Estilos para errores y carga */
+.loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  color: #fff;
+}
+.error-card {
+  border-top-color: #ff7675;
+}
+.error-card .back-button {
+  background-color: #5a5a7a;
+  color: #f5f6fa;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 1rem;
+  font-weight: 600;
+}

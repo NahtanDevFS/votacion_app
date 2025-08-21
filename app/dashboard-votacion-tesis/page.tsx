@@ -104,6 +104,46 @@ export default function TesisDashboardPage() {
     fetchVotacionesTesis();
   }, [fetchVotacionesTesis]);
 
+  // --- NUEVA LÓGICA ---
+  // Este efecto se encarga de llamar a la función de la base de datos periódicamente
+  useEffect(() => {
+    // Llama a la función inmediatamente al cargar la página
+    // para limpiar cualquier votación que haya expirado mientras no estabas.
+    const checkExpired = async () => {
+      const { error } = await supabase.rpc("finalizar_votaciones_expiradas");
+      if (error) {
+        console.error("Error checking for expired votaciones:", error);
+      }
+    };
+    checkExpired();
+
+    // Establece un intervalo para que se ejecute cada 1 segundos
+    const intervalId = setInterval(checkExpired, 1000);
+
+    // Limpieza: Detiene el intervalo cuando el componente se desmonta
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // --- Suscripción a cambios en tiempo real ---
+  useEffect(() => {
+    const channel = supabase
+      .channel("votacion_tesis_dashboard_changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "votacion_tesis" },
+        (payload) => {
+          console.log("Cambio en tiempo real detectado, recargando datos...");
+          // La forma más simple y segura de actualizar es volver a cargar todo.
+          fetchVotacionesTesis();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchVotacionesTesis]);
+
   // Filtramos las votaciones por estado
   const votacionesInactivas = votaciones.filter((v) => v.estado === "inactiva");
   const votacionesActivas = votaciones.filter((v) => v.estado === "activa");
@@ -147,7 +187,7 @@ export default function TesisDashboardPage() {
       <section className="votaciones-section">
         <h2 className="section-title inactivas">Inactivas</h2>
         {votacionesInactivas.length > 0 ? (
-          <div className="votaciones-grid-tesis">
+          <div className="votaciones-list-tesis">
             {votacionesInactivas.map((votacion) => (
               <VotacionTesisCard key={votacion.id} votacion={votacion} />
             ))}

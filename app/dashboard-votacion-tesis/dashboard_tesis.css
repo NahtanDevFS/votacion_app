@@ -1,15 +1,13 @@
-/* /styles/TesisDashboard.css */
-
-/* Contenedor Principal */
+/* pages/dashboard/tesis/dashboard_tesis.css */
 .tesis-dashboard-container {
   padding: 2rem;
   max-width: 1400px;
   margin: 0 auto;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
+  color: #f5f6fa;
 }
 
-/* Encabezado */
 .tesis-dashboard-header {
   display: flex;
   justify-content: space-between;
@@ -44,7 +42,6 @@
   box-shadow: 0 6px 20px rgba(102, 0, 255, 0.5);
 }
 
-/* Secciones de Votaciones */
 .votaciones-section {
   margin-bottom: 3rem;
 }
@@ -60,9 +57,11 @@
 .section-title.activas {
   color: #29f68c;
 }
+
 .section-title.inactivas {
   color: #f5f6fa;
 }
+
 .section-title.finalizadas {
   color: #ff7675;
 }
@@ -77,14 +76,12 @@
   border: 1px dashed #444;
 }
 
-/* Grid para las tarjetas */
 .votaciones-grid-tesis {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 2rem;
 }
 
-/* Tarjeta de Votación de Tesis */
 .votacion-tesis-card {
   background: #2c2c3e;
   border-radius: 16px;
@@ -143,9 +140,11 @@
 .estado-tag.estado-activa {
   background-color: #29f68c;
 }
+
 .estado-tag.estado-inactiva {
   background-color: #a0a0a0;
 }
+
 .estado-tag.estado-finalizada {
   background-color: #ff7675;
 }
@@ -202,4 +201,201 @@
 
 .details-button-tesis:hover {
   background-color: #4a4a6a;
+}
+
+.votaciones-list-tesis {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.votacion-tesis-list-item {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  background: #2c2c3e;
+  border-radius: 12px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease, transform 0.3s ease,
+    box-shadow 0.3s ease;
+  border-left: 4px solid transparent;
+}
+
+.votacion-tesis-list-item:hover {
+  background-color: #3a3a5a;
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.votacion-tesis-list-item.estado-activa {
+  border-left-color: #29f68c;
+}
+
+.votacion-tesis-list-item.estado-inactiva {
+  border-left-color: #a0a0a0;
+}
+
+.votacion-tesis-list-item.estado-finalizada {
+  border-left-color: #ff7675;
+}
+
+.list-item-image-carousel {
+  position: relative;
+  width: 160px;
+  height: 120px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #3a3a5a;
+}
+
+.list-item-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #888;
+  font-size: 0.9rem;
+}
+
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  font-size: 1.5rem;
+  line-height: 28px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.list-item-image-carousel:hover .carousel-arrow {
+  opacity: 1;
+}
+
+.carousel-arrow.prev {
+  left: 5px;
+  padding-right: 2px;
+}
+
+.carousel-arrow.next {
+  right: 5px;
+  padding-left: 2px;
+}
+
+.carousel-counter {
+  position: absolute;
+  bottom: 5px;
+  right: 8px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 5px;
+  font-size: 0.75rem;
+}
+
+.list-item-content {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: 0.5rem;
+}
+
+.list-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.list-item-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #f5f6fa;
+  margin: 0;
+}
+
+.list-item-tesista {
+  font-size: 1rem;
+  color: #b0b0c0;
+  margin: 0;
+}
+
+.list-item-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-top: 0.8rem;
+}
+
+.info-chip {
+  background-color: #3a3a5a;
+  padding: 0.4rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #c0c0d0;
+}
+
+.info-chip.cronometro {
+  color: #29f68c;
+}
+
+.info-chip.nota-final {
+  color: #f5f6fa;
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.2rem;
+  color: #a0a0a0;
+}
+
+.error-message {
+  text-align: center;
+  padding: 2rem;
+  background-color: #ff7675;
+  color: white;
+  border-radius: 8px;
+  margin: 2rem;
+}
+
+@media (max-width: 768px) {
+  .tesis-dashboard-container {
+    padding: 1rem;
+  }
+
+  .tesis-dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .tesis-dashboard-title {
+    font-size: 1.8rem;
+  }
+
+  .votacion-tesis-list-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .list-item-image-carousel {
+    width: 100%;
+    height: 200px;
+  }
 }

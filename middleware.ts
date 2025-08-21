@@ -11,6 +11,7 @@ export function middleware(request: NextRequest) {
     "/dashboard-votacion-tesis",
     "/conteo-votacion-tesis",
     "/crear-votacion-tesis",
+    "/editar-votacion-tesis",
   ];
   const path = request.nextUrl.pathname;
 
