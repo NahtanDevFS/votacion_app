@@ -72,7 +72,7 @@ export default function AuthPage() {
       confirmButtonColor: "#6200ff",
     });
     //redirección
-    router.push("/dashboard");
+    router.push("/dashboard-votacion-tesis");
     router.refresh();
   };
 
