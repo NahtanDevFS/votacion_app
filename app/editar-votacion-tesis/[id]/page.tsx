@@ -269,14 +269,12 @@ export default function EditarVotacionTesisPage() {
         (jId) => !juradosSeleccionados.has(jId)
       );
       if (juradosAAgregar.length > 0) {
-        const { error } = await supabase
-          .from("jurado_por_votacion")
-          .insert(
-            juradosAAgregar.map((pId) => ({
-              votacion_tesis_id: id,
-              participante_id: pId,
-            }))
-          );
+        const { error } = await supabase.from("jurado_por_votacion").insert(
+          juradosAAgregar.map((pId) => ({
+            votacion_tesis_id: id,
+            participante_id: pId,
+          }))
+        );
         if (error)
           throw new Error(`Error al agregar jurados: ${error.message}`);
       }
@@ -450,7 +448,7 @@ export default function EditarVotacionTesisPage() {
               />
               <span>
                 Reiniciar Votación (Borrar todos los votos y poner como
-                'inactiva')
+                inactiva)
               </span>
             </label>
           </div>
