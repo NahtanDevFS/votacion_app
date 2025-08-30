@@ -6,7 +6,7 @@
   justify-content: center;
   min-height: 100vh;
   background-color: #1a1a2e;
-  padding: 2rem;
+  padding: 1rem; /* Reducido para móviles */
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
 }
@@ -14,7 +14,7 @@
 .votar-card {
   position: relative;
   background-color: #2c2c3e;
-  padding: 2.5rem;
+  padding: 2rem 1.5rem; /* Ajustado para móviles */
   border-radius: 20px;
   box-shadow: 0 10px 50px rgba(0, 0, 0, 0.4);
   width: 100%;
@@ -38,17 +38,17 @@
 }
 
 .votar-header h1 {
-  font-size: 2rem;
+  font-size: 1.8rem; /* Reducido */
   margin: 1rem 0 0.5rem;
 }
 .votar-header p {
-  font-size: 1.1rem;
+  font-size: 1rem; /* Reducido */
   color: #b0b0c0;
-  margin: 0 0 2rem;
+  margin: 0 0 1.5rem;
 }
 
 .votar-slider-container {
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
 }
 .votar-slider-container label {
   display: block;
@@ -57,11 +57,20 @@
   margin-bottom: 1rem;
 }
 
-.nota-display {
-  font-size: 4.5rem;
-  font-weight: bold;
+.nota-input-group {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
   margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.nota-display {
+  font-size: 3.5rem; /* Reducido */
+  font-weight: bold;
   transition: color 0.3s ease;
+  min-width: 140px; /* Ancho mínimo para evitar saltos */
 }
 .nota-display.verde {
   color: #29f68c;
@@ -71,6 +80,71 @@
 }
 .nota-display.rojo {
   color: #ff7675;
+}
+
+/* --- Contenedor para el input y sus flechas --- */
+.nota-input-wrapper {
+  position: relative;
+}
+
+/* --- Input numérico con espacio para las flechas --- */
+.nota-input-exacto {
+  background-color: #1a1a2e;
+  border: 2px solid #4a4a6a;
+  color: #f5f6fa;
+  border-radius: 10px;
+  font-size: 1.8rem;
+  font-weight: bold;
+  text-align: center;
+  width: 140px;
+  padding: 0.5rem;
+  padding-right: 2.2rem; /* Espacio para las flechas */
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.nota-input-exacto:focus {
+  outline: none;
+  border-color: #8724ff;
+  box-shadow: 0 0 10px rgba(135, 36, 255, 0.5);
+}
+.nota-input-exacto::-webkit-outer-spin-button,
+.nota-input-exacto::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.nota-input-exacto[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* --- Contenedor para las flechas de control --- */
+.nota-input-controls {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 8px);
+}
+
+/* --- Estilo de los botones de control (flechas) --- */
+.control-btn {
+  background: transparent;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: 0 0.5rem;
+  font-size: 0.8rem;
+  line-height: 1;
+  height: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease, background-color 0.2s ease;
+  border-radius: 4px;
+}
+.control-btn:hover {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .slider {
@@ -89,8 +163,8 @@
 .slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: #fff;
   cursor: pointer;
@@ -122,7 +196,7 @@
   border: none;
   padding: 1rem;
   border-radius: 12px;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -138,7 +212,6 @@
   opacity: 0.7;
 }
 
-/* Estilos para errores y carga */
 .loading-container {
   display: flex;
   align-items: center;
@@ -160,36 +233,34 @@
   font-weight: 600;
 }
 
-/* --- NUEVO: Media Queries para Responsividad --- */
-@media (max-width: 600px) {
-  .votar-container {
-    padding: 1rem; /* Menos padding en pantallas pequeñas */
-  }
-
+@media (max-width: 480px) {
   .votar-card {
-    padding: 2rem 1.5rem; /* Ajusta padding vertical y horizontal */
+    padding: 1.5rem 1rem;
   }
-
   .votar-header h1 {
-    font-size: 1.5rem; /* Título más pequeño */
+    font-size: 1.5rem;
   }
-
   .votar-header p {
-    font-size: 1rem;
-    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
   }
-
+  .nota-input-group {
+    gap: 0.8rem;
+  }
   .nota-display {
-    font-size: 3.5rem; /* Tamaño de la nota reducido */
+    font-size: 3rem;
+    min-width: 120px;
   }
-
-  .slider::-webkit-slider-thumb {
-    width: 26px; /* Hacemos el control del slider un poco más pequeño */
-    height: 26px;
+  .nota-input-exacto {
+    font-size: 1.5rem;
+    width: 120px;
+    padding-right: 1.8rem;
   }
-
+  .control-btn {
+    font-size: 0.6rem;
+    padding: 0 0.3rem;
+  }
   .submit-voto-button {
-    padding: 0.9rem;
-    font-size: 1.1rem; /* Botón ligeramente más pequeño */
+    padding: 0.8rem;
+    font-size: 1rem;
   }
 }

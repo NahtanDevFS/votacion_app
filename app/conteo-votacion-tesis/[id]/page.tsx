@@ -54,8 +54,8 @@ export default function DetalleVotacionPage() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [tiempoRestante, setTiempoRestante] = useState(0);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [isResultModalOpen, setIsResultModalOpen] = useState(false);
 
-  // Función unificada para obtener y procesar todos los datos de la página
   const fetchData = useCallback(
     async (isInitialLoad = false) => {
       if (!id) return;
@@ -72,14 +72,15 @@ export default function DetalleVotacionPage() {
         if (votacionError) throw new Error("No se encontró la votación.");
         setVotacion(votacionData);
 
-        // CORRECCIÓN 1: Obtenemos los datos y los transformamos manualmente
+        // --- CORRECCIÓN 1: Se obtienen los datos sin !inner y se transforman manualmente ---
         const { data: juradosData, error: juradosError } = await supabase
           .from("jurado_por_votacion")
           .select(`participantes(id, nombre_completo)`)
           .eq("votacion_tesis_id", id);
         if (juradosError) throw juradosError;
-        // Supabase devuelve 'participantes' como un array, lo convertimos a objeto
-        const transformedJurados = juradosData.map((j) => ({
+
+        // Supabase puede devolver 'participantes' como un array, lo convertimos a objeto
+        const transformedJurados = juradosData.map((j: any) => ({
           ...j,
           participantes: Array.isArray(j.participantes)
             ? j.participantes[0]
@@ -115,8 +116,8 @@ export default function DetalleVotacionPage() {
           puntajePublico,
           puntajeTotal,
           color,
-          // CORRECCIÓN 2: Accedemos al objeto 'participantes' correctamente
-          votosJuradoDetallado: juradoVotos.map((v) => {
+          // --- CORRECCIÓN 2: Se procesa 'participantes' como un posible array ---
+          votosJuradoDetallado: juradoVotos.map((v: any) => {
             const participanteInfo = Array.isArray(v.participantes)
               ? v.participantes[0]
               : v.participantes;
@@ -138,16 +139,12 @@ export default function DetalleVotacionPage() {
     [id]
   );
 
-  // Hook para la carga inicial y el polling
   useEffect(() => {
     fetchData(true);
-    const intervalId = setInterval(() => {
-      fetchData(false);
-    }, 15000);
+    const intervalId = setInterval(() => fetchData(false), 15000);
     return () => clearInterval(intervalId);
   }, [fetchData]);
 
-  // Hook para el temporizador visual
   useEffect(() => {
     if (votacion?.estado === "activa" && votacion.fecha_activacion) {
       const fechaFin =
@@ -165,7 +162,6 @@ export default function DetalleVotacionPage() {
     }
   }, [votacion]);
 
-  // Handlers
   const handleActivateVotacion = async () => {
     Swal.fire({
       title: "¿Activar esta votación?",
@@ -253,6 +249,65 @@ export default function DetalleVotacionPage() {
         </div>
       )}
 
+      {isResultModalOpen && (
+        <div
+          className="result-modal-backdrop"
+          onClick={() => setIsResultModalOpen(false)}
+        >
+          <div
+            className="result-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="result-modal-close"
+              onClick={() => setIsResultModalOpen(false)}
+            >
+              ×
+            </button>
+            <div className="detalle-card resultados-central fullscreen">
+              <h3>Resultados Finales</h3>
+              <div className="score-card-central">
+                <p>Puntaje Total</p>
+                <div className={`score-circle ${resultados?.color}`}>
+                  <span>{resultados?.puntajeTotal.toFixed(2)}</span> / 40
+                </div>
+              </div>
+              <div className="score-breakdown-central">
+                <div className="score-item">
+                  <h4>
+                    Promedio Público ({resultados?.conteoVotosPublico || 0}{" "}
+                    votos)
+                  </h4>
+                  <span className="score-value">
+                    {resultados?.puntajePublico.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+              <div className="jurados-score-grid">
+                {juradosAsignados.map((j) => {
+                  if (!j.participantes) return null;
+                  const votoJurado = resultados?.votosJuradoDetallado.find(
+                    (v) => v.nombre === j.participantes?.nombre_completo
+                  );
+                  return (
+                    <div key={j.participantes.id} className="jurado-score-card">
+                      <h4>{j.participantes.nombre_completo}</h4>
+                      <span
+                        className={`voto-valor ${
+                          votoJurado ? "votado" : "pendiente"
+                        }`}
+                      >
+                        {votoJurado ? votoJurado.nota.toFixed(2) : "---"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="detalle-header-rich">
         <div className="header-text-content">
           <h1>{votacion.titulo}</h1>
@@ -296,8 +351,13 @@ export default function DetalleVotacionPage() {
 
       <div className="detalle-main-grid-final">
         <div className="detalle-columna">
-          <div className="detalle-card resultados-central">
-            <h3>Resultados Finales</h3>
+          <div
+            className="detalle-card resultados-central clickable-card"
+            onClick={() => setIsResultModalOpen(true)}
+          >
+            <h3>
+              Resultados Finales <span className="expand-indicator">↗</span>
+            </h3>
             <div className="score-card-central">
               <p>Puntaje Total</p>
               <div className={`score-circle ${resultados?.color}`}>

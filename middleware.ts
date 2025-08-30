@@ -32,7 +32,9 @@ export function middleware(request: NextRequest) {
   if (path === "/login") {
     const admin = request.cookies.get("admin")?.value;
     if (admin) {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      return NextResponse.redirect(
+        new URL("/dashboard-votacion-tesis", request.url)
+      );
     }
   }
 

@@ -47,11 +47,9 @@ export default function VotarTesisPage() {
     return "rojo";
   };
 
-  // Función unificada que valida el acceso y refresca el estado
   const fetchVotacionState = useCallback(
     async (isInitialLoad = false) => {
       if (isInitialLoad) setIsLoading(true);
-
       const codigoAcceso = localStorage.getItem(
         "token_participante_tesis_vote_up"
       );
@@ -59,24 +57,17 @@ export default function VotarTesisPage() {
         router.replace("/tesis-votaciones-autenticacion");
         return;
       }
-
       try {
-        // Obtener info de la votación PRIMERO
         const { data: vData, error: vError } = await supabase
           .from("votacion_tesis")
           .select("*, imagen_votacion_tesis(url_imagen)")
           .eq("token_qr", token_qr)
           .single();
-
         if (vError)
           throw new Error("La votación no existe o ya no está disponible.");
-        if (vData.estado !== "activa") {
-          // Si el polling detecta que la votación ya no está activa, muestra el error
+        if (vData.estado !== "activa")
           throw new Error("Esta votación ha finalizado.");
-        }
         setVotacion(vData);
-
-        // Si es la carga inicial, también validamos al participante
         if (isInitialLoad) {
           const { data: pData, error: pError } = await supabase
             .from("participantes")
@@ -86,7 +77,6 @@ export default function VotarTesisPage() {
           if (pError || !pData)
             throw new Error("Tu código de acceso no es válido.");
           setParticipante(pData);
-
           const { data: votoExistente } = await supabase
             .from("voto_tesis")
             .select("id")
@@ -97,7 +87,6 @@ export default function VotarTesisPage() {
             setHaVotado(true);
             throw new Error("Ya has emitido tu voto para esta tesis.");
           }
-
           if (pData.rol_general === "jurado") {
             const { data: esJuradoAsignado } = await supabase
               .from("jurado_por_votacion")
@@ -110,7 +99,7 @@ export default function VotarTesisPage() {
             setRolParaVotar("publico");
           }
         }
-        setError(null); // Limpia errores si la votación vuelve a estar activa (caso improbable)
+        setError(null);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -120,17 +109,12 @@ export default function VotarTesisPage() {
     [token_qr, router]
   );
 
-  // Hook para la carga inicial y el polling
   useEffect(() => {
-    fetchVotacionState(true); // Carga inicial
-    const intervalId = setInterval(() => {
-      console.log("Polling: Verificando estado de la votación...");
-      fetchVotacionState(false); // Refresco silencioso
-    }, 15000); // Cada 15 segundos
+    fetchVotacionState(true);
+    const intervalId = setInterval(() => fetchVotacionState(false), 15000);
     return () => clearInterval(intervalId);
   }, [fetchVotacionState]);
 
-  // Hook para el temporizador visual
   useEffect(() => {
     if (votacion && votacion.estado === "activa") {
       const fechaFin =
@@ -151,74 +135,74 @@ export default function VotarTesisPage() {
     }
   }, [votacion, haVotado]);
 
+  const handleNotaInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = parseFloat(e.target.value);
+    if (isNaN(value)) value = 0;
+    const clampedValue = Math.max(0, Math.min(10, value));
+    setNota(clampedValue);
+  };
+
+  // --- NUEVO: Lógica para los botones de control ---
+  const handleIncrement = () => {
+    setNota((prev) => {
+      const newValue = prev + 0.01;
+      return parseFloat(Math.min(10, newValue).toFixed(2));
+    });
+  };
+
+  const handleDecrement = () => {
+    setNota((prev) => {
+      const newValue = prev - 0.01;
+      return parseFloat(Math.max(0, newValue).toFixed(2));
+    });
+  };
+
   const handleSubmit = async () => {
-    if (isSubmitting || haVotado || tiempoRestante === 0) return;
-
+    if (isSubmitting || haVotado || tiempoRestante === 0 || error) return;
     const result = await Swal.fire({
-      title: `¿Confirmas tu calificación de ${nota.toFixed(1)}?`,
-
+      title: `¿Confirmas tu calificación de ${nota.toFixed(2)}?`,
       text: "Esta acción es final y no se podrá cambiar.",
-
       icon: "question",
-
       showCancelButton: true,
-
       confirmButtonColor: "#8724ff",
-
       cancelButtonColor: "#5a5a7a",
-
       confirmButtonText: "Sí, confirmar mi voto",
-
       cancelButtonText: "Cancelar",
     });
-
     if (result.isConfirmed) {
       setIsSubmitting(true);
-
       try {
         if (!participante || !votacion || !rolParaVotar)
           throw new Error("Faltan datos para registrar el voto.");
-
         const { error: insertError } = await supabase
-
           .from("voto_tesis")
-
           .insert({
             votacion_tesis_id: votacion.id,
-
             participante_id: participante.id,
-
             nota: nota,
-
             rol_al_votar: rolParaVotar,
           });
-
         if (insertError) throw insertError;
-
         setHaVotado(true);
-
         Swal.fire(
           "¡Voto Registrado!",
-
           "Gracias por tu participación.",
-
           "success"
         );
       } catch (err: any) {
         Swal.fire(
           "Error",
-
           "No se pudo registrar tu voto. Es posible que ya hayas votado o el tiempo haya terminado.",
-
           "error"
         );
-
         console.error(err);
+        setError("No se pudo registrar tu voto.");
       } finally {
         setIsSubmitting(false);
       }
     }
   };
+
   if (isLoading)
     return (
       <div className="loading-container">
@@ -228,6 +212,8 @@ export default function VotarTesisPage() {
 
   const minutos = tiempoRestante !== null ? Math.floor(tiempoRestante / 60) : 0;
   const segundos = tiempoRestante !== null ? tiempoRestante % 60 : 0;
+  const isDisabled =
+    haVotado || isSubmitting || tiempoRestante === 0 || error !== null;
 
   return (
     <div className="votar-container">
@@ -257,40 +243,68 @@ export default function VotarTesisPage() {
           <div className="votar-body">
             <div className="votar-slider-container">
               <label htmlFor="nota-slider">Tu Calificación</label>
-              <div className={`nota-display ${getSliderColor(nota)}`}>
-                {nota.toFixed(1)}
+              <div className="nota-input-group">
+                <div className={`nota-display ${getSliderColor(nota)}`}>
+                  {nota.toFixed(2)}
+                </div>
+                {/* --- NUEVO: Wrapper para el input y los botones --- */}
+                <div className="nota-input-wrapper">
+                  <input
+                    type="number"
+                    className="nota-input-exacto"
+                    value={nota.toString()}
+                    onChange={handleNotaInputChange}
+                    onBlur={(e) =>
+                      setNota(parseFloat(parseFloat(e.target.value).toFixed(2)))
+                    }
+                    min="0"
+                    max="10"
+                    step="0.01"
+                    disabled={isDisabled}
+                  />
+                  {/* --- NUEVO: Botones de control --- */}
+                  <div className="nota-input-controls">
+                    <button
+                      type="button"
+                      onClick={handleIncrement}
+                      className="control-btn"
+                      disabled={isDisabled}
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDecrement}
+                      className="control-btn"
+                      disabled={isDisabled}
+                    >
+                      ▼
+                    </button>
+                  </div>
+                </div>
               </div>
+
               <input
                 type="range"
                 id="nota-slider"
                 min="0"
                 max="10"
-                step="0.1"
+                step="0.01"
                 value={nota}
                 onChange={(e) => setNota(parseFloat(e.target.value))}
-                disabled={
-                  haVotado ||
-                  isSubmitting ||
-                  tiempoRestante === 0 ||
-                  error !== null
-                }
+                disabled={isDisabled}
                 className={`slider ${getSliderColor(nota)}`}
               />
               <div className="slider-labels">
-                <span>0.0</span>
-                <span>10.0</span>
+                <span>0.00</span>
+                <span>10.00</span>
               </div>
             </div>
           </div>
           <div className="votar-footer">
             <button
               onClick={handleSubmit}
-              disabled={
-                haVotado ||
-                isSubmitting ||
-                tiempoRestante === 0 ||
-                error !== null
-              }
+              disabled={isDisabled}
               className="submit-voto-button"
             >
               {haVotado

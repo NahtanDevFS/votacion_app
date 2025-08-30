@@ -8,27 +8,17 @@ import Swal from "sweetalert2";
 import { v4 as uuidv4 } from "uuid";
 import "./CrearVotacionTesis.css";
 
-// --- INICIO DE LÓGICA DE IMÁGENES ADAPTADA ---
-
-/**
- * Función para reducir el tamaño de una imagen antes de subirla.
- * @param file - El archivo de imagen original.
- * @param maxSize - El tamaño máximo (ancho o alto) en píxeles.
- * @returns Una promesa que se resuelve con el nuevo archivo de imagen comprimido.
- */
+// --- INICIO DE LÓGICA DE IMÁGENES ---
 const reduceImageSize = (file: File, maxSize: number = 800): Promise<File> => {
   return new Promise((resolve, reject) => {
     const img = document.createElement("img");
     const canvas = document.createElement("canvas");
     const reader = new FileReader();
-
     reader.onload = (e) => {
-      if (!e.target?.result) {
+      if (!e.target?.result)
         return reject(new Error("No se pudo leer el archivo."));
-      }
       img.src = e.target.result as string;
     };
-
     img.onload = () => {
       let { width, height } = img;
       if (width > height) {
@@ -45,15 +35,12 @@ const reduceImageSize = (file: File, maxSize: number = 800): Promise<File> => {
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext("2d");
-      if (!ctx) {
+      if (!ctx)
         return reject(new Error("No se pudo obtener el contexto del canvas."));
-      }
       ctx.drawImage(img, 0, 0, width, height);
       canvas.toBlob(
         (blob) => {
-          if (!blob) {
-            return reject(new Error("No se pudo crear el blob."));
-          }
+          if (!blob) return reject(new Error("No se pudo crear el blob."));
           const newFile = new File([blob], file.name, {
             type: "image/jpeg",
             lastModified: Date.now(),
@@ -62,25 +49,22 @@ const reduceImageSize = (file: File, maxSize: number = 800): Promise<File> => {
         },
         "image/jpeg",
         0.85
-      ); // Calidad de compresión del 85%
+      );
     };
     img.onerror = reject;
     reader.readAsDataURL(file);
   });
 };
-
 // --- FIN DE LÓGICA DE IMÁGENES ---
 
-// Tipos para manejar los datos del formulario
 interface JuradoDisponible {
   id: number;
   nombre_completo: string;
 }
-
 interface ImagenConPreview {
-  file: File; // El archivo ya redimensionado
+  file: File;
   preview: string;
-  fileName: string; // El nombre único que tendrá en el bucket
+  fileName: string;
 }
 
 export default function CrearVotacionTesisPage() {
@@ -89,7 +73,13 @@ export default function CrearVotacionTesisPage() {
   const [nombreTesista, setNombreTesista] = useState("");
   const [tituloTesis, setTituloTesis] = useState("");
   const [descripcion, setDescripcion] = useState("");
-  const [duracionMinutos, setDuracionMinutos] = useState(5);
+
+  // --- MODIFICADO: Estados para la duración ---
+  const [duracionValor, setDuracionValor] = useState(5);
+  const [duracionUnidad, setDuracionUnidad] = useState<"minutos" | "segundos">(
+    "minutos"
+  );
+
   const [imagenes, setImagenes] = useState<ImagenConPreview[]>([]);
   const [juradosDisponibles, setJuradosDisponibles] = useState<
     JuradoDisponible[]
@@ -116,12 +106,9 @@ export default function CrearVotacionTesisPage() {
     fetchJurados();
   }, []);
 
-  // MODIFICADO: handleImageChange ahora redimensiona y nombra los archivos
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
-
-      // Muestra un loader mientras se procesan las imágenes
       Swal.fire({
         title: "Procesando imágenes...",
         text: "Esto puede tardar un momento.",
@@ -141,7 +128,7 @@ export default function CrearVotacionTesisPage() {
             };
           } catch (error) {
             console.error("Error al procesar imagen:", error);
-            return null; // Ignorar archivos que fallen
+            return null;
           }
         })
       );
@@ -170,7 +157,6 @@ export default function CrearVotacionTesisPage() {
     });
   };
 
-  // MODIFICADO: handleSubmit ahora usa el bucket 'imgs' y los nombres de archivo pre-generados
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!titulo.trim() || juradosSeleccionados.size === 0) {
@@ -192,6 +178,10 @@ export default function CrearVotacionTesisPage() {
     try {
       const user = JSON.parse(localStorage.getItem("admin") || "{}");
 
+      // --- MODIFICADO: Cálculo de la duración en segundos ---
+      const duracionEnSegundos =
+        duracionUnidad === "minutos" ? duracionValor * 60 : duracionValor;
+
       const { data: votacionData, error: votacionError } = await supabase
         .from("votacion_tesis")
         .insert({
@@ -199,40 +189,34 @@ export default function CrearVotacionTesisPage() {
           nombre_tesista: nombreTesista,
           titulo_tesis: tituloTesis,
           descripcion,
-          duracion_segundos: duracionMinutos * 60,
+          duracion_segundos: duracionEnSegundos, // Se usa el valor calculado
           creado_por: user.id,
         })
         .select()
         .single();
+
       if (votacionError) throw votacionError;
       const votacionId = votacionData.id;
 
       if (imagenes.length > 0) {
-        const uploadPromises = imagenes.map(
-          (img) =>
-            supabase.storage
-              .from("imgs") // <--- USANDO TU BUCKET 'imgs'
-              .upload(img.fileName, img.file) // <--- USANDO EL NOMBRE Y ARCHIVO PRE-PROCESADO
+        const uploadPromises = imagenes.map((img) =>
+          supabase.storage.from("imgs").upload(img.fileName, img.file)
         );
         const uploadResults = await Promise.all(uploadPromises);
-
         const failedUploads = uploadResults.filter((result) => result.error);
         if (failedUploads.length > 0) {
           throw new Error(`Error al subir ${failedUploads.length} imágenes.`);
         }
-
         const imageUrlsData = uploadResults.map(
           (result) =>
             supabase.storage.from("imgs").getPublicUrl(result.data!.path).data
               .publicUrl
         );
-
         const imagenesInsertData = imageUrlsData.map((url, index) => ({
           votacion_tesis_id: votacionId,
           url_imagen: url,
           orden: index,
         }));
-
         const { error: imageInsertError } = await supabase
           .from("imagen_votacion_tesis")
           .insert(imagenesInsertData);
@@ -271,7 +255,6 @@ export default function CrearVotacionTesisPage() {
       <h1 className="form-title-tesis">Crear Nueva Votación de Tesis</h1>
       <form onSubmit={handleSubmit} className="form-grid-tesis">
         <div className="form-column">
-          {/* ... (resto de los inputs para título, tesista, etc. sin cambios) ... */}
           <div className="form-group">
             <label htmlFor="titulo">Título de la Votación*</label>
             <input
@@ -309,17 +292,32 @@ export default function CrearVotacionTesisPage() {
               rows={4}
             ></textarea>
           </div>
+
+          {/* --- MODIFICADO: Grupo de input para la duración --- */}
           <div className="form-group">
-            <label htmlFor="duracion">Duración (minutos)</label>
-            <input
-              id="duracion"
-              type="number"
-              value={duracionMinutos}
-              onChange={(e) => setDuracionMinutos(Number(e.target.value))}
-              min="1"
-              required
-            />
+            <label htmlFor="duracion">Duración*</label>
+            <div className="input-group">
+              <input
+                id="duracion"
+                type="number"
+                value={duracionValor}
+                onChange={(e) => setDuracionValor(Number(e.target.value))}
+                min="1"
+                required
+              />
+              <select
+                value={duracionUnidad}
+                onChange={(e) =>
+                  setDuracionUnidad(e.target.value as "minutos" | "segundos")
+                }
+                aria-label="Unidad de duración"
+              >
+                <option value="minutos">Minutos</option>
+                <option value="segundos">Segundos</option>
+              </select>
+            </div>
           </div>
+
           <div className="form-group">
             <label>Imágenes del Proyecto</label>
             <input
