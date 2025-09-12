@@ -37,6 +37,7 @@ export default function Home() {
           </button>
         </div>
 
+        {/*
         <p className="home-description-button">
           Participa en votaciones y encuestas
         </p>
@@ -47,7 +48,8 @@ export default function Home() {
           <button onClick={() => router.push("/encuesta")}>
             Ingresar a encuesta
           </button>
-        </div>
+          
+        </div>*/}
         <p className="home-description-button">
           O crea tus propias votaciones y encuestas
         </p>

@@ -218,7 +218,7 @@ export default function DetalleVotacionPage() {
 
   const linkVotacion =
     typeof window !== "undefined"
-      ? `${window.location.origin}/votar-tesis/${votacion.token_qr}`
+      ? `${window.location.origin}/tesis-votaciones/${votacion.token_qr}`
       : "";
   const qrCodeUrl = (size: number) =>
     `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(
