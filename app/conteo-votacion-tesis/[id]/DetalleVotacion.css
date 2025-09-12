@@ -528,6 +528,7 @@
 .resultados-central.fullscreen h4,
 .resultados-central.fullscreen p {
   font-size: 1.5rem;
+  margin-right: 1rem;
 }
 .resultados-central.fullscreen .score-value,
 .resultados-central.fullscreen .voto-valor {
