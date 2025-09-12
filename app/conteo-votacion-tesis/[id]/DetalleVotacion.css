@@ -555,6 +555,21 @@
   color: #fff;
 }
 
+.action-button.delete {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.action-button.delete:hover {
+  background-color: #c0392b;
+}
+
+.action-button:disabled {
+  background-color: #7f8c8d;
+  cursor: not-allowed;
+  transform: none;
+}
+
 @media (max-width: 1024px) {
   .detalle-main-grid-final {
     grid-template-columns: 1fr;

@@ -55,6 +55,7 @@ export default function DetalleVotacionPage() {
   const [tiempoRestante, setTiempoRestante] = useState(0);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchData = useCallback(
     async (isInitialLoad = false) => {
@@ -191,6 +192,77 @@ export default function DetalleVotacionPage() {
         }
       }
     });
+  };
+
+  const handleDeleteVotacion = async () => {
+    if (!votacion) return;
+
+    const confirm = await Swal.fire({
+      title: "¿Estás seguro?",
+      text: "Esta acción no se puede deshacer y eliminará la votación, sus imágenes y todos los votos asociados.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Sí, eliminar",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#e74c3c",
+      cancelButtonColor: "#3498db",
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    setDeleting(true);
+    Swal.fire({
+      title: "Eliminando...",
+      text: "Por favor, espera.",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+
+    try {
+      // 1. Eliminar votos
+      await supabase
+        .from("voto_tesis")
+        .delete()
+        .eq("votacion_tesis_id", votacion.id);
+
+      // 2. Eliminar jurados asignados
+      await supabase
+        .from("jurado_por_votacion")
+        .delete()
+        .eq("votacion_tesis_id", votacion.id);
+
+      // 3. Eliminar imágenes del storage y de la tabla
+      if (
+        votacion.imagen_votacion_tesis &&
+        votacion.imagen_votacion_tesis.length > 0
+      ) {
+        const filePaths = votacion.imagen_votacion_tesis.map((img) => {
+          const urlParts = img.url_imagen.split("/");
+          return urlParts[urlParts.length - 1];
+        });
+        await supabase.storage.from("imgs").remove(filePaths);
+        await supabase
+          .from("imagen_votacion_tesis")
+          .delete()
+          .eq("votacion_tesis_id", votacion.id);
+      }
+
+      // 4. Eliminar la votación
+      await supabase.from("votacion_tesis").delete().eq("id", votacion.id);
+
+      Swal.fire("¡Eliminada!", "La votación ha sido eliminada.", "success");
+      router.push("/dashboard-votacion-tesis");
+    } catch (error: any) {
+      Swal.fire(
+        "Error",
+        `No se pudo eliminar la votación: ${error.message}`,
+        "error"
+      );
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleEdit = () => router.push(`/editar-votacion-tesis/${id}`);
@@ -432,6 +504,13 @@ export default function DetalleVotacionPage() {
               )}
               <button className="action-button edit" onClick={handleEdit}>
                 Editar
+              </button>
+              <button
+                className="action-button delete"
+                onClick={handleDeleteVotacion}
+                disabled={deleting}
+              >
+                {deleting ? "Eliminando..." : "Eliminar Votación"}
               </button>
             </div>
           </div>
