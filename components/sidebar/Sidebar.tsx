@@ -83,43 +83,43 @@ export default function Sidebar({ isOpen, onToggle, isMobile }: SidebarProps) {
                 </>
               )}
             </li>
-            <li
+            {/*<li
               className={activeItem === "dashboard" ? "active" : ""}
               onClick={() => handleNavigation("dashboard")}
             >
-              {/*<span className="nav-icon"></span>*/}
+              <span className="nav-icon"></span>
               {(!isMobile || isOpen) && (
                 <>
                   <span className="nav-text">Dashboard votaciones</span>
                   <span className="nav-arrow">→</span>
                 </>
               )}
-            </li>
-            <li
+            </li>*/}
+            {/*<li
               className={activeItem === "dashboard-encuesta" ? "active" : ""}
               onClick={() => handleNavigation("dashboard-encuesta")}
             >
-              {/*<span className="nav-icon"></span>*/}
+              <span className="nav-icon"></span>
               {(!isMobile || isOpen) && (
                 <>
                   <span className="nav-text">Dashboard encuestas</span>
                   <span className="nav-arrow">→</span>
                 </>
               )}
-            </li>
+            </li>*/}
 
-            <li
+            {/*<li
               className={activeItem === "profile" ? "active" : ""}
               onClick={() => handleNavigation("profile")}
             >
-              {/*<span className="nav-icon"></span>*/}
+              <span className="nav-icon"></span>
               {(!isMobile || isOpen) && (
                 <>
                   <span className="nav-text">Mi Perfil</span>
                   <span className="nav-arrow">→</span>
                 </>
               )}
-            </li>
+            </li>*/}
             <li
               className={activeItem === "home" ? "active" : ""}
               onClick={() => handleNavigation("")}
