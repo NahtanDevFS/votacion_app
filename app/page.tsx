@@ -22,12 +22,13 @@ export default function Home() {
         </div>
 
         <p className="home-description">
-          ¡Crea y participa en votaciones y encuestas de forma fácil y rápida
-          con VoteUp!
+          ¡Con VoteUp se puede ingresar a votaciones de tesis de forma fácil y
+          sencilla!
         </p>
 
         <p className="home-description-button">
-          Participa en las votaciones de tesis
+          Participa en las votaciones de tesis con tu código de acceso o carnet
+          de estudiante
         </p>
         <div className="home-buttons">
           <button
@@ -50,12 +51,14 @@ export default function Home() {
           </button>
           
         </div>*/}
+        {/*
         <p className="home-description-button">
           O crea tus propias votaciones y encuestas
         </p>
         <div className="home-buttons">
           <button onClick={() => router.push("/login")}>Iniciar sesión</button>
         </div>
+        */}
       </div>
     </div>
   );
