@@ -157,7 +157,7 @@
 
 /* Botones de Acción */
 .form-actions {
-  grid-column: 1 / 3;
+  grid-column: 1 / -1;
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
@@ -213,9 +213,23 @@
   border-left: 0;
 }
 
-/* Responsive */
+/* --- Responsive --- */
 @media (max-width: 900px) {
+  .form-container-tesis {
+    padding: 1.5rem;
+    margin: 1rem;
+  }
   .form-grid-tesis {
     grid-template-columns: 1fr;
+  }
+  .form-title-tesis {
+    font-size: 1.8rem;
+  }
+  .form-actions {
+    flex-direction: column;
+  }
+  .submit-button-tesis,
+  .cancel-button {
+    width: 100%;
   }
 }

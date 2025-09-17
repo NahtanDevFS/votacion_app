@@ -1,6 +1,7 @@
 /* /app/tesis-votaciones/Votaciones.css */
 
 .votaciones-participante-container {
+  position: relative; /* Necesario para posicionar el botón de salir */
   padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
@@ -9,9 +10,30 @@
   color: #f5f6fa;
 }
 
+.logout-button-participante {
+  position: absolute;
+  top: 1.5rem;
+  left: 1.5rem;
+  background-color: #5a5a7a;
+  color: #f5f6fa;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  z-index: 10;
+}
+
+.logout-button-participante:hover {
+  background-color: #6a6a8a;
+}
+
 .votaciones-header {
   text-align: center;
   margin-bottom: 3rem;
+  padding-top: 3rem; /* Espacio para el botón de salir */
 }
 .votaciones-header h1 {
   font-size: 2.5rem;
@@ -207,45 +229,49 @@
 /* --- NUEVO: Media Queries para Responsividad --- */
 @media (max-width: 600px) {
   .votaciones-participante-container {
-    padding: 1rem; /* Menos padding en los lados */
+    padding: 1rem;
+  }
+
+  .votaciones-header {
+    padding-top: 4rem; /* Más espacio para el botón */
   }
 
   .votaciones-header h1 {
-    font-size: 1.8rem; /* Título principal más pequeño */
+    font-size: 1.8rem;
   }
 
   .votaciones-header p {
-    font-size: 1rem; /* Subtítulo más pequeño */
+    font-size: 1rem;
   }
 
   .votacion-list-item {
-    gap: 1rem; /* Menos espacio entre imagen y texto */
+    gap: 1rem;
     padding: 0.8rem;
   }
 
   .list-item-image-carousel {
-    width: 100px; /* Imagen mucho más pequeña */
+    width: 100px;
     height: 80px;
   }
 
   .list-item-title {
-    font-size: 1rem; /* Título de la tarjeta más pequeño */
+    font-size: 1rem;
   }
 
   .list-item-tesista {
-    font-size: 0.9rem; /* Nombre del tesista más pequeño */
+    font-size: 0.9rem;
   }
 
   .estado-tag {
-    font-size: 0.7rem; /* Etiqueta de estado más pequeña */
+    font-size: 0.7rem;
     padding: 0.2rem 0.6rem;
   }
 
   .info-chip {
-    font-size: 0.75rem; /* Chip de información más pequeño */
+    font-size: 0.75rem;
   }
 
   .click-indicator {
-    display: none; /* Ocultamos la flecha para ahorrar espacio */
+    display: none;
   }
 }

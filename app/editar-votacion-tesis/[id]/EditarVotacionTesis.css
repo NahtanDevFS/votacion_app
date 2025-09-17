@@ -1,4 +1,4 @@
-/* /styles/CrearVotacionTesis.css */
+/* /styles/EditarVotacionTesis.css */
 
 .form-container-tesis {
   padding: 2rem;
@@ -157,7 +157,7 @@
 
 /* Botones de Acción */
 .form-actions {
-  grid-column: 1 / 3;
+  grid-column: 1 / -1;
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
@@ -195,11 +195,17 @@
   background-color: #442c2c; /* Un fondo rojizo de advertencia */
   border: 1px solid #ff7675;
   margin-top: 1rem;
+  padding: 1.5rem;
+  border-radius: 12px;
 }
 
 .danger-zone h3 {
   color: #ff7675;
   border-bottom-color: #ff7675;
+  margin-top: 0;
+  border-bottom: 1px solid;
+  padding-bottom: 0.8rem;
+  margin-bottom: 1rem;
 }
 
 .checkbox-label-reiniciar {
@@ -221,27 +227,36 @@
   display: flex;
 }
 
-/* El input numérico ocupa el espacio disponible */
 .input-group input {
   flex-grow: 1;
-  /* Se eliminan los bordes redondeados de la derecha para unirse con el select */
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
 
-/* El selector de unidad no se encoge y tiene un ancho fijo */
 .input-group select {
   flex-shrink: 0;
-  /* Se eliminan los bordes redondeados de la izquierda */
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
-  /* Se elimina el borde izquierdo para evitar duplicados */
   border-left: 0;
 }
 
-/* Responsive */
+/* --- Responsive --- */
 @media (max-width: 900px) {
+  .form-container-tesis {
+    padding: 1.5rem;
+    margin: 1rem;
+  }
   .form-grid-tesis {
     grid-template-columns: 1fr;
+  }
+  .form-title-tesis {
+    font-size: 1.8rem;
+  }
+  .form-actions {
+    flex-direction: column;
+  }
+  .submit-button-tesis,
+  .cancel-button {
+    width: 100%;
   }
 }

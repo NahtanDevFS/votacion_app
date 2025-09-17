@@ -33,7 +33,7 @@ export default function VotacionesTesisPage() {
     null
   );
 
-  // 1. Guardia de Autenticación (sin cambios)
+  // 1. Guardia de Autenticación
   useEffect(() => {
     const token = localStorage.getItem("token_participante_tesis_vote_up");
     if (!token) {
@@ -48,13 +48,10 @@ export default function VotacionesTesisPage() {
     if (isInitialLoad) setLoading(true);
 
     try {
-      // No es necesario llamar a finalizar_votaciones_expiradas aquí,
-      // ya que el dashboard del admin se encarga de esa tarea.
-      // Simplemente obtenemos el estado actual.
       const { data, error: fetchError } = await supabase
         .from("votacion_tesis")
         .select(`*, imagen_votacion_tesis(*)`)
-        .in("estado", ["activa", "inactiva"]) // Solo nos interesan estas
+        .in("estado", ["activa", "inactiva"])
         .order("fecha_creacion", { ascending: false });
 
       if (fetchError) throw fetchError;
@@ -72,18 +69,24 @@ export default function VotacionesTesisPage() {
   // 3. Hook principal para carga inicial y polling
   useEffect(() => {
     if (participanteCodigo) {
-      fetchVotaciones(true); // Carga inicial
+      fetchVotaciones(true);
 
       const intervalId = setInterval(() => {
         console.log(
           "Polling: Refrescando lista de votaciones para participante..."
         );
-        fetchVotaciones(false); // Refresco silencioso
-      }, 1000); // Cada 1 segundos
+        fetchVotaciones(false);
+      }, 1000);
 
       return () => clearInterval(intervalId);
     }
   }, [participanteCodigo, fetchVotaciones]);
+
+  // 4. Función para cerrar sesión
+  const handleLogout = () => {
+    localStorage.removeItem("token_participante_tesis_vote_up");
+    router.push("/");
+  };
 
   if (!participanteCodigo || loading) {
     return <div className="loading">Cargando votaciones...</div>;
@@ -96,6 +99,10 @@ export default function VotacionesTesisPage() {
 
   return (
     <div className="votaciones-participante-container">
+      <button onClick={handleLogout} className="logout-button-participante">
+        Borrar token y salir
+      </button>
+
       <div className="votaciones-header">
         <h1>Votaciones Disponibles</h1>
         <p>Selecciona una votación activa para participar.</p>
