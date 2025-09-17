@@ -87,7 +87,6 @@ export default function VotarTesisPage() {
             .maybeSingle();
           if (votoExistente) {
             setHaVotado(true);
-            throw new Error("Ya has emitido tu voto para esta tesis.");
           }
           if (pData.rol_general === "jurado") {
             const { data: esJuradoAsignado } = await supabase
@@ -144,7 +143,6 @@ export default function VotarTesisPage() {
     setNota(clampedValue);
   };
 
-  // --- NUEVO: Lógica para los botones de control ---
   const handleIncrement = () => {
     setNota((prev) => {
       const newValue = prev + 0.01;
@@ -219,16 +217,17 @@ export default function VotarTesisPage() {
 
   return (
     <div className="votar-container">
+      <button
+        onClick={() => router.push("/tesis-votaciones")}
+        className="back-button-votar"
+      >
+        ‹ Volver al listado
+      </button>
+
       {error && (
         <div className="votar-card error-card">
           <h2>Acceso Denegado</h2>
           <p>{error}</p>
-          <button
-            onClick={() => router.push("/tesis-votaciones")}
-            className="back-button"
-          >
-            Volver al listado
-          </button>
         </div>
       )}
 
@@ -269,7 +268,6 @@ export default function VotarTesisPage() {
                 <div className={`nota-display ${getSliderColor(nota)}`}>
                   {nota.toFixed(2)}
                 </div>
-                {/* --- NUEVO: Wrapper para el input y los botones --- */}
                 <div className="nota-input-wrapper">
                   <input
                     type="number"
@@ -284,7 +282,6 @@ export default function VotarTesisPage() {
                     step="0.01"
                     disabled={isDisabled}
                   />
-                  {/* --- NUEVO: Botones de control --- */}
                   <div className="nota-input-controls">
                     <button
                       type="button"
