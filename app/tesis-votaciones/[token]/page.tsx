@@ -65,8 +65,10 @@ export default function VotarTesisPage() {
           .single();
         if (vError)
           throw new Error("La votación no existe o ya no está disponible.");
-        if (vData.estado !== "activa")
+        if (vData.estado === "finalizada")
           throw new Error("Esta votación ha finalizado.");
+        if (vData.estado === "inactiva")
+          throw new Error("Esta votación aún no ha sido activada.");
         setVotacion(vData);
         if (isInitialLoad) {
           const { data: pData, error: pError } = await supabase
@@ -240,6 +242,26 @@ export default function VotarTesisPage() {
             <h1>{votacion.titulo}</h1>
             <p>{votacion.nombre_tesista}</p>
           </div>
+
+          <div className="project-details">
+            {votacion.imagen_votacion_tesis &&
+              votacion.imagen_votacion_tesis[0] && (
+                <div className="project-image-container">
+                  <img
+                    src={votacion.imagen_votacion_tesis[0].url_imagen}
+                    alt="Proyecto de tesis"
+                    className="project-image"
+                  />
+                </div>
+              )}
+            {votacion.descripcion && (
+              <div className="project-description">
+                <h3>Descripción del Proyecto</h3>
+                <p>{votacion.descripcion}</p>
+              </div>
+            )}
+          </div>
+
           <div className="votar-body">
             <div className="votar-slider-container">
               <label htmlFor="nota-slider">Tu Calificación</label>
