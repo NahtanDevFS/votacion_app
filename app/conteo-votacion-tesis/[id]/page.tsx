@@ -26,7 +26,11 @@ interface VotacionDetalle {
   imagen_votacion_tesis: ImagenTesis[];
 }
 interface JuradoAsignado {
-  participantes: { id: number; nombre_completo: string } | null;
+  participantes: {
+    id: number;
+    nombre_completo: string;
+    url_imagen_participante: string | null;
+  } | null;
 }
 interface Resultados {
   puntajeJurados: number;
@@ -73,14 +77,12 @@ export default function DetalleVotacionPage() {
         if (votacionError) throw new Error("No se encontró la votación.");
         setVotacion(votacionData);
 
-        // --- CORRECCIÓN 1: Se obtienen los datos sin !inner y se transforman manualmente ---
         const { data: juradosData, error: juradosError } = await supabase
           .from("jurado_por_votacion")
-          .select(`participantes(id, nombre_completo)`)
+          .select(`participantes(id, nombre_completo, url_imagen_participante)`)
           .eq("votacion_tesis_id", id);
         if (juradosError) throw juradosError;
 
-        // Supabase puede devolver 'participantes' como un array, lo convertimos a objeto
         const transformedJurados = juradosData.map((j: any) => ({
           ...j,
           participantes: Array.isArray(j.participantes)
@@ -117,7 +119,6 @@ export default function DetalleVotacionPage() {
           puntajePublico,
           puntajeTotal,
           color,
-          // --- CORRECCIÓN 2: Se procesa 'participantes' como un posible array ---
           votosJuradoDetallado: juradoVotos.map((v: any) => {
             const participanteInfo = Array.isArray(v.participantes)
               ? v.participantes[0]
@@ -337,43 +338,62 @@ export default function DetalleVotacionPage() {
               ×
             </button>
             <div className="detalle-card resultados-central fullscreen">
-              <h3>Resultados Finales</h3>
-              <div className="score-card-central">
-                <p>Puntaje Total</p>
-                <div className={`score-circle ${resultados?.color}`}>
-                  <span>{resultados?.puntajeTotal.toFixed(2)}</span> / 40
+              <div className="fullscreen-grid">
+                <div className="score-column">
+                  <h3>Resultados Finales</h3>
+                  <div className="score-card-central">
+                    <p>Puntaje Total</p>
+                    <div className={`score-circle ${resultados?.color}`}>
+                      <span>{resultados?.puntajeTotal.toFixed(2)}</span> / 40
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="score-breakdown-central">
-                <div className="score-item">
-                  <h4>
-                    Promedio Público ({resultados?.conteoVotosPublico || 0}{" "}
-                    votos)
-                  </h4>
-                  <span className="score-value">
-                    {resultados?.puntajePublico.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-              <div className="jurados-score-grid">
-                {juradosAsignados.map((j) => {
-                  if (!j.participantes) return null;
-                  const votoJurado = resultados?.votosJuradoDetallado.find(
-                    (v) => v.nombre === j.participantes?.nombre_completo
-                  );
-                  return (
-                    <div key={j.participantes.id} className="jurado-score-card">
-                      <h4>{j.participantes.nombre_completo}</h4>
-                      <span
-                        className={`voto-valor ${
-                          votoJurado ? "votado" : "pendiente"
-                        }`}
-                      >
-                        {votoJurado ? votoJurado.nota.toFixed(2) : "---"}
+                <div className="jurados-column">
+                  <div className="score-breakdown-central">
+                    <div className="score-item">
+                      <h4>
+                        Promedio Público ({resultados?.conteoVotosPublico || 0}{" "}
+                        votos)
+                      </h4>
+                      <span className="score-value">
+                        {resultados?.puntajePublico.toFixed(2)}
                       </span>
                     </div>
-                  );
-                })}
+                  </div>
+
+                  <h3>Calificación de Jurados</h3>
+                  <div className="jurados-score-grid">
+                    {juradosAsignados.map((j) => {
+                      if (!j.participantes) return null;
+                      const votoJurado = resultados?.votosJuradoDetallado.find(
+                        (v) => v.nombre === j.participantes?.nombre_completo
+                      );
+                      return (
+                        <div
+                          key={j.participantes.id}
+                          className="jurado-score-card"
+                        >
+                          <img
+                            src={
+                              j.participantes.url_imagen_participante ||
+                              "/img/default-avatar.png"
+                            }
+                            alt={j.participantes.nombre_completo}
+                            className="jurado-avatar"
+                          />
+                          <h4>{j.participantes.nombre_completo}</h4>
+                          <span
+                            className={`voto-valor ${
+                              votoJurado ? "votado" : "pendiente"
+                            }`}
+                          >
+                            {votoJurado ? votoJurado.nota.toFixed(2) : "---"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -454,6 +474,14 @@ export default function DetalleVotacionPage() {
                 );
                 return (
                   <div key={j.participantes.id} className="jurado-score-card">
+                    <img
+                      src={
+                        j.participantes.url_imagen_participante ||
+                        "/img/default-avatar.png"
+                      }
+                      alt={j.participantes.nombre_completo}
+                      className="jurado-avatar"
+                    />
                     <h4>{j.participantes.nombre_completo}</h4>
                     <span
                       className={`voto-valor ${
