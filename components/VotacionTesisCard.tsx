@@ -47,6 +47,10 @@ const VotacionTesisCard: React.FC<VotacionTesisCardProps> = ({ votacion }) => {
   const minutos = Math.floor(tiempoRestante / 60);
   const segundos = tiempoRestante % 60;
 
+  // --- NUEVO: Formateo de la duración total ---
+  const duracionMinutos = Math.floor(votacion.duracion_segundos / 60);
+  const duracionSegundos = votacion.duracion_segundos % 60;
+
   const handleVerDetalles = () => {
     router.push(`/conteo-votacion-tesis/${votacion.id}`);
   };
@@ -97,8 +101,10 @@ const VotacionTesisCard: React.FC<VotacionTesisCardProps> = ({ votacion }) => {
         </p>
 
         <div className="list-item-footer">
+          {/* --- MODIFICADO: Muestra la duración formateada --- */}
           <div className="info-chip">
-            <strong>Duración:</strong> {votacion.duracion_segundos / 60} min
+            <strong>Duración:</strong> {duracionMinutos}:
+            {String(duracionSegundos).padStart(2, "0")} min
           </div>
           {votacion.estado === "activa" && (
             <div className="info-chip cronometro">

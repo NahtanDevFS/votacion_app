@@ -49,6 +49,10 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
   const minutos = Math.floor(tiempoRestante / 60);
   const segundos = tiempoRestante % 60;
 
+  // --- NUEVO: Formateo de la duración total ---
+  const duracionMinutos = Math.floor(votacion.duracion_segundos / 60);
+  const duracionSegundos = votacion.duracion_segundos % 60;
+
   return (
     <div
       className={`votacion-list-item estado-${votacion.estado} ${
@@ -99,8 +103,10 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
               {String(segundos).padStart(2, "0")}
             </div>
           ) : (
+            // --- MODIFICADO: Muestra la duración formateada ---
             <div className="info-chip">
-              <strong>Duración:</strong> {votacion.duracion_segundos / 60} min
+              <strong>Duración:</strong> {duracionMinutos}:
+              {String(duracionSegundos).padStart(2, "0")} min
             </div>
           )}
         </div>
