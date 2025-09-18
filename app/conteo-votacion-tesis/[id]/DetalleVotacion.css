@@ -470,7 +470,7 @@
 }
 
 .estado-tag.estado-activa {
-  background-color: #29f68c;
+  background-color: #00ca62;
 }
 
 .estado-tag.estado-inactiva {
@@ -478,7 +478,7 @@
 }
 
 .estado-tag.estado-finalizada {
-  background-color: #ff7675;
+  background-color: #ff5656;
 }
 
 .result-modal-backdrop {
@@ -499,6 +499,7 @@
   width: 100%;
   height: 100%;
   display: flex;
+  flex-direction: column; /* Cambiado */
   align-items: center;
   justify-content: center;
   position: relative;
@@ -612,6 +613,33 @@
   background-color: #7f8c8d;
   cursor: not-allowed;
   transform: none;
+}
+
+.modal-info-header {
+  display: flex;
+  justify-content: space-around;
+  width: 100%;
+  max-width: 1000px;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #444;
+}
+
+.modal-info-header div {
+  text-align: center;
+}
+
+.modal-info-header span {
+  font-size: 1rem;
+  color: #a0a0a0;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.modal-info-header p {
+  font-size: 1.2rem;
+  color: #fff;
+  margin: 0;
 }
 
 @media (max-width: 1024px) {

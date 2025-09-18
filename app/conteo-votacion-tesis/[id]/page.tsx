@@ -143,7 +143,7 @@ export default function DetalleVotacionPage() {
 
   useEffect(() => {
     fetchData(true);
-    const intervalId = setInterval(() => fetchData(false), 1000); // Actualizado a 1 segundo
+    const intervalId = setInterval(() => fetchData(false), 5000); // Actualizado a 5 segundos
     return () => clearInterval(intervalId);
   }, [fetchData]);
 
@@ -337,6 +337,27 @@ export default function DetalleVotacionPage() {
             >
               ×
             </button>
+            <div className="modal-info-header">
+              <div>
+                <span>Duración</span>
+                <p>{votacion.duracion_segundos / 60} min</p>
+              </div>
+              {votacion.estado === "activa" && (
+                <div className="temporizador-activo">
+                  <span>Tiempo Restante</span>
+                  <p>
+                    {Math.floor(tiempoRestante / 60)}:
+                    {String(tiempoRestante % 60).padStart(2, "0")}
+                  </p>
+                </div>
+              )}
+              <div>
+                <span>Estado</span>
+                <p className={`estado-tag estado-${votacion.estado}`}>
+                  {votacion.estado}
+                </p>
+              </div>
+            </div>
             <div className="detalle-card resultados-central fullscreen">
               <div className="fullscreen-grid">
                 <div className="score-column">
