@@ -7,6 +7,70 @@ import { supabase } from "@/lib/supabase";
 import Swal from "sweetalert2";
 import "./DetalleVotacion.css";
 
+// --- Componente de Confeti ---
+const Confetti = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src =
+      "https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js";
+    script.async = true;
+    document.body.appendChild(script);
+
+    script.onload = () => {
+      if (!canvasRef.current) return;
+
+      const myConfetti = (window as any).confetti.create(canvasRef.current, {
+        resize: true,
+        useWorker: true,
+      });
+
+      const duration = 5 * 1000;
+      const animationEnd = Date.now() + duration;
+
+      function randomInRange(min: number, max: number) {
+        return Math.random() * (max - min) + min;
+      }
+
+      const interval = setInterval(() => {
+        const timeLeft = animationEnd - Date.now();
+
+        if (timeLeft <= 0) {
+          return clearInterval(interval);
+        }
+
+        const particleCount = 50 * (timeLeft / duration);
+        // Efecto que sale de los costados
+        myConfetti({
+          particleCount,
+          startVelocity: 30,
+          spread: 360,
+          ticks: 60,
+          origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+        });
+        myConfetti({
+          particleCount,
+          startVelocity: 30,
+          spread: 360,
+          ticks: 60,
+          origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+        });
+      }, 250);
+
+      return () => clearInterval(interval);
+    };
+
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="confetti-canvas" />;
+};
+
 // --- Interfaces de Tipos de Datos ---
 interface ImagenTesis {
   id: number;
@@ -61,6 +125,8 @@ export default function DetalleVotacionPage() {
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const resultModalRef = useRef<HTMLDivElement>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const previousState = useRef<string | null>(null);
 
   const fetchData = useCallback(
     async (isInitialLoad = false) => {
@@ -76,6 +142,16 @@ export default function DetalleVotacionPage() {
           .eq("id", id)
           .single();
         if (votacionError) throw new Error("No se encontró la votación.");
+
+        if (
+          previousState.current === "activa" &&
+          votacionData.estado === "finalizada"
+        ) {
+          setShowConfetti(true);
+          setTimeout(() => setShowConfetti(false), 5000); // Ocultar después de 5s
+        }
+        previousState.current = votacionData.estado;
+
         setVotacion(votacionData);
 
         const { data: juradosData, error: juradosError } = await supabase
@@ -144,7 +220,7 @@ export default function DetalleVotacionPage() {
 
   useEffect(() => {
     fetchData(true);
-    const intervalId = setInterval(() => fetchData(false), 5000); // Actualizado a 5 segundos
+    const intervalId = setInterval(() => fetchData(false), 5000);
     return () => clearInterval(intervalId);
   }, [fetchData]);
 
@@ -368,6 +444,7 @@ export default function DetalleVotacionPage() {
 
   return (
     <div className="detalle-votacion-container">
+      {showConfetti && !isResultModalOpen && <Confetti />}
       {isQrModalOpen && (
         <div
           className="qr-modal-backdrop"
@@ -392,6 +469,7 @@ export default function DetalleVotacionPage() {
 
       {isResultModalOpen && (
         <div className="result-modal-backdrop" ref={resultModalRef}>
+          {showConfetti && <Confetti />}
           <div
             className="result-modal-content"
             onClick={(e) => e.stopPropagation()}

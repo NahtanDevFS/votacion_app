@@ -651,6 +651,17 @@
   margin: 0;
 }
 
+/* Estilos para el canvas del confeti */
+.confetti-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9999;
+  pointer-events: none; /* Permite hacer clic a través del canvas */
+}
+
 @media (max-width: 1024px) {
   .detalle-main-grid-final {
     grid-template-columns: 1fr;
