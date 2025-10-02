@@ -97,7 +97,7 @@ export default function VotacionesTesisPage() {
           "Polling: Refrescando lista de votaciones para participante..."
         );
         fetchVotaciones(false);
-      }, 5000); // 5 segundos es un intervalo razonable
+      }, 1000); // 1 segundo es un intervalo razonable
 
       return () => clearInterval(intervalId);
     }
