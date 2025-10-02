@@ -1,7 +1,7 @@
 // app/conteo-votacion-tesis/[id]/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Swal from "sweetalert2";
@@ -60,6 +60,7 @@ export default function DetalleVotacionPage() {
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const resultModalRef = useRef<HTMLDivElement>(null);
 
   const fetchData = useCallback(
     async (isInitialLoad = false) => {
@@ -229,6 +230,39 @@ export default function DetalleVotacionPage() {
     });
   };
 
+  const handleOpenFullScreenModal = () => {
+    setIsResultModalOpen(true);
+  };
+
+  const handleCloseFullScreenModal = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    }
+    setIsResultModalOpen(false);
+  };
+
+  useEffect(() => {
+    if (isResultModalOpen && resultModalRef.current) {
+      resultModalRef.current.requestFullscreen().catch((err) => {
+        console.error(
+          `Error attempting to enable full-screen mode: ${err.message} (${err.name})`
+        );
+      });
+    }
+
+    const handleFullScreenChange = () => {
+      if (!document.fullscreenElement) {
+        setIsResultModalOpen(false);
+      }
+    };
+
+    document.addEventListener("fullscreenchange", handleFullScreenChange);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullScreenChange);
+    };
+  }, [isResultModalOpen]);
+
   const handleDeleteVotacion = async () => {
     if (!votacion) return;
 
@@ -357,17 +391,14 @@ export default function DetalleVotacionPage() {
       )}
 
       {isResultModalOpen && (
-        <div
-          className="result-modal-backdrop"
-          onClick={() => setIsResultModalOpen(false)}
-        >
+        <div className="result-modal-backdrop" ref={resultModalRef}>
           <div
             className="result-modal-content"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               className="result-modal-close"
-              onClick={() => setIsResultModalOpen(false)}
+              onClick={handleCloseFullScreenModal}
             >
               ×
             </button>
@@ -500,7 +531,7 @@ export default function DetalleVotacionPage() {
         <div className="detalle-columna">
           <div
             className="detalle-card resultados-central clickable-card"
-            onClick={() => setIsResultModalOpen(true)}
+            onClick={handleOpenFullScreenModal}
           >
             <h3>
               Resultados Finales <span className="expand-indicator">↗</span>
