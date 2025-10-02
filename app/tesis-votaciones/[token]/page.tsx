@@ -21,6 +21,7 @@ interface VotacionActiva {
 interface Participante {
   id: number;
   rol_general: "jurado" | "publico";
+  nombre_completo: string;
 }
 
 // --- Componente Principal ---
@@ -65,15 +66,20 @@ export default function VotarTesisPage() {
           .single();
         if (vError)
           throw new Error("La votación no existe o ya no está disponible.");
-        if (vData.estado === "finalizada")
-          throw new Error("Esta votación ha finalizado.");
+        if (vData.estado === "finalizada") {
+          setError("Esta votación ha finalizado.");
+          setVotacion(vData); // Guardamos el estado finalizado
+          return; // Detenemos la ejecución normal
+        }
         if (vData.estado === "inactiva")
           throw new Error("Esta votación aún no ha sido activada.");
+
         setVotacion(vData);
+
         if (isInitialLoad) {
           const { data: pData, error: pError } = await supabase
             .from("participantes")
-            .select("id, rol_general")
+            .select("id, rol_general, nombre_completo")
             .eq("codigo_acceso", codigoAcceso)
             .single();
           if (pError || !pData)
@@ -112,7 +118,8 @@ export default function VotarTesisPage() {
 
   useEffect(() => {
     fetchVotacionState(true);
-    const intervalId = setInterval(() => fetchVotacionState(false), 15000);
+    // Cambiamos el intervalo a 1 segundo (1000 milisegundos)
+    const intervalId = setInterval(() => fetchVotacionState(false), 1000);
     return () => clearInterval(intervalId);
   }, [fetchVotacionState]);
 
@@ -240,6 +247,20 @@ export default function VotarTesisPage() {
           <div className="votar-header">
             <h1>{votacion.titulo}</h1>
             <p>{votacion.nombre_tesista}</p>
+            {participante && (
+              <div className="role-display">
+                {rolParaVotar === "jurado" ? (
+                  <p>
+                    Votando como Jurado:{" "}
+                    <strong>{participante.nombre_completo}</strong>
+                  </p>
+                ) : (
+                  <p>
+                    Votando como <strong>Público</strong>
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="project-details">

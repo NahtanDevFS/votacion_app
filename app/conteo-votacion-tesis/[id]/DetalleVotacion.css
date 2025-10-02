@@ -263,6 +263,15 @@
   transform: translateY(-2px);
 }
 
+.action-button.finalize {
+  background-color: #e67e22;
+  color: white;
+}
+.action-button.finalize:hover {
+  background-color: #d35400;
+  transform: translateY(-2px);
+}
+
 .action-button.edit {
   background-color: #5a5a7a;
   color: #f5f6fa;

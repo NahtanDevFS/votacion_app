@@ -195,6 +195,40 @@ export default function DetalleVotacionPage() {
     });
   };
 
+  const handleForceFinalize = async () => {
+    Swal.fire({
+      title: "¿Finalizar esta votación ahora?",
+      text: "Esto detendrá la votación inmediatamente, pero no se puede deshacer.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#e67e22",
+      cancelButtonColor: "#3498db",
+      confirmButtonText: "Sí, finalizar ahora",
+      cancelButtonText: "Cancelar",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        const { data, error } = await supabase
+          .from("votacion_tesis")
+          .update({
+            estado: "finalizada",
+          })
+          .eq("id", id)
+          .select()
+          .single();
+        if (error) {
+          Swal.fire("Error", "No se pudo finalizar la votación.", "error");
+        } else {
+          Swal.fire(
+            "¡Finalizada!",
+            "La votación ha sido finalizada manualmente.",
+            "success"
+          );
+          setVotacion(data);
+        }
+      }
+    });
+  };
+
   const handleDeleteVotacion = async () => {
     if (!votacion) return;
 
@@ -549,6 +583,14 @@ export default function DetalleVotacionPage() {
                   onClick={handleActivateVotacion}
                 >
                   Activar Votación
+                </button>
+              )}
+              {votacion.estado === "activa" && (
+                <button
+                  className="action-button finalize"
+                  onClick={handleForceFinalize}
+                >
+                  Finalizar Votación
                 </button>
               )}
               <button className="action-button edit" onClick={handleEdit}>

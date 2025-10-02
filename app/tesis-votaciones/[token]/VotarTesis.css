@@ -281,6 +281,14 @@
   text-align: left;
 }
 
+.role-display {
+  margin-top: 1rem;
+  padding: 0.5rem;
+  background-color: #3a3a5a;
+  border-radius: 8px;
+  color: #f5f6fa;
+}
+
 @media (max-width: 480px) {
   .votar-card {
     padding: 1.5rem 1rem;
