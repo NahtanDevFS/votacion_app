@@ -3,8 +3,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { VotacionParaParticipante } from "@/app/tesis-votaciones/page"; // Ajusta la ruta si es necesario
-import "@/app/dashboard-votacion-tesis/dashboard_tesis.css"; // Usaremos el mismo CSS de la página principal
+import { VotacionParaParticipante } from "@/app/tesis-votaciones/page";
+import "@/app/dashboard-votacion-tesis/dashboard_tesis.css";
 
 interface CardProps {
   votacion: VotacionParaParticipante;
@@ -30,9 +30,8 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
   }, [votacion.estado, votacion.fecha_activacion, votacion.duracion_segundos]);
 
   const handleCardClick = () => {
-    // Solo permite hacer clic si la votación está activa
-    if (votacion.estado === "activa") {
-      // La ruta a la que se redirige para votar
+    // --- MODIFICADO: Solo permite hacer clic si la votación está activa Y no se ha votado ---
+    if (votacion.estado === "activa" && !votacion.ha_votado) {
       router.push(`/tesis-votaciones/${votacion.token_qr}`);
     }
   };
@@ -48,15 +47,16 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
 
   const minutos = Math.floor(tiempoRestante / 60);
   const segundos = tiempoRestante % 60;
-
-  // --- NUEVO: Formateo de la duración total ---
   const duracionMinutos = Math.floor(votacion.duracion_segundos / 60);
   const duracionSegundos = votacion.duracion_segundos % 60;
+
+  // --- MODIFICADO: Se añade una clase si se ha votado o si no es clickeable ---
+  const isClickable = votacion.estado === "activa" && !votacion.ha_votado;
 
   return (
     <div
       className={`votacion-list-item estado-${votacion.estado} ${
-        votacion.estado === "activa" ? "clickable" : ""
+        isClickable ? "clickable" : ""
       }`}
       onClick={handleCardClick}
     >
@@ -95,6 +95,15 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
           {votacion.nombre_tesista || "Tesista no asignado"}
         </p>
 
+        {/* --- NUEVO: Indicador de estado de voto --- */}
+        <div className="list-item-voto-status">
+          {votacion.ha_votado ? (
+            <span className="voto-emitido">✓ Voto emitido</span>
+          ) : (
+            <span className="no-votado">Pendiente de voto</span>
+          )}
+        </div>
+
         <div className="list-item-footer">
           {votacion.estado === "activa" ? (
             <div className="info-chip cronometro">
@@ -103,7 +112,6 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
               {String(segundos).padStart(2, "0")}
             </div>
           ) : (
-            // --- MODIFICADO: Muestra la duración formateada ---
             <div className="info-chip">
               <strong>Duración:</strong> {duracionMinutos}:
               {String(duracionSegundos).padStart(2, "0")} min
@@ -111,7 +119,7 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
           )}
         </div>
       </div>
-      {votacion.estado === "activa" && <div className="click-indicator">→</div>}
+      {isClickable && <div className="click-indicator">→</div>}
     </div>
   );
 }
