@@ -28,6 +28,7 @@ const Confetti = () => {
 
       const duration = 5 * 1000;
       const animationEnd = Date.now() + duration;
+      const defaults = { startVelocity: 30, spread: 360, ticks: 60 };
 
       function randomInRange(min: number, max: number) {
         return Math.random() * (max - min) + min;
@@ -41,19 +42,14 @@ const Confetti = () => {
         }
 
         const particleCount = 50 * (timeLeft / duration);
-        // Efecto que sale de los costados
         myConfetti({
+          ...defaults,
           particleCount,
-          startVelocity: 30,
-          spread: 360,
-          ticks: 60,
           origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
         });
         myConfetti({
+          ...defaults,
           particleCount,
-          startVelocity: 30,
-          spread: 360,
-          ticks: 60,
           origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
         });
       }, 250);
@@ -220,7 +216,7 @@ export default function DetalleVotacionPage() {
 
   useEffect(() => {
     fetchData(true);
-    const intervalId = setInterval(() => fetchData(false), 5000);
+    const intervalId = setInterval(() => fetchData(false), 1000);
     return () => clearInterval(intervalId);
   }, [fetchData]);
 
@@ -229,15 +225,25 @@ export default function DetalleVotacionPage() {
       const fechaFin =
         new Date(votacion.fecha_activacion).getTime() +
         votacion.duracion_segundos * 1000;
-      const interval = setInterval(() => {
+      let timeoutId: NodeJS.Timeout;
+
+      const tick = () => {
         const restante = Math.max(
           0,
           Math.floor((fechaFin - Date.now()) / 1000)
         );
         setTiempoRestante(restante);
-        if (restante === 0) clearInterval(interval);
-      }, 1000);
-      return () => clearInterval(interval);
+
+        if (restante > 0) {
+          // Sincronizar con el próximo segundo
+          const delay = 1000 - (Date.now() % 1000);
+          timeoutId = setTimeout(tick, delay);
+        }
+      };
+
+      tick(); // Iniciar el temporizador
+
+      return () => clearTimeout(timeoutId); // Limpiar el timeout
     }
   }, [votacion]);
 

@@ -118,7 +118,6 @@ export default function VotarTesisPage() {
 
   useEffect(() => {
     fetchVotacionState(true);
-    // Cambiamos el intervalo a 1 segundo (1000 milisegundos)
     const intervalId = setInterval(() => fetchVotacionState(false), 1000);
     return () => clearInterval(intervalId);
   }, [fetchVotacionState]);
@@ -128,18 +127,26 @@ export default function VotarTesisPage() {
       const fechaFin =
         new Date(votacion.fecha_activacion).getTime() +
         votacion.duracion_segundos * 1000;
-      const interval = setInterval(() => {
+      let timeoutId: NodeJS.Timeout;
+
+      const tick = () => {
         const restante = Math.max(
           0,
           Math.floor((fechaFin - Date.now()) / 1000)
         );
         setTiempoRestante(restante);
-        if (restante === 0 && !haVotado) {
+
+        if (restante > 0) {
+          const delay = 1000 - (Date.now() % 1000);
+          timeoutId = setTimeout(tick, delay);
+        } else if (!haVotado) {
           setError("El tiempo para votar ha finalizado.");
-          clearInterval(interval);
         }
-      }, 1000);
-      return () => clearInterval(interval);
+      };
+
+      tick();
+
+      return () => clearTimeout(timeoutId);
     }
   }, [votacion, haVotado]);
 
