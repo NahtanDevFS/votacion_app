@@ -90,6 +90,7 @@ interface JuradoAsignado {
     id: number;
     nombre_completo: string;
     url_imagen_participante: string | null;
+    codigo_acceso: string;
   } | null;
 }
 interface Resultados {
@@ -118,6 +119,7 @@ export default function DetalleVotacionPage() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [tiempoRestante, setTiempoRestante] = useState(0);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [qrCodeContent, setQrCodeContent] = useState({ url: "", title: "" });
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const resultModalRef = useRef<HTMLDivElement>(null);
@@ -152,7 +154,9 @@ export default function DetalleVotacionPage() {
 
         const { data: juradosData, error: juradosError } = await supabase
           .from("jurado_por_votacion")
-          .select(`participantes(id, nombre_completo, url_imagen_participante)`)
+          .select(
+            `participantes(id, nombre_completo, url_imagen_participante, codigo_acceso)`
+          )
           .eq("votacion_tesis_id", id);
         if (juradosError) throw juradosError;
 
@@ -235,15 +239,14 @@ export default function DetalleVotacionPage() {
         setTiempoRestante(restante);
 
         if (restante > 0) {
-          // Sincronizar con el próximo segundo
           const delay = 1000 - (Date.now() % 1000);
           timeoutId = setTimeout(tick, delay);
         }
       };
 
-      tick(); // Iniciar el temporizador
+      tick();
 
-      return () => clearTimeout(timeoutId); // Limpiar el timeout
+      return () => clearTimeout(timeoutId);
     }
   }, [votacion]);
 
@@ -372,19 +375,16 @@ export default function DetalleVotacionPage() {
     });
 
     try {
-      // 1. Eliminar votos
       await supabase
         .from("voto_tesis")
         .delete()
         .eq("votacion_tesis_id", votacion.id);
 
-      // 2. Eliminar jurados asignados
       await supabase
         .from("jurado_por_votacion")
         .delete()
         .eq("votacion_tesis_id", votacion.id);
 
-      // 3. Eliminar imágenes del storage y de la tabla
       if (
         votacion.imagen_votacion_tesis &&
         votacion.imagen_votacion_tesis.length > 0
@@ -400,7 +400,6 @@ export default function DetalleVotacionPage() {
           .eq("votacion_tesis_id", votacion.id);
       }
 
-      // 4. Eliminar la votación
       await supabase.from("votacion_tesis").delete().eq("id", votacion.id);
 
       Swal.fire("¡Eliminada!", "La votación ha sido eliminada.", "success");
@@ -434,19 +433,28 @@ export default function DetalleVotacionPage() {
       );
   };
 
+  const handleOpenQrModal = (
+    type: "publico" | "jurado",
+    accessCode?: string,
+    juradoName?: string
+  ) => {
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+    let url = `${baseUrl}/tesis-votaciones-autenticacion`;
+    let title = "QR para el Público";
+
+    if (type === "jurado" && accessCode) {
+      url = `${baseUrl}/tesis-votaciones-autenticacion?access_code=${accessCode}`;
+      title = `QR para Jurado: ${juradoName}`;
+    }
+
+    setQrCodeContent({ url, title });
+    setIsQrModalOpen(true);
+  };
+
   if (loading) return <div className="loading">Cargando detalles...</div>;
   if (error) return <div className="error-message">{error}</div>;
   if (!votacion)
     return <div className="error-message">Votación no encontrada.</div>;
-
-  const linkVotacion =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/tesis-votaciones/${votacion.token_qr}`
-      : "";
-  const qrCodeUrl = (size: number) =>
-    `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(
-      linkVotacion
-    )}&bgcolor=FFFFFF&color=2c2c3e&qzone=1`;
 
   return (
     <div className="detalle-votacion-container">
@@ -466,9 +474,14 @@ export default function DetalleVotacionPage() {
             >
               ×
             </button>
-            <h3>Escanea para Votar</h3>
-            <img src={qrCodeUrl(300)} alt="Código QR Grande" />
-            <p>{linkVotacion}</p>
+            <h3>{qrCodeContent.title}</h3>
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
+                qrCodeContent.url
+              )}&bgcolor=FFFFFF&color=2c2c3e&qzone=1`}
+              alt="Código QR"
+            />
+            <p>{qrCodeContent.url}</p>
           </div>
         </div>
       )}
@@ -722,21 +735,34 @@ export default function DetalleVotacionPage() {
           </div>
           <div className="detalle-card recursos">
             <h3>Recursos de Votación</h3>
-            <div
-              className="qr-code-container-small"
-              onClick={() => setIsQrModalOpen(true)}
-            >
-              <img src={qrCodeUrl(100)} alt="Código QR para la votación" />
-              <span>Click para ampliar</span>
-            </div>
-            <div className="recursos-info">
-              <label>Enlace para Votar</label>
-              <input
-                type="text"
-                readOnly
-                value={linkVotacion}
-                onClick={(e) => e.currentTarget.select()}
-              />
+            <div className="recursos-actions">
+              <button
+                className="action-button"
+                onClick={() => handleOpenQrModal("publico")}
+              >
+                Ver QR del Público
+              </button>
+              <div className="jurado-qr-buttons">
+                <h4>QR para Jurados</h4>
+                {juradosAsignados.map(
+                  (j) =>
+                    j.participantes && (
+                      <button
+                        key={j.participantes.id}
+                        className="action-button jurado-btn"
+                        onClick={() =>
+                          handleOpenQrModal(
+                            "jurado",
+                            j.participantes?.codigo_acceso,
+                            j.participantes?.nombre_completo
+                          )
+                        }
+                      >
+                        QR de {j.participantes.nombre_completo}
+                      </button>
+                    )
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -1,13 +1,12 @@
-// app/tesis-votaciones/page.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import VotacionParticipanteCard from "@/components/VotacionParticipanteCard";
+import FingerprintJS from "@fingerprintjs/fingerprintjs";
 import "./VotacionesTesis.css";
 
-// --- MODIFICADO: Añadimos 'ha_votado' a la interfaz ---
 export interface ImagenTesis {
   id: number;
   url_imagen: string;
@@ -22,7 +21,7 @@ export interface VotacionParaParticipante {
   fecha_activacion: string | null;
   token_qr: string;
   imagen_votacion_tesis: ImagenTesis[];
-  ha_votado: boolean; // <-- NUEVO CAMPO
+  ha_votado: boolean;
 }
 
 export default function VotacionesTesisPage() {
@@ -34,41 +33,41 @@ export default function VotacionesTesisPage() {
     id: number;
     nombre_completo: string;
   } | null>(null);
+  const [fingerprint, setFingerprint] = useState<string | null>(null);
 
-  // 1. Guardia de Autenticación y obtención de datos del participante
   useEffect(() => {
+    const loadFingerprint = async () => {
+      const fp = await FingerprintJS.load();
+      const result = await fp.get();
+      setFingerprint(result.visitorId);
+    };
+
     const fetchParticipantData = async () => {
       const token = localStorage.getItem("token_participante_tesis_vote_up");
-      if (!token) {
-        router.replace("/tesis-votaciones-autenticacion");
-        return;
-      }
-
-      // --- MODIFICADO: Obtenemos ID y nombre ---
-      const { data, error } = await supabase
-        .from("participantes")
-        .select("id, nombre_completo")
-        .eq("codigo_acceso", token)
-        .single();
-
-      if (error || !data) {
-        console.error("Error fetching participant data:", error);
-        localStorage.removeItem("token_participante_tesis_vote_up");
-        router.replace("/tesis-votaciones-autenticacion");
+      if (token) {
+        const { data, error } = await supabase
+          .from("participantes")
+          .select("id, nombre_completo")
+          .eq("codigo_acceso", token)
+          .single();
+        if (error || !data) {
+          console.error("Error fetching participant data:", error);
+          localStorage.removeItem("token_participante_tesis_vote_up");
+          loadFingerprint(); // Fallback to fingerprint if token is invalid
+        } else {
+          setParticipante(data);
+        }
       } else {
-        setParticipante(data);
+        loadFingerprint(); // Load fingerprint for public users
       }
     };
 
     fetchParticipantData();
   }, [router]);
 
-  // 2. Función unificada para obtener los datos
   const fetchVotaciones = useCallback(
     async (isInitialLoad = false) => {
-      // --- MODIFICADO: Asegurarse de tener el participante antes de buscar ---
-      if (!participante) return;
-
+      if (!participante && !fingerprint) return;
       if (isInitialLoad) setLoading(true);
 
       try {
@@ -80,15 +79,20 @@ export default function VotacionesTesisPage() {
 
         if (fetchError) throw fetchError;
 
-        // --- NUEVO: Verificar el estado del voto para cada votación ---
         const votacionesConEstadoDeVoto = await Promise.all(
           (votacionesData || []).map(async (votacion) => {
-            const { data: voto, error: votoError } = await supabase
+            let query = supabase
               .from("voto_tesis")
               .select("id")
-              .eq("votacion_tesis_id", votacion.id)
-              .eq("participante_id", participante.id)
-              .maybeSingle();
+              .eq("votacion_tesis_id", votacion.id);
+
+            if (participante) {
+              query = query.eq("participante_id", participante.id);
+            } else if (fingerprint) {
+              query = query.eq("fingerprint", fingerprint);
+            }
+
+            const { data: voto, error: votoError } = await query.maybeSingle();
 
             if (votoError) {
               console.error(
@@ -96,15 +100,12 @@ export default function VotacionesTesisPage() {
                 votoError
               );
             }
-
             return {
               ...votacion,
-              ha_votado: !!voto, // true si 'voto' no es null
+              ha_votado: !!voto,
             };
           })
         );
-        // --- FIN DEL NUEVO BLOQUE ---
-
         setVotaciones(votacionesConEstadoDeVoto);
         setError(null);
       } catch (err: any) {
@@ -114,33 +115,25 @@ export default function VotacionesTesisPage() {
         if (isInitialLoad) setLoading(false);
       }
     },
-    [participante]
-  ); // <-- Añadimos participante como dependencia
+    [participante, fingerprint]
+  );
 
-  // 3. Hook principal para carga inicial y polling
   useEffect(() => {
-    // --- MODIFICADO: Se ejecuta cuando ya tenemos los datos del participante ---
-    if (participante) {
+    if (participante || fingerprint) {
       fetchVotaciones(true);
-
       const intervalId = setInterval(() => {
-        console.log(
-          "Polling: Refrescando lista de votaciones para participante..."
-        );
         fetchVotaciones(false);
-      }, 1000); // Se puede ajustar el intervalo a 1 segundos para no ser tan agresivo
-
+      }, 1000);
       return () => clearInterval(intervalId);
     }
-  }, [participante, fetchVotaciones]);
+  }, [participante, fingerprint, fetchVotaciones]);
 
-  // 4. Función para cerrar sesión
   const handleLogout = () => {
     localStorage.removeItem("token_participante_tesis_vote_up");
     router.push("/");
   };
 
-  if (!participante || loading) {
+  if ((!participante && !fingerprint) || loading) {
     return <div className="loading">Cargando votaciones...</div>;
   }
 
@@ -154,21 +147,24 @@ export default function VotacionesTesisPage() {
 
   return (
     <div className="votaciones-participante-container">
-      <button onClick={handleLogout} className="logout-button-participante">
-        Borrar token y salir
-      </button>
+      {participante && (
+        <button onClick={handleLogout} className="logout-button-participante">
+          Borrar token y salir
+        </button>
+      )}
 
       <div className="votaciones-header">
-        {participante && (
+        {participante ? (
           <h2 className="welcome-message">
             Ingresaste como: {participante.nombre_completo}
           </h2>
+        ) : (
+          <h2 className="welcome-message">Ingresaste como Público</h2>
         )}
         <h1>Votaciones Disponibles</h1>
         <p>Selecciona una votación activa para participar.</p>
       </div>
 
-      {/* SECCIONES DE VOTACIONES (sin cambios en la estructura) */}
       <section className="votaciones-section">
         <h2 className="section-title activas">Activas</h2>
         {votacionesActivas.length > 0 ? (
