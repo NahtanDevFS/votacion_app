@@ -36,7 +36,6 @@ const Confetti = () => {
 
       const interval = setInterval(() => {
         const timeLeft = animationEnd - Date.now();
-
         if (timeLeft <= 0) {
           return clearInterval(interval);
         }
@@ -125,6 +124,7 @@ export default function DetalleVotacionPage() {
   const resultModalRef = useRef<HTMLDivElement>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const previousState = useRef<string | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   const fetchData = useCallback(
     async (isInitialLoad = false) => {
@@ -250,18 +250,13 @@ export default function DetalleVotacionPage() {
     }
   }, [votacion]);
 
-  const handleActivateVotacion = async () => {
-    Swal.fire({
-      title: "¿Activar esta votación?",
-      text: "La cuenta regresiva comenzará de inmediato.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#3085d6",
-      cancelButtonColor: "#d33",
-      confirmButtonText: "Sí, activar",
-      cancelButtonText: "Cancelar",
-    }).then(async (result) => {
-      if (result.isConfirmed) {
+  // Effect to handle the countdown
+  useEffect(() => {
+    if (countdown === null || countdown < 0) return;
+
+    if (countdown === 0) {
+      // Time to actually activate the voting
+      const activate = async () => {
         const { data, error } = await supabase
           .from("votacion_tesis")
           .update({
@@ -271,12 +266,46 @@ export default function DetalleVotacionPage() {
           .eq("id", id)
           .select()
           .single();
-        if (error)
+
+        if (error) {
           Swal.fire("Error", "No se pudo activar la votación.", "error");
-        else {
-          Swal.fire("¡Activada!", "La votación está en curso.", "success");
-          setVotacion(data);
+          setCountdown(null);
+        } else {
+          // Esperar 2 segundos para mostrar "¡A VOTAR!" y luego abrir el modal
+          setTimeout(() => {
+            setCountdown(null);
+            setVotacion(data);
+            // Abrir el modal de pantalla completa automáticamente
+            setIsResultModalOpen(true);
+          }, 2000);
         }
+      };
+      activate();
+      return; // Stop the timer loop
+    }
+
+    // Otherwise, decrement the countdown
+    const timerId = setTimeout(() => {
+      setCountdown(countdown - 1);
+    }, 1000);
+
+    // Cleanup function
+    return () => clearTimeout(timerId);
+  }, [countdown, id]);
+
+  const handleActivateVotacion = async () => {
+    Swal.fire({
+      title: "¿Activar esta votación?",
+      text: "Comenzará una cuenta regresiva de 5 segundos.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Sí, activar",
+      cancelButtonText: "Cancelar",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        setCountdown(5);
       }
     });
   };
@@ -458,6 +487,19 @@ export default function DetalleVotacionPage() {
 
   return (
     <div className="detalle-votacion-container">
+      {countdown !== null && countdown > 0 && (
+        <div className="countdown-backdrop">
+          <div className="countdown-number">{countdown}</div>
+        </div>
+      )}
+      {countdown === 0 && (
+        <div className="countdown-backdrop">
+          <div className="countdown-number" style={{ fontSize: "10vw" }}>
+            ¡A VOTAR!
+          </div>
+        </div>
+      )}
+
       {showConfetti && !isResultModalOpen && <Confetti />}
       {isQrModalOpen && (
         <div

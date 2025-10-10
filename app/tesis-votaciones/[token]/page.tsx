@@ -36,7 +36,7 @@ function VotarTesisContent() {
   const [rolParaVotar, setRolParaVotar] = useState<"jurado" | "publico" | null>(
     null
   );
-  const [nota, setNota] = useState<number>(5.0);
+  const [nota, setNota] = useState<number>(0.0);
   const [tiempoRestante, setTiempoRestante] = useState<number | null>(null);
   const [haVotado, setHaVotado] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
