@@ -69,7 +69,7 @@ function VotarTesisContent() {
   const fetchVotacionState = useCallback(
     async (isInitialLoad = false) => {
       if (isInitialLoad) setIsLoading(true);
-      if (!fingerprint) return; // Espera a que el fingerprint esté listo
+      if (!fingerprint) return;
 
       const codigoAcceso = localStorage.getItem(
         "token_participante_tesis_vote_up"
@@ -84,8 +84,18 @@ function VotarTesisContent() {
         if (vError)
           throw new Error("La votación no existe o ya no está disponible.");
         if (vData.estado === "finalizada") {
-          setError("Esta votación ha finalizado.");
-          setVotacion(vData);
+          // Mostrar mensaje amigable y redirigir
+          Swal.fire({
+            title: "Votación Finalizada",
+            text: "Esta votación ya ha terminado. Serás redirigido al listado de votaciones.",
+            icon: "info",
+            timer: 3000,
+            timerProgressBar: true,
+            showConfirmButton: false,
+            allowOutsideClick: false,
+          }).then(() => {
+            router.push("/tesis-votaciones");
+          });
           return;
         }
         if (vData.estado === "inactiva")
@@ -176,7 +186,18 @@ function VotarTesisContent() {
           const delay = 1000 - (Date.now() % 1000);
           timeoutId = setTimeout(tick, delay);
         } else if (!haVotado) {
-          setError("El tiempo para votar ha finalizado.");
+          // Tiempo finalizado durante la votación
+          Swal.fire({
+            title: "Tiempo Finalizado",
+            text: "El tiempo para votar ha terminado. Serás redirigido al listado de votaciones.",
+            icon: "warning",
+            timer: 3000,
+            timerProgressBar: true,
+            showConfirmButton: false,
+            allowOutsideClick: false,
+          }).then(() => {
+            router.push("/tesis-votaciones");
+          });
         }
       };
 
@@ -184,7 +205,7 @@ function VotarTesisContent() {
 
       return () => clearTimeout(timeoutId);
     }
-  }, [votacion, haVotado]);
+  }, [votacion, haVotado, router]);
 
   const handleNotaInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = parseFloat(e.target.value);
@@ -270,6 +291,9 @@ function VotarTesisContent() {
   const isDisabled =
     haVotado || isSubmitting || tiempoRestante === 0 || error !== null;
 
+  // Determinar si el tiempo es crítico (menos de 1 minuto)
+  const isCriticalTime = tiempoRestante !== null && tiempoRestante < 15;
+
   return (
     <div className="votar-container">
       <button
@@ -281,16 +305,26 @@ function VotarTesisContent() {
 
       {error && (
         <div className="votar-card error-card">
+          <div className="error-icon">⚠️</div>
           <h2>Acceso Denegado</h2>
           <p>{error}</p>
+          <button
+            onClick={() => router.push("/tesis-votaciones")}
+            className="back-to-list-button"
+          >
+            Volver al Listado
+          </button>
         </div>
       )}
 
       {!error && votacion && (
         <div className="votar-card">
-          <div className="timer">
-            Tiempo Restante: {String(minutos).padStart(2, "0")}:
-            {String(segundos).padStart(2, "0")}
+          <div className={`timer ${isCriticalTime ? "timer-critical" : ""}`}>
+            <span className="timer-label">Tiempo Restante</span>
+            <span className="timer-value">
+              {String(minutos).padStart(2, "0")}:
+              {String(segundos).padStart(2, "0")}
+            </span>
           </div>
           <div className="votar-header">
             <h1>{votacion.titulo}</h1>

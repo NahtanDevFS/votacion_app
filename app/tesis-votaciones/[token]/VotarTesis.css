@@ -43,20 +43,61 @@
   text-align: center;
   border-top: 4px solid #8724ff;
   color: #f5f6fa;
-  margin-top: 3rem; /* Espacio para el botón de volver */
+  margin-top: 5rem; /* Espacio para el temporizador más grande */
 }
 
 .timer {
   position: absolute;
-  top: -15px;
+  top: -40px;
   left: 50%;
   transform: translateX(-50%);
-  background-color: #29f68c;
+  background: linear-gradient(135deg, #29f68c 0%, #23d478 100%);
   color: #1a1a2e;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
+  padding: 0.8rem 2rem;
+  border-radius: 30px;
   font-weight: 700;
-  font-size: 0.9rem;
+  box-shadow: 0 8px 25px rgba(41, 246, 140, 0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 200px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.timer-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.9;
+  font-weight: 600;
+}
+
+.timer-value {
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.timer-critical {
+  background: linear-gradient(135deg, #ff7675 0%, #e74c3c 100%);
+  color: white;
+  animation: timer-pulse 1s ease-in-out infinite;
+  box-shadow: 0 8px 25px rgba(255, 118, 117, 0.6);
+}
+
+@keyframes timer-pulse {
+  0%,
+  100% {
+    transform: translateX(-50%) scale(1);
+    box-shadow: 0 8px 25px rgba(255, 118, 117, 0.6);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.05);
+    box-shadow: 0 12px 35px rgba(255, 118, 117, 0.8);
+  }
 }
 
 .votar-header h1 {
@@ -239,16 +280,54 @@
 }
 .error-card {
   border-top-color: #ff7675;
+  max-width: 450px;
+  text-align: center;
 }
-.error-card .back-button {
+
+.error-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  animation: error-bounce 0.5s ease;
+}
+
+@keyframes error-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.error-card h2 {
+  margin-bottom: 1rem;
+  color: #ff7675;
+}
+
+.error-card p {
+  color: #c0c0d0;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+.back-to-list-button {
   background-color: #5a5a7a;
   color: #f5f6fa;
   border: none;
   padding: 0.8rem 1.5rem;
   border-radius: 8px;
   cursor: pointer;
-  margin-top: 1rem;
   font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  margin-top: 0.5rem;
+}
+
+.back-to-list-button:hover {
+  background-color: #6a6a8a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .project-details {
@@ -292,7 +371,7 @@
 @media (max-width: 480px) {
   .votar-card {
     padding: 1.5rem 1rem;
-    margin-top: 5rem; /* Más espacio para el botón en móviles */
+    margin-top: 6rem; /* Más espacio para el temporizador en móviles */
   }
   .votar-header h1 {
     font-size: 1.5rem;
@@ -323,5 +402,19 @@
   .back-button-votar {
     top: 1rem;
     left: 1rem;
+  }
+
+  .timer {
+    top: -35px;
+    padding: 0.6rem 1.5rem;
+    min-width: 180px;
+  }
+
+  .timer-label {
+    font-size: 0.65rem;
+  }
+
+  .timer-value {
+    font-size: 1.6rem;
   }
 }
