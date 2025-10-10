@@ -1,10 +1,11 @@
 // app/tesis-votaciones/[token]/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Swal from "sweetalert2";
+import FingerprintJS from "@fingerprintjs/fingerprintjs";
 import "./VotarTesis.css";
 
 // --- Interfaces ---
@@ -24,8 +25,8 @@ interface Participante {
   nombre_completo: string;
 }
 
-// --- Componente Principal ---
-export default function VotarTesisPage() {
+// --- Componente de Votación ---
+function VotarTesisContent() {
   const params = useParams();
   const router = useRouter();
   const token_qr = params.token as string;
@@ -41,6 +42,23 @@ export default function VotarTesisPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fingerprint, setFingerprint] = useState<string | null>(null);
+
+  useEffect(() => {
+    const getFingerprint = async () => {
+      try {
+        const fp = await FingerprintJS.load();
+        const { visitorId } = await fp.get();
+        setFingerprint(visitorId);
+      } catch (e) {
+        setError(
+          "No se pudo identificar tu dispositivo. La votación no es posible."
+        );
+        console.error("Fingerprint error:", e);
+      }
+    };
+    getFingerprint();
+  }, []);
 
   const getSliderColor = (value: number) => {
     if (value >= 7.5) return "verde";
@@ -51,13 +69,12 @@ export default function VotarTesisPage() {
   const fetchVotacionState = useCallback(
     async (isInitialLoad = false) => {
       if (isInitialLoad) setIsLoading(true);
+      if (!fingerprint) return; // Espera a que el fingerprint esté listo
+
       const codigoAcceso = localStorage.getItem(
         "token_participante_tesis_vote_up"
       );
-      if (!codigoAcceso) {
-        router.replace("/tesis-votaciones-autenticacion");
-        return;
-      }
+
       try {
         const { data: vData, error: vError } = await supabase
           .from("votacion_tesis")
@@ -68,8 +85,8 @@ export default function VotarTesisPage() {
           throw new Error("La votación no existe o ya no está disponible.");
         if (vData.estado === "finalizada") {
           setError("Esta votación ha finalizado.");
-          setVotacion(vData); // Guardamos el estado finalizado
-          return; // Detenemos la ejecución normal
+          setVotacion(vData);
+          return;
         }
         if (vData.estado === "inactiva")
           throw new Error("Esta votación aún no ha sido activada.");
@@ -77,33 +94,50 @@ export default function VotarTesisPage() {
         setVotacion(vData);
 
         if (isInitialLoad) {
-          const { data: pData, error: pError } = await supabase
-            .from("participantes")
-            .select("id, rol_general, nombre_completo")
-            .eq("codigo_acceso", codigoAcceso)
-            .single();
-          if (pError || !pData)
-            throw new Error("Tu código de acceso no es válido.");
-          setParticipante(pData);
-          const { data: votoExistente } = await supabase
-            .from("voto_tesis")
-            .select("id")
-            .eq("votacion_tesis_id", vData.id)
-            .eq("participante_id", pData.id)
-            .maybeSingle();
-          if (votoExistente) {
-            setHaVotado(true);
-          }
-          if (pData.rol_general === "jurado") {
-            const { data: esJuradoAsignado } = await supabase
-              .from("jurado_por_votacion")
+          if (codigoAcceso) {
+            // Es un jurado con token
+            const { data: pData, error: pError } = await supabase
+              .from("participantes")
+              .select("id, rol_general, nombre_completo")
+              .eq("codigo_acceso", codigoAcceso)
+              .single();
+            if (pError || !pData)
+              throw new Error("Tu código de acceso de jurado no es válido.");
+
+            setParticipante(pData);
+
+            const { data: votoExistente } = await supabase
+              .from("voto_tesis")
               .select("id")
               .eq("votacion_tesis_id", vData.id)
               .eq("participante_id", pData.id)
               .maybeSingle();
-            setRolParaVotar(esJuradoAsignado ? "jurado" : "publico");
+
+            if (votoExistente) setHaVotado(true);
+
+            if (pData.rol_general === "jurado") {
+              const { data: esJuradoAsignado } = await supabase
+                .from("jurado_por_votacion")
+                .select("id")
+                .eq("votacion_tesis_id", vData.id)
+                .eq("participante_id", pData.id)
+                .maybeSingle();
+              setRolParaVotar(esJuradoAsignado ? "jurado" : "publico");
+            } else {
+              setRolParaVotar("publico");
+            }
           } else {
+            // Es público, usar fingerprint
+            setParticipante(null);
             setRolParaVotar("publico");
+            const { data: votoExistente } = await supabase
+              .from("voto_tesis")
+              .select("id")
+              .eq("votacion_tesis_id", vData.id)
+              .eq("fingerprint", fingerprint)
+              .maybeSingle();
+
+            if (votoExistente) setHaVotado(true);
           }
         }
         setError(null);
@@ -113,14 +147,16 @@ export default function VotarTesisPage() {
         if (isInitialLoad) setIsLoading(false);
       }
     },
-    [token_qr, router]
+    [token_qr, router, fingerprint]
   );
 
   useEffect(() => {
-    fetchVotacionState(true);
-    const intervalId = setInterval(() => fetchVotacionState(false), 1000);
-    return () => clearInterval(intervalId);
-  }, [fetchVotacionState]);
+    if (fingerprint) {
+      fetchVotacionState(true);
+      const intervalId = setInterval(() => fetchVotacionState(false), 2000);
+      return () => clearInterval(intervalId);
+    }
+  }, [fingerprint, fetchVotacionState]);
 
   useEffect(() => {
     if (votacion && votacion.estado === "activa") {
@@ -158,17 +194,11 @@ export default function VotarTesisPage() {
   };
 
   const handleIncrement = () => {
-    setNota((prev) => {
-      const newValue = prev + 0.01;
-      return parseFloat(Math.min(10, newValue).toFixed(2));
-    });
+    setNota((prev) => parseFloat(Math.min(10, prev + 0.01).toFixed(2)));
   };
 
   const handleDecrement = () => {
-    setNota((prev) => {
-      const newValue = prev - 0.01;
-      return parseFloat(Math.max(0, newValue).toFixed(2));
-    });
+    setNota((prev) => parseFloat(Math.max(0, prev - 0.01).toFixed(2)));
   };
 
   const handleSubmit = async () => {
@@ -186,16 +216,27 @@ export default function VotarTesisPage() {
     if (result.isConfirmed) {
       setIsSubmitting(true);
       try {
-        if (!participante || !votacion || !rolParaVotar)
+        if (!votacion || !rolParaVotar)
           throw new Error("Faltan datos para registrar el voto.");
+
+        const votePayload: any = {
+          votacion_tesis_id: votacion.id,
+          nota: nota,
+          rol_al_votar: rolParaVotar,
+        };
+
+        if (participante) {
+          votePayload.participante_id = participante.id;
+        } else if (fingerprint) {
+          votePayload.fingerprint = fingerprint;
+        } else {
+          throw new Error("No se pudo identificar al votante.");
+        }
+
         const { error: insertError } = await supabase
           .from("voto_tesis")
-          .insert({
-            votacion_tesis_id: votacion.id,
-            participante_id: participante.id,
-            nota: nota,
-            rol_al_votar: rolParaVotar,
-          });
+          .insert(votePayload);
+
         if (insertError) throw insertError;
         setHaVotado(true);
         Swal.fire(
@@ -217,10 +258,10 @@ export default function VotarTesisPage() {
     }
   };
 
-  if (isLoading)
+  if (isLoading || !fingerprint)
     return (
       <div className="loading-container">
-        <h2>Verificando...</h2>
+        <h2>Identificando dispositivo y cargando votación...</h2>
       </div>
     );
 
@@ -254,33 +295,30 @@ export default function VotarTesisPage() {
           <div className="votar-header">
             <h1>{votacion.titulo}</h1>
             <p>{votacion.nombre_tesista}</p>
-            {participante && (
-              <div className="role-display">
-                {rolParaVotar === "jurado" ? (
-                  <p>
-                    Votando como Jurado:{" "}
-                    <strong>{participante.nombre_completo}</strong>
-                  </p>
-                ) : (
-                  <p>
-                    Votando como <strong>Público</strong>
-                  </p>
-                )}
-              </div>
-            )}
+            <div className="role-display">
+              {participante ? (
+                <p>
+                  Votando como Jurado:{" "}
+                  <strong>{participante.nombre_completo}</strong>
+                </p>
+              ) : (
+                <p>
+                  Votando como <strong>Público</strong>
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="project-details">
-            {votacion.imagen_votacion_tesis &&
-              votacion.imagen_votacion_tesis[0] && (
-                <div className="project-image-container">
-                  <img
-                    src={votacion.imagen_votacion_tesis[0].url_imagen}
-                    alt="Proyecto de tesis"
-                    className="project-image"
-                  />
-                </div>
-              )}
+            {votacion.imagen_votacion_tesis?.[0] && (
+              <div className="project-image-container">
+                <img
+                  src={votacion.imagen_votacion_tesis[0].url_imagen}
+                  alt="Proyecto de tesis"
+                  className="project-image"
+                />
+              </div>
+            )}
             {votacion.descripcion && (
               <div className="project-description">
                 <h3>Descripción del Proyecto</h3>
@@ -364,5 +402,19 @@ export default function VotarTesisPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function VotarTesisPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="loading-container">
+          <h2>Cargando...</h2>
+        </div>
+      }
+    >
+      <VotarTesisContent />
+    </Suspense>
   );
 }
