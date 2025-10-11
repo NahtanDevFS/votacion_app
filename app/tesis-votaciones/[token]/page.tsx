@@ -1,12 +1,77 @@
 // app/tesis-votaciones/[token]/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, Suspense } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  Suspense,
+  useRef,
+} from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Swal from "sweetalert2";
 import FingerprintJS from "@fingerprintjs/fingerprintjs";
 import "./VotarTesis.css";
+
+// --- Componente de Confeti ---
+const Confetti = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src =
+      "https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js";
+    script.async = true;
+    document.body.appendChild(script);
+
+    script.onload = () => {
+      if (!canvasRef.current) return;
+
+      const myConfetti = (window as any).confetti.create(canvasRef.current, {
+        resize: true,
+        useWorker: true,
+      });
+
+      const duration = 3 * 1000;
+      const animationEnd = Date.now() + duration;
+      const defaults = { startVelocity: 30, spread: 360, ticks: 60 };
+
+      function randomInRange(min: number, max: number) {
+        return Math.random() * (max - min) + min;
+      }
+
+      const interval = setInterval(() => {
+        const timeLeft = animationEnd - Date.now();
+        if (timeLeft <= 0) {
+          return clearInterval(interval);
+        }
+
+        const particleCount = 50 * (timeLeft / duration);
+        myConfetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+        });
+        myConfetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+        });
+      }, 250);
+
+      return () => clearInterval(interval);
+    };
+
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="confetti-canvas" />;
+};
 
 // --- Interfaces ---
 interface VotacionActiva {
@@ -43,6 +108,11 @@ function VotarTesisContent() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fingerprint, setFingerprint] = useState<string | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [votoEmitido, setVotoEmitido] = useState<{
+    nota: number;
+    fecha: string;
+  } | null>(null);
 
   useEffect(() => {
     const getFingerprint = async () => {
@@ -64,6 +134,16 @@ function VotarTesisContent() {
     if (value >= 7.5) return "verde";
     if (value >= 5.0) return "amarillo";
     return "rojo";
+  };
+
+  // Función para obtener el estado del timer basado en tiempo restante
+  const getTimerState = (segundos: number | null) => {
+    if (segundos === null) return "normal";
+    if (segundos < 15) return "critical"; // < 30 segundos: ROJO pulsante
+    if (segundos < 25) return "warning"; // < 1 min: NARANJA
+    if (segundos < 40) return "caution"; // < 3 min: AMARILLO
+    if (segundos < 50) return "alert"; // < 5 min: AMARILLO-VERDE
+    return "normal"; // > 5 min: VERDE
   };
 
   const fetchVotacionState = useCallback(
@@ -118,12 +198,18 @@ function VotarTesisContent() {
 
             const { data: votoExistente } = await supabase
               .from("voto_tesis")
-              .select("id")
+              .select("id, nota, created_at")
               .eq("votacion_tesis_id", vData.id)
               .eq("participante_id", pData.id)
               .maybeSingle();
 
-            if (votoExistente) setHaVotado(true);
+            if (votoExistente) {
+              setHaVotado(true);
+              setVotoEmitido({
+                nota: votoExistente.nota,
+                fecha: votoExistente.created_at,
+              });
+            }
 
             if (pData.rol_general === "jurado") {
               const { data: esJuradoAsignado } = await supabase
@@ -142,12 +228,18 @@ function VotarTesisContent() {
             setRolParaVotar("publico");
             const { data: votoExistente } = await supabase
               .from("voto_tesis")
-              .select("id")
+              .select("id, nota, created_at")
               .eq("votacion_tesis_id", vData.id)
               .eq("fingerprint", fingerprint)
               .maybeSingle();
 
-            if (votoExistente) setHaVotado(true);
+            if (votoExistente) {
+              setHaVotado(true);
+              setVotoEmitido({
+                nota: votoExistente.nota,
+                fecha: votoExistente.created_at,
+              });
+            }
           }
         }
         setError(null);
@@ -259,7 +351,17 @@ function VotarTesisContent() {
           .insert(votePayload);
 
         if (insertError) throw insertError;
+
         setHaVotado(true);
+        setVotoEmitido({
+          nota: nota,
+          fecha: new Date().toISOString(),
+        });
+
+        // Mostrar confeti
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 3000);
+
         Swal.fire(
           "¡Voto Registrado!",
           "Gracias por tu participación.",
@@ -291,11 +393,12 @@ function VotarTesisContent() {
   const isDisabled =
     haVotado || isSubmitting || tiempoRestante === 0 || error !== null;
 
-  // Determinar si el tiempo es crítico (menos de 1 minuto)
-  const isCriticalTime = tiempoRestante !== null && tiempoRestante < 15;
+  const timerState = getTimerState(tiempoRestante);
 
   return (
     <div className="votar-container">
+      {showConfetti && <Confetti />}
+
       <button
         onClick={() => router.push("/tesis-votaciones")}
         className="back-button-votar"
@@ -319,120 +422,183 @@ function VotarTesisContent() {
 
       {!error && votacion && (
         <div className="votar-card">
-          <div className={`timer ${isCriticalTime ? "timer-critical" : ""}`}>
+          <div className={`timer timer-${timerState}`}>
             <span className="timer-label">Tiempo Restante</span>
             <span className="timer-value">
               {String(minutos).padStart(2, "0")}:
               {String(segundos).padStart(2, "0")}
             </span>
           </div>
-          <div className="votar-header">
-            <h1>{votacion.titulo}</h1>
-            <p>{votacion.nombre_tesista}</p>
-            <div className="role-display">
-              {participante ? (
-                <p>
-                  Votando como Jurado:{" "}
-                  <strong>{participante.nombre_completo}</strong>
-                </p>
-              ) : (
-                <p>
-                  Votando como <strong>Público</strong>
-                </p>
-              )}
-            </div>
-          </div>
 
-          <div className="project-details">
-            {votacion.imagen_votacion_tesis?.[0] && (
-              <div className="project-image-container">
-                <img
-                  src={votacion.imagen_votacion_tesis[0].url_imagen}
-                  alt="Proyecto de tesis"
-                  className="project-image"
-                />
-              </div>
-            )}
-            {votacion.descripcion && (
-              <div className="project-description">
-                <h3>Descripción del Proyecto</h3>
-                <p>{votacion.descripcion}</p>
-              </div>
-            )}
-          </div>
-
-          <div className="votar-body">
-            <div className="votar-slider-container">
-              <label htmlFor="nota-slider">Tu Calificación</label>
-              <div className="nota-input-group">
-                <div className={`nota-display ${getSliderColor(nota)}`}>
-                  {nota.toFixed(2)}
+          {haVotado && votoEmitido ? (
+            // RESUMEN POST-VOTO
+            <div className="voto-summary">
+              <div className="success-icon">✅</div>
+              <h2>¡Voto Registrado Exitosamente!</h2>
+              <div className="voto-details">
+                <div className="voto-nota-grande">
+                  <span className="label">Tu Calificación</span>
+                  <div
+                    className={`nota-circle ${getSliderColor(
+                      votoEmitido.nota
+                    )}`}
+                  >
+                    {votoEmitido.nota.toFixed(2)}
+                  </div>
+                  <span className="de-diez">de 10.00</span>
                 </div>
-                <div className="nota-input-wrapper">
-                  <input
-                    type="number"
-                    className="nota-input-exacto"
-                    value={nota.toString()}
-                    onChange={handleNotaInputChange}
-                    onBlur={(e) =>
-                      setNota(parseFloat(parseFloat(e.target.value).toFixed(2)))
-                    }
-                    min="0"
-                    max="10"
-                    step="0.01"
-                    disabled={isDisabled}
-                  />
-                  <div className="nota-input-controls">
-                    <button
-                      type="button"
-                      onClick={handleIncrement}
-                      className="control-btn"
-                      disabled={isDisabled}
-                    >
-                      ▲
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleDecrement}
-                      className="control-btn"
-                      disabled={isDisabled}
-                    >
-                      ▼
-                    </button>
+                <div className="voto-info">
+                  <div className="info-row">
+                    <span className="icon">📅</span>
+                    <div>
+                      <strong>Fecha y Hora</strong>
+                      <p>
+                        {new Date(votoEmitido.fecha).toLocaleString("es-GT")}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="info-row">
+                    <span className="icon">👤</span>
+                    <div>
+                      <strong>Votaste como</strong>
+                      <p>
+                        {participante
+                          ? `Jurado: ${participante.nombre_completo}`
+                          : "Público"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="info-row">
+                    <span className="icon">📊</span>
+                    <div>
+                      <strong>Proyecto</strong>
+                      <p>{votacion.titulo}</p>
+                    </div>
                   </div>
                 </div>
               </div>
-
-              <input
-                type="range"
-                id="nota-slider"
-                min="0"
-                max="10"
-                step="0.01"
-                value={nota}
-                onChange={(e) => setNota(parseFloat(e.target.value))}
-                disabled={isDisabled}
-                className={`slider ${getSliderColor(nota)}`}
-              />
-              <div className="slider-labels">
-                <span>0.00</span>
-                <span>10.00</span>
+              <div className="voto-actions">
+                <button
+                  onClick={() => router.push("/tesis-votaciones")}
+                  className="btn-primary"
+                >
+                  Ver Otras Votaciones
+                </button>
               </div>
+              <p className="gracias-message">
+                ¡Gracias por tu participación! Tu opinión es muy valiosa.
+              </p>
             </div>
-          </div>
-          <div className="votar-footer">
-            <button
-              onClick={handleSubmit}
-              disabled={isDisabled}
-              className="submit-voto-button"
-            >
-              {haVotado
-                ? "Voto Emitido"
-                : isSubmitting
-                ? "Enviando..."
-                : "Emitir Voto"}
-            </button>
-          </div>
+          ) : (
+            // FORMULARIO DE VOTACIÓN
+            <>
+              <div className="votar-header">
+                <h1>{votacion.titulo}</h1>
+                <p>{votacion.nombre_tesista}</p>
+                <div className="role-display">
+                  {participante ? (
+                    <p>
+                      Votando como Jurado:{" "}
+                      <strong>{participante.nombre_completo}</strong>
+                    </p>
+                  ) : (
+                    <p>
+                      Votando como <strong>Público</strong>
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="project-details">
+                {votacion.imagen_votacion_tesis?.[0] && (
+                  <div className="project-image-container">
+                    <img
+                      src={votacion.imagen_votacion_tesis[0].url_imagen}
+                      alt="Proyecto de tesis"
+                      className="project-image"
+                    />
+                  </div>
+                )}
+                {votacion.descripcion && (
+                  <div className="project-description">
+                    <h3>Descripción del Proyecto</h3>
+                    <p>{votacion.descripcion}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="votar-body">
+                <div className="votar-slider-container">
+                  <label htmlFor="nota-slider">Tu Calificación</label>
+                  <div className="nota-input-group">
+                    <div className={`nota-display ${getSliderColor(nota)}`}>
+                      {nota.toFixed(2)}
+                    </div>
+                    <div className="nota-input-wrapper">
+                      <input
+                        type="number"
+                        className="nota-input-exacto"
+                        value={nota.toString()}
+                        onChange={handleNotaInputChange}
+                        onBlur={(e) =>
+                          setNota(
+                            parseFloat(parseFloat(e.target.value).toFixed(2))
+                          )
+                        }
+                        min="0"
+                        max="10"
+                        step="0.01"
+                        disabled={isDisabled}
+                      />
+                      <div className="nota-input-controls">
+                        <button
+                          type="button"
+                          onClick={handleIncrement}
+                          className="control-btn"
+                          disabled={isDisabled}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleDecrement}
+                          className="control-btn"
+                          disabled={isDisabled}
+                        >
+                          ▼
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <input
+                    type="range"
+                    id="nota-slider"
+                    min="0"
+                    max="10"
+                    step="0.01"
+                    value={nota}
+                    onChange={(e) => setNota(parseFloat(e.target.value))}
+                    disabled={isDisabled}
+                    className={`slider ${getSliderColor(nota)}`}
+                  />
+                  <div className="slider-labels">
+                    <span>0.00</span>
+                    <span>10.00</span>
+                  </div>
+                </div>
+              </div>
+              <div className="votar-footer">
+                <button
+                  onClick={handleSubmit}
+                  disabled={isDisabled}
+                  className="submit-voto-button"
+                >
+                  {isSubmitting ? "Enviando..." : "Emitir Voto"}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
