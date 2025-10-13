@@ -112,6 +112,7 @@ function VotarTesisContent() {
   const [votoEmitido, setVotoEmitido] = useState<{
     nota: number;
     fecha: string;
+    rol: "jurado" | "publico";
   } | null>(null);
 
   useEffect(() => {
@@ -136,14 +137,13 @@ function VotarTesisContent() {
     return "rojo";
   };
 
-  // Función para obtener el estado del timer basado en tiempo restante
   const getTimerState = (segundos: number | null) => {
     if (segundos === null) return "normal";
-    if (segundos < 15) return "critical"; // < 30 segundos: ROJO pulsante
-    if (segundos < 25) return "warning"; // < 1 min: NARANJA
-    if (segundos < 40) return "caution"; // < 3 min: AMARILLO
-    if (segundos < 50) return "alert"; // < 5 min: AMARILLO-VERDE
-    return "normal"; // > 5 min: VERDE
+    if (segundos < 15) return "critical";
+    if (segundos < 25) return "warning";
+    if (segundos < 40) return "caution";
+    if (segundos < 50) return "alert";
+    return "normal";
   };
 
   const fetchVotacionState = useCallback(
@@ -164,7 +164,6 @@ function VotarTesisContent() {
         if (vError)
           throw new Error("La votación no existe o ya no está disponible.");
         if (vData.estado === "finalizada") {
-          // Mostrar mensaje amigable y redirigir
           Swal.fire({
             title: "Votación Finalizada",
             text: "Esta votación ya ha terminado. Serás redirigido al listado de votaciones.",
@@ -185,7 +184,6 @@ function VotarTesisContent() {
 
         if (isInitialLoad) {
           if (codigoAcceso) {
-            // Es un jurado con token
             const { data: pData, error: pError } = await supabase
               .from("participantes")
               .select("id, rol_general, nombre_completo")
@@ -196,9 +194,23 @@ function VotarTesisContent() {
 
             setParticipante(pData);
 
+            let rolFinal: "jurado" | "publico" = "publico";
+            if (pData.rol_general === "jurado") {
+              const { data: esJuradoAsignado } = await supabase
+                .from("jurado_por_votacion")
+                .select("id")
+                .eq("votacion_tesis_id", vData.id)
+                .eq("participante_id", pData.id)
+                .maybeSingle();
+              if (esJuradoAsignado) {
+                rolFinal = "jurado";
+              }
+            }
+            setRolParaVotar(rolFinal);
+
             const { data: votoExistente } = await supabase
               .from("voto_tesis")
-              .select("id, nota, created_at")
+              .select("id, nota, created_at, rol_al_votar")
               .eq("votacion_tesis_id", vData.id)
               .eq("participante_id", pData.id)
               .maybeSingle();
@@ -208,27 +220,15 @@ function VotarTesisContent() {
               setVotoEmitido({
                 nota: votoExistente.nota,
                 fecha: votoExistente.created_at,
+                rol: votoExistente.rol_al_votar,
               });
             }
-
-            if (pData.rol_general === "jurado") {
-              const { data: esJuradoAsignado } = await supabase
-                .from("jurado_por_votacion")
-                .select("id")
-                .eq("votacion_tesis_id", vData.id)
-                .eq("participante_id", pData.id)
-                .maybeSingle();
-              setRolParaVotar(esJuradoAsignado ? "jurado" : "publico");
-            } else {
-              setRolParaVotar("publico");
-            }
           } else {
-            // Es público, usar fingerprint
             setParticipante(null);
             setRolParaVotar("publico");
             const { data: votoExistente } = await supabase
               .from("voto_tesis")
-              .select("id, nota, created_at")
+              .select("id, nota, created_at, rol_al_votar")
               .eq("votacion_tesis_id", vData.id)
               .eq("fingerprint", fingerprint)
               .maybeSingle();
@@ -238,6 +238,7 @@ function VotarTesisContent() {
               setVotoEmitido({
                 nota: votoExistente.nota,
                 fecha: votoExistente.created_at,
+                rol: votoExistente.rol_al_votar,
               });
             }
           }
@@ -278,7 +279,6 @@ function VotarTesisContent() {
           const delay = 1000 - (Date.now() % 1000);
           timeoutId = setTimeout(tick, delay);
         } else if (!haVotado) {
-          // Tiempo finalizado durante la votación
           Swal.fire({
             title: "Tiempo Finalizado",
             text: "El tiempo para votar ha terminado. Serás redirigido al listado de votaciones.",
@@ -292,9 +292,7 @@ function VotarTesisContent() {
           });
         }
       };
-
       tick();
-
       return () => clearTimeout(timeoutId);
     }
   }, [votacion, haVotado, router]);
@@ -356,9 +354,9 @@ function VotarTesisContent() {
         setVotoEmitido({
           nota: nota,
           fecha: new Date().toISOString(),
+          rol: rolParaVotar,
         });
 
-        // Mostrar confeti
         setShowConfetti(true);
         setTimeout(() => setShowConfetti(false), 3000);
 
@@ -392,7 +390,6 @@ function VotarTesisContent() {
   const segundos = tiempoRestante !== null ? tiempoRestante % 60 : 0;
   const isDisabled =
     haVotado || isSubmitting || tiempoRestante === 0 || error !== null;
-
   const timerState = getTimerState(tiempoRestante);
 
   return (
@@ -463,7 +460,11 @@ function VotarTesisContent() {
                       <strong>Votaste como</strong>
                       <p>
                         {participante
-                          ? `Jurado: ${participante.nombre_completo}`
+                          ? `${
+                              votoEmitido.rol === "jurado"
+                                ? "Jurado"
+                                : "Público"
+                            }: ${participante.nombre_completo}`
                           : "Público"}
                       </p>
                     </div>
@@ -498,8 +499,11 @@ function VotarTesisContent() {
                 <div className="role-display">
                   {participante ? (
                     <p>
-                      Votando como Jurado:{" "}
-                      <strong>{participante.nombre_completo}</strong>
+                      Votando como{" "}
+                      <strong>
+                        {rolParaVotar === "jurado" ? "Jurado" : "Público"}
+                      </strong>
+                      : {participante.nombre_completo}
                     </p>
                   ) : (
                     <p>
