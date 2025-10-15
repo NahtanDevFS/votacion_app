@@ -157,7 +157,11 @@ export default function DetalleVotacionPage() {
           .select(
             `participantes(id, nombre_completo, url_imagen_participante, codigo_acceso)`
           )
-          .eq("votacion_tesis_id", id);
+          .eq("votacion_tesis_id", id)
+          .order("nombre_completo", {
+            foreignTable: "participantes",
+            ascending: true,
+          });
         if (juradosError) throw juradosError;
 
         const transformedJurados = juradosData.map((j: any) => ({
