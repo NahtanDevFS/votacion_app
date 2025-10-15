@@ -6,6 +6,9 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import "./dashboard_tesis.css";
 import VotacionTesisCard from "@/components/VotacionTesisCard";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 
 // Definimos los tipos de datos para mayor seguridad y claridad
 export interface ImagenTesis {
@@ -17,7 +20,9 @@ export interface ImagenTesis {
 export interface VotacionTesis {
   id: number;
   titulo: string;
-  nombre_tesista: string | null; // Permitimos que sea nulo
+  nombre_tesista: string | null;
+  carnet: string | null; // Campo añadido
+  descripcion: string | null;
   estado: "inactiva" | "activa" | "finalizada";
   duracion_segundos: number;
   fecha_activacion: string | null;
@@ -108,6 +113,44 @@ export default function TesisDashboardPage() {
     return () => clearInterval(intervalId);
   }, [fetchAndProcessVotaciones]);
 
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    const finalizadas = votaciones.filter((v) => v.estado === "finalizada");
+    if (finalizadas.length === 0) return;
+
+    doc.text("Votaciones de Tesis Finalizadas", 14, 16);
+    autoTable(doc, {
+      head: [["Tesis", "Tesista", "Carnet", "Descripción", "Nota Final"]],
+      body: finalizadas.map((v) => [
+        v.titulo,
+        v.nombre_tesista || "N/A",
+        v.carnet || "N/A",
+        v.descripcion || "N/A",
+        v.nota_final?.toFixed(2) || "N/A",
+      ]),
+      startY: 20,
+    });
+    doc.save("votaciones_finalizadas.pdf");
+  };
+
+  const handleExportExcel = () => {
+    const finalizadas = votaciones.filter((v) => v.estado === "finalizada");
+    if (finalizadas.length === 0) return;
+
+    const data = finalizadas.map((v) => ({
+      Tesis: v.titulo,
+      Tesista: v.nombre_tesista || "N/A",
+      Carnet: v.carnet || "N/A",
+      Descripción: v.descripcion || "N/A",
+      "Nota Final": v.nota_final?.toFixed(2) || "N/A",
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Votaciones Finalizadas");
+    XLSX.writeFile(wb, "votaciones_finalizadas.xlsx");
+  };
+
   if (loading) {
     return <div className="loading">Cargando votaciones de tesis...</div>;
   }
@@ -125,12 +168,30 @@ export default function TesisDashboardPage() {
     <div className="tesis-dashboard-container">
       <div className="tesis-dashboard-header">
         <h1 className="tesis-dashboard-title">Votaciones de Tesis</h1>
-        <button
-          className="create-button-tesis"
-          onClick={() => router.push("/crear-votacion-tesis")}
-        >
-          + Crear Votación de Tesis
-        </button>
+        <div>
+          <button
+            className="create-button-tesis"
+            onClick={handleExportPDF}
+            disabled={votacionesFinalizadas.length === 0}
+          >
+            Exportar a PDF
+          </button>
+          <button
+            className="create-button-tesis"
+            onClick={handleExportExcel}
+            disabled={votacionesFinalizadas.length === 0}
+            style={{ marginLeft: "10px" }}
+          >
+            Exportar a Excel
+          </button>
+          <button
+            className="create-button-tesis"
+            onClick={() => router.push("/crear-votacion-tesis")}
+            style={{ marginLeft: "10px" }}
+          >
+            + Crear Votación de Tesis
+          </button>
+        </div>
       </div>
 
       <section className="votaciones-section">

@@ -183,6 +183,7 @@
 .nota-final {
   font-weight: 700;
   color: #f5f6fa;
+  font-size: 1.2rem;
 }
 
 .details-button-tesis {
@@ -308,7 +309,7 @@
   font-size: 0.75rem;
 }
 
-.list-item-content {
+.list-item-main-content {
   display: flex;
   flex-direction: column;
   flex-grow: 1;
@@ -340,7 +341,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 0.8rem;
-  margin-top: 0.8rem;
+  margin-top: auto;
 }
 
 .info-chip {
@@ -355,8 +356,34 @@
   color: #29f68c;
 }
 
-.info-chip.nota-final {
+.list-item-nota-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #3a3a5a;
+  padding: 1rem;
+  border-radius: 10px;
+  min-width: 120px;
+  text-align: center;
+}
+
+.nota-final-label {
+  font-size: 0.8rem;
+  color: #b0b0c0;
+  text-transform: uppercase;
+}
+
+.nota-final-valor {
+  font-size: 2.5rem;
+  font-weight: 700;
   color: #f5f6fa;
+  line-height: 1.1;
+}
+
+.nota-final-total {
+  font-size: 1rem;
+  color: #a0a0a0;
 }
 
 .loading {
@@ -391,11 +418,15 @@
 
   .votacion-tesis-list-item {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
   }
 
   .list-item-image-carousel {
     width: 100%;
     height: 200px;
+  }
+
+  .list-item-nota-container {
+    margin-top: 1rem;
   }
 }

@@ -89,7 +89,7 @@ const VotacionTesisCard: React.FC<VotacionTesisCardProps> = ({ votacion }) => {
       </div>
 
       {/* Contenido a la Derecha */}
-      <div className="list-item-content">
+      <div className="list-item-main-content">
         <div className="list-item-header">
           <h3 className="list-item-title">{votacion.titulo}</h3>
           <span className={`estado-tag estado-${votacion.estado}`}>
@@ -112,14 +112,17 @@ const VotacionTesisCard: React.FC<VotacionTesisCardProps> = ({ votacion }) => {
               {String(segundos).padStart(2, "0")}
             </div>
           )}
-          {votacion.estado === "finalizada" && (
-            <div className="info-chip nota-final">
-              <strong>Nota:</strong> {votacion.nota_final?.toFixed(2) || "N/A"}{" "}
-              / 40
-            </div>
-          )}
         </div>
       </div>
+      {votacion.estado === "finalizada" && (
+        <div className="list-item-nota-container">
+          <div className="nota-final-label">Nota Final</div>
+          <div className="nota-final-valor">
+            {votacion.nota_final?.toFixed(2) || "N/A"}
+          </div>
+          <div className="nota-final-total">/ 40</div>
+        </div>
+      )}
     </div>
   );
 };
