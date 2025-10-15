@@ -22,6 +22,8 @@ export interface VotacionParaParticipante {
   token_qr: string;
   imagen_votacion_tesis: ImagenTesis[];
   ha_votado: boolean;
+  nota_final?: number;
+  mi_nota?: number;
 }
 
 export default function VotacionesTesisPage() {
@@ -83,7 +85,7 @@ export default function VotacionesTesisPage() {
           (votacionesData || []).map(async (votacion) => {
             let query = supabase
               .from("voto_tesis")
-              .select("id")
+              .select("id, nota")
               .eq("votacion_tesis_id", votacion.id);
 
             if (participante) {
@@ -100,9 +102,20 @@ export default function VotacionesTesisPage() {
                 votoError
               );
             }
+
+            let nota_final;
+            if (votacion.estado === "finalizada") {
+              const { data } = await supabase.rpc("calcular_nota_final", {
+                id_votacion: votacion.id,
+              });
+              nota_final = data;
+            }
+
             return {
               ...votacion,
               ha_votado: !!voto,
+              mi_nota: voto?.nota,
+              nota_final,
             };
           })
         );

@@ -485,6 +485,9 @@ export default function DetalleVotacionPage() {
   if (!votacion)
     return <div className="error-message">Votación no encontrada.</div>;
 
+  const duracionMinutos = Math.floor(votacion.duracion_segundos / 60);
+  const duracionSegundos = votacion.duracion_segundos % 60;
+
   return (
     <div className="detalle-votacion-container">
       {countdown !== null && countdown > 0 && (
@@ -544,7 +547,10 @@ export default function DetalleVotacionPage() {
             <div className="modal-info-header">
               <div>
                 <span>Duración</span>
-                <p>{votacion.duracion_segundos / 60} min</p>
+                <p>
+                  {duracionMinutos}:{String(duracionSegundos).padStart(2, "0")}{" "}
+                  min
+                </p>
               </div>
               {votacion.estado === "activa" && (
                 <div className="temporizador-activo">
@@ -734,7 +740,10 @@ export default function DetalleVotacionPage() {
               </div>
               <div>
                 <span>Duración</span>
-                <p>{votacion.duracion_segundos / 60} min</p>
+                <p>
+                  {duracionMinutos}:{String(duracionSegundos).padStart(2, "0")}{" "}
+                  min
+                </p>
               </div>
             </div>
             {votacion.estado === "activa" && (

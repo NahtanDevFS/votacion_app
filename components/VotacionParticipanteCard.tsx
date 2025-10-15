@@ -30,7 +30,6 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
   }, [votacion.estado, votacion.fecha_activacion, votacion.duracion_segundos]);
 
   const handleCardClick = () => {
-    // --- MODIFICADO: Solo permite hacer clic si la votación está activa Y no se ha votado ---
     if (votacion.estado === "activa" && !votacion.ha_votado) {
       router.push(`/tesis-votaciones/${votacion.token_qr}`);
     }
@@ -50,7 +49,6 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
   const duracionMinutos = Math.floor(votacion.duracion_segundos / 60);
   const duracionSegundos = votacion.duracion_segundos % 60;
 
-  // --- MODIFICADO: Se añade una clase si se ha votado o si no es clickeable ---
   const isClickable = votacion.estado === "activa" && !votacion.ha_votado;
 
   return (
@@ -95,7 +93,6 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
           {votacion.nombre_tesista || "Tesista no asignado"}
         </p>
 
-        {/* --- NUEVO: Indicador de estado de voto --- */}
         <div className="list-item-voto-status">
           {votacion.ha_votado ? (
             <span className="voto-emitido">✓ Voto emitido</span>
@@ -116,6 +113,20 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
               <strong>Duración:</strong> {duracionMinutos}:
               {String(duracionSegundos).padStart(2, "0")} min
             </div>
+          )}
+          {votacion.estado === "finalizada" && (
+            <>
+              <div className="info-chip nota-final">
+                <strong>Calificación Final:</strong>{" "}
+                {votacion.nota_final?.toFixed(2) || "N/A"} / 40
+              </div>
+              {votacion.mi_nota !== undefined && (
+                <div className="info-chip mi-nota">
+                  <strong>Mi Calificación:</strong>{" "}
+                  {votacion.mi_nota.toFixed(2)}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
