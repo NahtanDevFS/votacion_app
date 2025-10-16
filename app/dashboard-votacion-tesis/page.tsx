@@ -405,20 +405,37 @@ export default function TesisDashboardPage() {
           currentY = 20;
         }
 
+        // Calcular promedio del público
+        const promedioPublico =
+          votosPublico.reduce((acc, voto) => acc + voto.nota, 0) /
+          votosPublico.length;
+
+        const bodyPublico = votosPublico.map((voto) => {
+          const participante = Array.isArray(voto.participantes)
+            ? voto.participantes[0]
+            : voto.participantes;
+          return [
+            participante?.nombre_completo || "N/A",
+            participante?.carnet || "N/A",
+            voto.nota.toFixed(2),
+          ];
+        });
+
+        // Agregar fila de promedio
+        bodyPublico.push(["PROMEDIO PÚBLICO", "", promedioPublico.toFixed(2)]);
+
         autoTable(doc, {
           head: [["Público", "Carnet", "Nota"]],
-          body: votosPublico.map((voto) => {
-            const participante = Array.isArray(voto.participantes)
-              ? voto.participantes[0]
-              : voto.participantes;
-            return [
-              participante?.nombre_completo || "N/A",
-              participante?.carnet || "N/A",
-              voto.nota.toFixed(2),
-            ];
-          }),
+          body: bodyPublico,
           startY: currentY,
           theme: "grid",
+          didParseCell: function (data) {
+            // Hacer bold la fila del promedio
+            if (data.row.index === bodyPublico.length - 1) {
+              data.cell.styles.fontStyle = "bold";
+              data.cell.styles.fillColor = [240, 240, 240];
+            }
+          },
         });
 
         currentY = (doc as any).lastAutoTable.finalY + 10;
@@ -516,6 +533,19 @@ export default function TesisDashboardPage() {
             "Total Votos": "",
             "Nota Final": "",
           });
+        });
+
+        // Agregar fila de promedio del público
+        const promedioPublico =
+          votosPublico.reduce((acc, voto) => acc + voto.nota, 0) /
+          votosPublico.length;
+        allData.push({
+          Tipo: "PROMEDIO PÚBLICO",
+          Nombre: "",
+          Carnet: "",
+          Nota: promedioPublico.toFixed(2),
+          "Total Votos": "",
+          "Nota Final": "",
         });
       }
 
