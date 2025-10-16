@@ -7,65 +7,6 @@ import { supabase } from "@/lib/supabase";
 import Swal from "sweetalert2";
 import "./DetalleVotacion.css";
 
-// --- Componente de Confeti ---
-const Confetti = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const script = document.createElement("script");
-    script.src =
-      "https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js";
-    script.async = true;
-    document.body.appendChild(script);
-
-    script.onload = () => {
-      if (!canvasRef.current) return;
-
-      const myConfetti = (window as any).confetti.create(canvasRef.current, {
-        resize: true,
-        useWorker: true,
-      });
-
-      const duration = 5 * 1000;
-      const animationEnd = Date.now() + duration;
-      const defaults = { startVelocity: 30, spread: 360, ticks: 60 };
-
-      function randomInRange(min: number, max: number) {
-        return Math.random() * (max - min) + min;
-      }
-
-      const interval = setInterval(() => {
-        const timeLeft = animationEnd - Date.now();
-        if (timeLeft <= 0) {
-          return clearInterval(interval);
-        }
-
-        const particleCount = 50 * (timeLeft / duration);
-        myConfetti({
-          ...defaults,
-          particleCount,
-          origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
-        });
-        myConfetti({
-          ...defaults,
-          particleCount,
-          origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
-        });
-      }, 250);
-
-      return () => clearInterval(interval);
-    };
-
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
-  }, []);
-
-  return <canvas ref={canvasRef} className="confetti-canvas" />;
-};
-
 // --- Interfaces de Tipos de Datos ---
 interface ImagenTesis {
   id: number;
@@ -79,7 +20,6 @@ interface VotacionDetalle {
   descripcion: string | null;
   estado: "inactiva" | "activa" | "finalizada";
   duracion_segundos: number;
-  fecha_creacion: string;
   fecha_activacion: string | null;
   token_qr: string;
   imagen_votacion_tesis: ImagenTesis[];
@@ -92,15 +32,6 @@ interface JuradoAsignado {
     codigo_acceso: string;
   } | null;
 }
-interface Resultados {
-  puntajeJurados: number;
-  puntajePublico: number;
-  puntajeTotal: number;
-  color: string;
-  votosJuradoDetallado: { nombre: string; nota: number }[];
-  conteoVotosJurado: number;
-  conteoVotosPublico: number;
-}
 
 // --- Componente Principal ---
 export default function DetalleVotacionPage() {
@@ -109,10 +40,7 @@ export default function DetalleVotacionPage() {
   const id = params.id as string;
 
   const [votacion, setVotacion] = useState<VotacionDetalle | null>(null);
-  const [resultados, setResultados] = useState<Resultados | null>(null);
-  const [juradosAsignados, setJuradosAsignados] = useState<JuradoAsignado[]>(
-    []
-  );
+  const [totalVotos, setTotalVotos] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -122,9 +50,8 @@ export default function DetalleVotacionPage() {
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const resultModalRef = useRef<HTMLDivElement>(null);
-  const [showConfetti, setShowConfetti] = useState(false);
-  const previousState = useRef<string | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [juradosAsignados, setJuradosAsignados] = useState<JuradoAsignado[]>([]);
 
   const fetchData = useCallback(
     async (isInitialLoad = false) => {
@@ -140,78 +67,25 @@ export default function DetalleVotacionPage() {
           .eq("id", id)
           .single();
         if (votacionError) throw new Error("No se encontró la votación.");
-
-        if (
-          previousState.current === "activa" &&
-          votacionData.estado === "finalizada"
-        ) {
-          setShowConfetti(true);
-          setTimeout(() => setShowConfetti(false), 5000); // Ocultar después de 5s
-        }
-        previousState.current = votacionData.estado;
-
         setVotacion(votacionData);
-
+        
         const { data: juradosData, error: juradosError } = await supabase
           .from("jurado_por_votacion")
-          .select(
-            `participantes(id, nombre_completo, url_imagen_participante, codigo_acceso)`
-          )
+          .select(`participantes(id, nombre_completo, url_imagen_participante, codigo_acceso)`)
           .eq("votacion_tesis_id", id)
-          .order("nombre_completo", {
-            foreignTable: "participantes",
-            ascending: true,
-          });
+          .order("nombre_completo", { foreignTable: "participantes", ascending: true });
         if (juradosError) throw juradosError;
-
-        const transformedJurados = juradosData.map((j: any) => ({
-          ...j,
-          participantes: Array.isArray(j.participantes)
-            ? j.participantes[0]
-            : j.participantes,
-        })) as JuradoAsignado[];
+        const transformedJurados = juradosData.map((j: any) => ({ ...j, participantes: Array.isArray(j.participantes) ? j.participantes[0] : j.participantes })) as JuradoAsignado[];
         setJuradosAsignados(transformedJurados);
 
-        const { data: votosData, error: votosError } = await supabase
+        const { count, error: countError } = await supabase
           .from("voto_tesis")
-          .select(`nota, rol_al_votar, participantes(nombre_completo)`)
+          .select("*", { count: "exact", head: true })
           .eq("votacion_tesis_id", id);
-        if (votosError) throw votosError;
 
-        const juradoVotos = votosData.filter(
-          (v) => v.rol_al_votar === "jurado"
-        );
-        const publicoVotos = votosData.filter(
-          (v) => v.rol_al_votar === "publico"
-        );
-        const puntajeJurados = juradoVotos.reduce((acc, v) => acc + v.nota, 0);
-        const puntajePublico =
-          publicoVotos.length > 0
-            ? publicoVotos.reduce((acc, v) => acc + v.nota, 0) /
-              publicoVotos.length
-            : 0;
-        const puntajeTotal = puntajeJurados + puntajePublico;
-        let color = "rojo";
-        if (puntajeTotal >= 30) color = "verde";
-        else if (puntajeTotal >= 15) color = "amarillo";
+        if (countError) throw countError;
+        setTotalVotos(count || 0);
 
-        setResultados({
-          puntajeJurados,
-          puntajePublico,
-          puntajeTotal,
-          color,
-          votosJuradoDetallado: juradoVotos.map((v: any) => {
-            const participanteInfo = Array.isArray(v.participantes)
-              ? v.participantes[0]
-              : v.participantes;
-            return {
-              nombre: participanteInfo?.nombre_completo || "N/A",
-              nota: v.nota,
-            };
-          }),
-          conteoVotosJurado: juradoVotos.length,
-          conteoVotosPublico: publicoVotos.length,
-        });
         setError(null);
       } catch (err: any) {
         setError(err.message);
@@ -224,79 +98,50 @@ export default function DetalleVotacionPage() {
 
   useEffect(() => {
     fetchData(true);
-    const intervalId = setInterval(() => fetchData(false), 1000);
+    const intervalId = setInterval(() => fetchData(false), 2000);
     return () => clearInterval(intervalId);
   }, [fetchData]);
 
   useEffect(() => {
     if (votacion?.estado === "activa" && votacion.fecha_activacion) {
-      const fechaFin =
-        new Date(votacion.fecha_activacion).getTime() +
-        votacion.duracion_segundos * 1000;
+      const fechaFin = new Date(votacion.fecha_activacion).getTime() + votacion.duracion_segundos * 1000;
       let timeoutId: NodeJS.Timeout;
-
       const tick = () => {
-        const restante = Math.max(
-          0,
-          Math.floor((fechaFin - Date.now()) / 1000)
-        );
+        const restante = Math.max(0, Math.floor((fechaFin - Date.now()) / 1000));
         setTiempoRestante(restante);
-
         if (restante > 0) {
           const delay = 1000 - (Date.now() % 1000);
           timeoutId = setTimeout(tick, delay);
         }
       };
-
       tick();
-
       return () => clearTimeout(timeoutId);
     }
   }, [votacion]);
 
-  // Effect to handle the countdown
   useEffect(() => {
     if (countdown === null || countdown < 0) return;
-
     if (countdown === 0) {
-      // Time to actually activate the voting
       const activate = async () => {
-        const { data, error } = await supabase
-          .from("votacion_tesis")
-          .update({
-            estado: "activa",
-            fecha_activacion: new Date().toISOString(),
-          })
-          .eq("id", id)
-          .select()
-          .single();
-
+        const { data, error } = await supabase.from("votacion_tesis").update({ estado: "activa", fecha_activacion: new Date().toISOString() }).eq("id", id).select().single();
         if (error) {
           Swal.fire("Error", "No se pudo activar la votación.", "error");
           setCountdown(null);
         } else {
-          // Esperar 2 segundos para mostrar "¡A VOTAR!" y luego abrir el modal
           setTimeout(() => {
             setCountdown(null);
             setVotacion(data);
-            // Abrir el modal de pantalla completa automáticamente
             setIsResultModalOpen(true);
           }, 2000);
         }
       };
       activate();
-      return; // Stop the timer loop
+      return;
     }
-
-    // Otherwise, decrement the countdown
-    const timerId = setTimeout(() => {
-      setCountdown(countdown - 1);
-    }, 1000);
-
-    // Cleanup function
+    const timerId = setTimeout(() => setCountdown(countdown - 1), 1000);
     return () => clearTimeout(timerId);
   }, [countdown, id]);
-
+  
   const handleActivateVotacion = async () => {
     Swal.fire({
       title: "¿Activar esta votación?",
@@ -317,219 +162,146 @@ export default function DetalleVotacionPage() {
   const handleForceFinalize = async () => {
     Swal.fire({
       title: "¿Finalizar esta votación ahora?",
-      text: "Esto detendrá la votación inmediatamente, pero no se puede deshacer.",
+      text: "Esto detendrá la votación inmediatamente.",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#e67e22",
-      cancelButtonColor: "#3498db",
       confirmButtonText: "Sí, finalizar ahora",
-      cancelButtonText: "Cancelar",
     }).then(async (result) => {
       if (result.isConfirmed) {
-        const { data, error } = await supabase
-          .from("votacion_tesis")
-          .update({
-            estado: "finalizada",
-          })
-          .eq("id", id)
-          .select()
-          .single();
-        if (error) {
-          Swal.fire("Error", "No se pudo finalizar la votación.", "error");
-        } else {
-          Swal.fire(
-            "¡Finalizada!",
-            "La votación ha sido finalizada manualmente.",
-            "success"
-          );
+        const { data, error } = await supabase.from("votacion_tesis").update({ estado: "finalizada" }).eq("id", id).select().single();
+        if (error) Swal.fire("Error", "No se pudo finalizar la votación.", "error");
+        else {
+          Swal.fire("¡Finalizada!", "La votación ha sido finalizada.", "success");
           setVotacion(data);
         }
       }
     });
   };
 
-  const handleOpenFullScreenModal = () => {
-    setIsResultModalOpen(true);
-  };
-
+  const handleOpenFullScreenModal = () => setIsResultModalOpen(true);
   const handleCloseFullScreenModal = () => {
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    }
+    if (document.fullscreenElement) document.exitFullscreen();
     setIsResultModalOpen(false);
   };
 
   useEffect(() => {
     if (isResultModalOpen && resultModalRef.current) {
-      resultModalRef.current.requestFullscreen().catch((err) => {
-        console.error(
-          `Error attempting to enable full-screen mode: ${err.message} (${err.name})`
-        );
-      });
+      resultModalRef.current.requestFullscreen().catch(console.error);
     }
-
     const handleFullScreenChange = () => {
-      if (!document.fullscreenElement) {
-        setIsResultModalOpen(false);
-      }
+      if (!document.fullscreenElement) setIsResultModalOpen(false);
     };
-
     document.addEventListener("fullscreenchange", handleFullScreenChange);
-
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFullScreenChange);
-    };
+    return () => document.removeEventListener("fullscreenchange", handleFullScreenChange);
   }, [isResultModalOpen]);
 
   const handleDeleteVotacion = async () => {
     if (!votacion) return;
-
     const confirm = await Swal.fire({
       title: "¿Estás seguro?",
-      text: "Esta acción no se puede deshacer y eliminará la votación, sus imágenes y todos los votos asociados.",
+      text: "Esta acción no se puede deshacer.",
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Sí, eliminar",
-      cancelButtonText: "Cancelar",
-      confirmButtonColor: "#e74c3c",
-      cancelButtonColor: "#3498db",
     });
-
     if (!confirm.isConfirmed) return;
-
     setDeleting(true);
-    Swal.fire({
-      title: "Eliminando...",
-      text: "Por favor, espera.",
-      allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading();
-      },
-    });
-
+    Swal.fire({ title: "Eliminando...", allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
-      await supabase
-        .from("voto_tesis")
-        .delete()
-        .eq("votacion_tesis_id", votacion.id);
-
-      await supabase
-        .from("jurado_por_votacion")
-        .delete()
-        .eq("votacion_tesis_id", votacion.id);
-
-      if (
-        votacion.imagen_votacion_tesis &&
-        votacion.imagen_votacion_tesis.length > 0
-      ) {
-        const filePaths = votacion.imagen_votacion_tesis.map((img) => {
-          const urlParts = img.url_imagen.split("/");
-          return urlParts[urlParts.length - 1];
-        });
+      await supabase.from("voto_tesis").delete().eq("votacion_tesis_id", votacion.id);
+      await supabase.from("jurado_por_votacion").delete().eq("votacion_tesis_id", votacion.id);
+      if (votacion.imagen_votacion_tesis?.length > 0) {
+        const filePaths = votacion.imagen_votacion_tesis.map(img => img.url_imagen.split("/").pop()!);
         await supabase.storage.from("imgs").remove(filePaths);
-        await supabase
-          .from("imagen_votacion_tesis")
-          .delete()
-          .eq("votacion_tesis_id", votacion.id);
+        await supabase.from("imagen_votacion_tesis").delete().eq("votacion_tesis_id", votacion.id);
       }
-
       await supabase.from("votacion_tesis").delete().eq("id", votacion.id);
-
       Swal.fire("¡Eliminada!", "La votación ha sido eliminada.", "success");
       router.push("/dashboard-votacion-tesis");
     } catch (error: any) {
-      Swal.fire(
-        "Error",
-        `No se pudo eliminar la votación: ${error.message}`,
-        "error"
-      );
+      Swal.fire("Error", `No se pudo eliminar: ${error.message}`, "error");
     } finally {
       setDeleting(false);
     }
   };
 
   const handleEdit = () => router.push(`/editar-votacion-tesis/${id}`);
-  const nextImage = (e: React.MouseEvent) => {
+ const nextImage = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (votacion && votacion.imagen_votacion_tesis.length > 1)
-      setCurrentImageIndex(
-        (p) => (p + 1) % votacion.imagen_votacion_tesis.length
-      );
+    if (votacion && votacion.imagen_votacion_tesis && votacion.imagen_votacion_tesis.length > 1) {
+      setCurrentImageIndex((p) => (p + 1) % votacion.imagen_votacion_tesis.length);
+    }
   };
   const prevImage = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (votacion && votacion.imagen_votacion_tesis.length > 1)
-      setCurrentImageIndex(
-        (p) =>
-          (p - 1 + votacion.imagen_votacion_tesis.length) %
-          votacion.imagen_votacion_tesis.length
-      );
+    if (votacion && votacion.imagen_votacion_tesis && votacion.imagen_votacion_tesis.length > 1) {
+      setCurrentImageIndex((p) => (p - 1 + votacion.imagen_votacion_tesis.length) % votacion.imagen_votacion_tesis.length);
+    }
   };
-
-  const handleOpenQrModal = (
-    type: "publico" | "jurado",
-    accessCode?: string,
-    juradoName?: string
-  ) => {
-    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+  const handleOpenQrModal = (type: "publico" | "jurado", accessCode?: string, juradoName?: string) => {
+    const baseUrl = window.location.origin;
     let url = `${baseUrl}/tesis-votaciones-autenticacion`;
     let title = "QR para el Público";
-
     if (type === "jurado" && accessCode) {
       url = `${baseUrl}/tesis-votaciones-autenticacion?access_code=${accessCode}`;
       title = `QR para Jurado: ${juradoName}`;
     }
-
     setQrCodeContent({ url, title });
     setIsQrModalOpen(true);
   };
-
+  
   if (loading) return <div className="loading">Cargando detalles...</div>;
   if (error) return <div className="error-message">{error}</div>;
-  if (!votacion)
-    return <div className="error-message">Votación no encontrada.</div>;
+  if (!votacion) return <div className="error-message">Votación no encontrada.</div>;
 
   const duracionMinutos = Math.floor(votacion.duracion_segundos / 60);
   const duracionSegundos = votacion.duracion_segundos % 60;
 
+  const MainContent = () => (
+    <div className="detalle-card-ampliada clickable-card" onClick={handleOpenFullScreenModal}>
+        <div className="header-text-content">
+            <h1>{votacion.titulo}</h1>
+            <p>{votacion.nombre_tesista} - {votacion.titulo_tesis}</p>
+        </div>
+        <div className="header-media-grid">
+            <div className="detalle-carousel">
+            {votacion.imagen_votacion_tesis?.length > 0 ? (
+                <>
+                <img src={votacion.imagen_votacion_tesis[currentImageIndex].url_imagen} alt={`Imagen ${currentImageIndex + 1}`} />
+                {votacion.imagen_votacion_tesis.length > 1 && (
+                    <>
+                    <button onClick={prevImage} className="carousel-arrow prev">‹</button>
+                    <button onClick={nextImage} className="carousel-arrow next">›</button>
+                    </>
+                )}
+                </>
+            ) : <div className="image-placeholder">Sin Imágenes</div>}
+            </div>
+            {votacion.descripcion && (
+            <div className="header-descripcion">
+                <h3>Descripción del Proyecto</h3>
+                <p>{votacion.descripcion}</p>
+            </div>
+            )}
+        </div>
+        <div className="total-votos-container">
+            <h3 className="total-votos-titulo">Total de Votos Recibidos <span className="expand-indicator">↗</span></h3>
+            <p className="total-votos-numero">{totalVotos}</p>
+        </div>
+    </div>
+  );
+
   return (
     <div className="detalle-votacion-container">
-      {countdown !== null && countdown > 0 && (
-        <div className="countdown-backdrop">
-          <div className="countdown-number">{countdown}</div>
-        </div>
-      )}
-      {countdown === 0 && (
-        <div className="countdown-backdrop">
-          <div className="countdown-number" style={{ fontSize: "10vw" }}>
-            ¡A VOTAR!
-          </div>
-        </div>
-      )}
-
-      {showConfetti && !isResultModalOpen && <Confetti />}
+      {countdown !== null && countdown > 0 && <div className="countdown-backdrop"><div className="countdown-number">{countdown}</div></div>}
+      {countdown === 0 && <div className="countdown-backdrop"><div className="countdown-number" style={{ fontSize: "10vw" }}>¡A VOTAR!</div></div>}
+      
       {isQrModalOpen && (
-        <div
-          className="qr-modal-backdrop"
-          onClick={() => setIsQrModalOpen(false)}
-        >
-          <div
-            className="qr-modal-content"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              className="qr-modal-close"
-              onClick={() => setIsQrModalOpen(false)}
-            >
-              ×
-            </button>
+        <div className="qr-modal-backdrop" onClick={() => setIsQrModalOpen(false)}>
+          <div className="qr-modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="qr-modal-close" onClick={() => setIsQrModalOpen(false)}>×</button>
             <h3>{qrCodeContent.title}</h3>
-            <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
-                qrCodeContent.url
-              )}&bgcolor=FFFFFF&color=2c2c3e&qzone=1`}
-              alt="Código QR"
-            />
+            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCodeContent.url)}&bgcolor=FFFFFF&color=2c2c3e&qzone=1`} alt="Código QR" />
             <p>{qrCodeContent.url}</p>
           </div>
         </div>
@@ -537,286 +309,48 @@ export default function DetalleVotacionPage() {
 
       {isResultModalOpen && (
         <div className="result-modal-backdrop" ref={resultModalRef}>
-          {showConfetti && <Confetti />}
-          <div
-            className="result-modal-content"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              className="result-modal-close"
-              onClick={handleCloseFullScreenModal}
-            >
-              ×
-            </button>
-            <div className="modal-info-header">
-              <div>
-                <span>Duración</span>
-                <p>
-                  {duracionMinutos}:{String(duracionSegundos).padStart(2, "0")}{" "}
-                  min
-                </p>
-              </div>
-              {votacion.estado === "activa" && (
-                <div className="temporizador-activo">
-                  <span>Tiempo Restante</span>
-                  <p>
-                    {Math.floor(tiempoRestante / 60)}:
-                    {String(tiempoRestante % 60).padStart(2, "0")}
-                  </p>
-                </div>
-              )}
-              <div>
-                <span>Estado</span>
-                <p className={`estado-tag estado-${votacion.estado}`}>
-                  {votacion.estado}
-                </p>
-              </div>
+            <div className="result-modal-content" onClick={(e) => e.stopPropagation()}>
+                <button className="result-modal-close" onClick={handleCloseFullScreenModal}>×</button>
+                <MainContent/>
             </div>
-            <div className="detalle-card resultados-central fullscreen">
-              <div className="fullscreen-grid">
-                <div className="score-column">
-                  <h3>Resultados Finales</h3>
-                  <div className="score-card-central">
-                    <p>Puntaje Total</p>
-                    <div className={`score-circle ${resultados?.color}`}>
-                      <span>{resultados?.puntajeTotal.toFixed(2)}</span> / 40
-                    </div>
-                  </div>
-                </div>
-                <div className="jurados-column">
-                  <div className="score-breakdown-central">
-                    <div className="score-item">
-                      <h4>
-                        Promedio Público ({resultados?.conteoVotosPublico || 0}{" "}
-                        votos)
-                      </h4>
-                      <span className="score-value">
-                        {resultados?.puntajePublico.toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <h3>Calificación de Jurados</h3>
-                  <div className="jurados-score-grid">
-                    {juradosAsignados.map((j) => {
-                      if (!j.participantes) return null;
-                      const votoJurado = resultados?.votosJuradoDetallado.find(
-                        (v) => v.nombre === j.participantes?.nombre_completo
-                      );
-                      return (
-                        <div
-                          key={j.participantes.id}
-                          className="jurado-score-card"
-                        >
-                          <img
-                            src={
-                              j.participantes.url_imagen_participante ||
-                              "/img/default-avatar.png"
-                            }
-                            alt={j.participantes.nombre_completo}
-                            className="jurado-avatar"
-                          />
-                          <h4>{j.participantes.nombre_completo}</h4>
-                          <span
-                            className={`voto-valor ${
-                              votoJurado ? "votado" : "pendiente"
-                            }`}
-                          >
-                            {votoJurado ? votoJurado.nota.toFixed(2) : "---"}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       )}
 
-      <div className="detalle-header-rich">
-        <div className="header-text-content">
-          <h1>{votacion.titulo}</h1>
-          <p>
-            {votacion.nombre_tesista} - {votacion.titulo_tesis}
-          </p>
-        </div>
-        <div className="header-media-grid">
-          <div className="detalle-carousel">
-            {votacion.imagen_votacion_tesis?.length > 0 ? (
-              <>
-                <img
-                  src={
-                    votacion.imagen_votacion_tesis[currentImageIndex].url_imagen
-                  }
-                  alt={`Imagen ${currentImageIndex + 1}`}
-                />
-                {votacion.imagen_votacion_tesis.length > 1 && (
-                  <>
-                    <button onClick={prevImage} className="carousel-arrow prev">
-                      ‹
-                    </button>
-                    <button onClick={nextImage} className="carousel-arrow next">
-                      ›
-                    </button>
-                  </>
-                )}
-              </>
-            ) : (
-              <div className="image-placeholder">Sin Imágenes</div>
-            )}
-          </div>
-          {votacion.descripcion && (
-            <div className="header-descripcion">
-              <h3>Descripción del Proyecto</h3>
-              <p>{votacion.descripcion}</p>
-            </div>
-          )}
-        </div>
-      </div>
-
       <div className="detalle-main-grid-final">
         <div className="detalle-columna">
-          <div
-            className="detalle-card resultados-central clickable-card"
-            onClick={handleOpenFullScreenModal}
-          >
-            <h3>
-              Resultados Finales <span className="expand-indicator">↗</span>
-            </h3>
-            <div className="score-card-central">
-              <p>Puntaje Total</p>
-              <div className={`score-circle ${resultados?.color}`}>
-                <span>{resultados?.puntajeTotal.toFixed(2)}</span> / 40
-              </div>
-            </div>
-            <div className="score-breakdown-central">
-              <div className="score-item">
-                <h4>
-                  Promedio Público ({resultados?.conteoVotosPublico || 0} votos)
-                </h4>
-                <span className="score-value">
-                  {resultados?.puntajePublico.toFixed(2)}
-                </span>
-              </div>
-            </div>
-            <div className="jurados-score-grid">
-              {juradosAsignados.map((j) => {
-                if (!j.participantes) return null;
-                const votoJurado = resultados?.votosJuradoDetallado.find(
-                  (v) => v.nombre === j.participantes?.nombre_completo
-                );
-                return (
-                  <div key={j.participantes.id} className="jurado-score-card">
-                    <img
-                      src={
-                        j.participantes.url_imagen_participante ||
-                        "/img/default-avatar.png"
-                      }
-                      alt={j.participantes.nombre_completo}
-                      className="jurado-avatar"
-                    />
-                    <h4>{j.participantes.nombre_completo}</h4>
-                    <span
-                      className={`voto-valor ${
-                        votoJurado ? "votado" : "pendiente"
-                      }`}
-                    >
-                      {votoJurado ? votoJurado.nota.toFixed(2) : "---"}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+            <MainContent/>
         </div>
-
         <div className="detalle-columna">
-          <div className="detalle-card info">
+           <div className="detalle-card info">
             <h3>Información General</h3>
             <div className="info-grid">
-              <div>
-                <span>Estado</span>
-                <p className={`estado-tag estado-${votacion.estado}`}>
-                  {votacion.estado}
-                </p>
-              </div>
-              <div>
-                <span>Duración</span>
-                <p>
-                  {duracionMinutos}:{String(duracionSegundos).padStart(2, "0")}{" "}
-                  min
-                </p>
-              </div>
+              <div><span>Estado</span><p className={`estado-tag estado-${votacion.estado}`}>{votacion.estado}</p></div>
+              <div><span>Duración</span><p>{duracionMinutos}:{String(duracionSegundos).padStart(2, "0")} min</p></div>
             </div>
             {votacion.estado === "activa" && (
               <div className="temporizador-activo">
                 <span>Tiempo Restante</span>
-                <p>
-                  {Math.floor(tiempoRestante / 60)}:
-                  {String(tiempoRestante % 60).padStart(2, "0")}
-                </p>
+                <p>{Math.floor(tiempoRestante / 60)}:{String(tiempoRestante % 60).padStart(2, "0")}</p>
               </div>
             )}
             <div className="info-actions">
-              {votacion.estado === "inactiva" && (
-                <button
-                  className="action-button activate"
-                  onClick={handleActivateVotacion}
-                >
-                  Activar Votación
-                </button>
-              )}
-              {votacion.estado === "activa" && (
-                <button
-                  className="action-button finalize"
-                  onClick={handleForceFinalize}
-                >
-                  Finalizar Votación
-                </button>
-              )}
-              <button className="action-button edit" onClick={handleEdit}>
-                Editar
-              </button>
-              <button
-                className="action-button delete"
-                onClick={handleDeleteVotacion}
-                disabled={deleting}
-              >
-                {deleting ? "Eliminando..." : "Eliminar Votación"}
-              </button>
+              {votacion.estado === "inactiva" && <button className="action-button activate" onClick={handleActivateVotacion}>Activar Votación</button>}
+              {votacion.estado === "activa" && <button className="action-button finalize" onClick={handleForceFinalize}>Finalizar Votación</button>}
+              <button className="action-button edit" onClick={handleEdit}>Editar</button>
+              <button className="action-button delete" onClick={handleDeleteVotacion} disabled={deleting}>{deleting ? "Eliminando..." : "Eliminar Votación"}</button>
             </div>
           </div>
           <div className="detalle-card recursos">
             <h3>Recursos de Votación</h3>
             <div className="recursos-actions">
-              <button
-                className="action-button"
-                onClick={() => handleOpenQrModal("publico")}
-              >
-                Ver QR del Público
-              </button>
+              <button className="action-button" onClick={() => handleOpenQrModal("publico")}>Ver QR del Público</button>
               <div className="jurado-qr-buttons">
                 <h4>QR para Jurados</h4>
-                {juradosAsignados.map(
-                  (j) =>
-                    j.participantes && (
-                      <button
-                        key={j.participantes.id}
-                        className="action-button jurado-btn"
-                        onClick={() =>
-                          handleOpenQrModal(
-                            "jurado",
-                            j.participantes?.codigo_acceso,
-                            j.participantes?.nombre_completo
-                          )
-                        }
-                      >
+                {juradosAsignados.map(j => j.participantes && (
+                    <button key={j.participantes.id} className="action-button jurado-btn" onClick={() => handleOpenQrModal("jurado", j.participantes?.codigo_acceso, j.participantes?.nombre_completo)}>
                         QR de {j.participantes.nombre_completo}
-                      </button>
-                    )
-                )}
+                    </button>
+                ))}
               </div>
             </div>
           </div>
