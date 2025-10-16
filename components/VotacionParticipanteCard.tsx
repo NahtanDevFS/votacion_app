@@ -114,20 +114,22 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
               {String(duracionSegundos).padStart(2, "0")} min
             </div>
           )}
-          {votacion.estado === "finalizada" && (
-            <>
-              <div className="info-chip nota-final">
-                <strong>Calificación Final:</strong>{" "}
-                {votacion.nota_final?.toFixed(2) || "N/A"} / 40
+      {/*
+        
+        {votacion.estado === "finalizada" && (
+          <>
+            <div className="info-chip nota-final">
+              <strong>Calificación Final:</strong>{" "}
+              {votacion.nota_final?.toFixed(2) || "N/A"} / 40
+            </div>
+            {votacion.mi_nota !== undefined && (
+              <div className="info-chip mi-nota">
+                <strong>Mi Calificación:</strong>{" "}
+                {votacion.mi_nota.toFixed(2)}
               </div>
-              {votacion.mi_nota !== undefined && (
-                <div className="info-chip mi-nota">
-                  <strong>Mi Calificación:</strong>{" "}
-                  {votacion.mi_nota.toFixed(2)}
-                </div>
-              )}
-            </>
-          )}
+            )}
+          </>
+        )}*/ }
         </div>
       </div>
       {isClickable && <div className="click-indicator">→</div>}
