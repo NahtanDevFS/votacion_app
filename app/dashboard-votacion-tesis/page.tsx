@@ -247,20 +247,57 @@ export default function TesisDashboardPage() {
           }
         });
 
-        // CORRECCIÓN 2: Mantener orden correcto con Nota Final al final
-        return {
+        // CORRECCIÓN 2: Construir objeto en orden específico para mantener columnas
+        const row: any = {
           Tesis: v.titulo,
           Tesista: v.nombre_tesista || "N/A",
           Carnet: v.carnet || "N/A",
-          ...juradosData,
-          "Promedio Público": promedioPublico,
-          "Total Votos": count ?? 0,
-          "Nota Final": v.nota_final || null,
         };
+
+        // Agregar jurados en orden
+        Object.keys(juradosData).forEach((key) => {
+          row[key] = juradosData[key];
+        });
+
+        // Agregar campos finales en orden
+        row["Promedio Público"] = promedioPublico;
+        row["Total Votos"] = count ?? 0;
+        row["Nota Final"] = v.nota_final || null;
+
+        return row;
       })
     );
 
-    const ws = XLSX.utils.json_to_sheet(data);
+    // Obtener todos los nombres de jurados únicos para definir el orden de columnas
+    const allJuradoNames = new Set<string>();
+    data.forEach((row) => {
+      Object.keys(row).forEach((key) => {
+        if (
+          key !== "Tesis" &&
+          key !== "Tesista" &&
+          key !== "Carnet" &&
+          key !== "Promedio Público" &&
+          key !== "Total Votos" &&
+          key !== "Nota Final"
+        ) {
+          allJuradoNames.add(key);
+        }
+      });
+    });
+
+    // Definir el orden exacto de las columnas
+    const columnOrder = [
+      "Tesis",
+      "Tesista",
+      "Carnet",
+      ...Array.from(allJuradoNames),
+      "Promedio Público",
+      "Total Votos",
+      "Nota Final",
+    ];
+
+    // Crear hoja con orden específico de columnas
+    const ws = XLSX.utils.json_to_sheet(data, { header: columnOrder });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Votaciones Finalizadas");
 
@@ -412,75 +449,89 @@ export default function TesisDashboardPage() {
     });
 
     const wb = XLSX.utils.book_new();
+    const allData: any[] = [];
 
-    const resumenData = await Promise.all(
-      finalizadas.map(async (v) => {
-        const { count } = await supabase
-          .from("voto_tesis")
-          .select("id", { count: "exact" })
-          .eq("votacion_tesis_id", v.id);
-
-        return {
-          Tesis: v.titulo,
-          Tesista: v.nombre_tesista,
-          Carnet: v.carnet,
-          "Total Votos": count,
-          "Nota Final": v.nota_final,
-        };
-      })
-    );
-
-    const wsResumen = XLSX.utils.json_to_sheet(resumenData);
-    XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen Votaciones");
-
-    // CORRECCIÓN 4: Agregar hojas para jurados y público por separado
+    // CORRECCIÓN 4: Todo en una sola hoja, igual que el PDF
     for (const v of finalizadas) {
-      const { data: votosJurados } = await supabase
+      const { data: votos, count } = await supabase
         .from("voto_tesis")
-        .select("nota, participantes(nombre_completo, carnet)")
-        .eq("votacion_tesis_id", v.id)
-        .eq("rol_al_votar", "jurado");
+        .select("nota, rol_al_votar, participantes(nombre_completo, carnet)", {
+          count: "exact",
+        })
+        .eq("votacion_tesis_id", v.id);
 
-      const { data: votosPublico } = await supabase
-        .from("voto_tesis")
-        .select("nota, participantes(nombre_completo, carnet)")
-        .eq("votacion_tesis_id", v.id)
-        .eq("rol_al_votar", "publico");
+      const votosJurados =
+        votos?.filter((voto) => voto.rol_al_votar === "jurado") || [];
 
-      const sheetBaseName = v.titulo.substring(0, 25);
+      const votosPublico =
+        votos?.filter((voto) => voto.rol_al_votar === "publico") || [];
 
-      // Hoja de jurados
-      if (votosJurados && votosJurados.length > 0) {
-        const juradosData = votosJurados.map((voto) => {
+      // Encabezado de la tesis
+      allData.push({
+        Tipo: "TESIS",
+        Nombre: v.titulo,
+        Carnet: v.carnet || "N/A",
+        Nota: "",
+        "Total Votos": count ?? 0,
+        "Nota Final": v.nota_final?.toFixed(2) || "N/A",
+      });
+
+      allData.push({
+        Tipo: "Tesista",
+        Nombre: v.nombre_tesista || "N/A",
+        Carnet: "",
+        Nota: "",
+        "Total Votos": "",
+        "Nota Final": "",
+      });
+
+      // Votos de jurados
+      if (votosJurados.length > 0) {
+        votosJurados.forEach((voto) => {
           const participante = Array.isArray(voto.participantes)
             ? voto.participantes[0]
             : voto.participantes;
-          return {
-            Jurado: participante?.nombre_completo || "N/A",
+          allData.push({
+            Tipo: "Jurado",
+            Nombre: participante?.nombre_completo || "N/A",
             Carnet: participante?.carnet || "N/A",
-            Nota: voto.nota,
-          };
+            Nota: voto.nota.toFixed(2),
+            "Total Votos": "",
+            "Nota Final": "",
+          });
         });
-        const wsJurados = XLSX.utils.json_to_sheet(juradosData);
-        XLSX.utils.book_append_sheet(wb, wsJurados, `${sheetBaseName}-Jurados`);
       }
 
-      // Hoja de público
-      if (votosPublico && votosPublico.length > 0) {
-        const publicoData = votosPublico.map((voto) => {
+      // Votos del público
+      if (votosPublico.length > 0) {
+        votosPublico.forEach((voto) => {
           const participante = Array.isArray(voto.participantes)
             ? voto.participantes[0]
             : voto.participantes;
-          return {
-            Público: participante?.nombre_completo || "N/A",
+          allData.push({
+            Tipo: "Público",
+            Nombre: participante?.nombre_completo || "N/A",
             Carnet: participante?.carnet || "N/A",
-            Nota: voto.nota,
-          };
+            Nota: voto.nota.toFixed(2),
+            "Total Votos": "",
+            "Nota Final": "",
+          });
         });
-        const wsPublico = XLSX.utils.json_to_sheet(publicoData);
-        XLSX.utils.book_append_sheet(wb, wsPublico, `${sheetBaseName}-Público`);
       }
+
+      // Fila vacía como separador
+      allData.push({
+        Tipo: "",
+        Nombre: "",
+        Carnet: "",
+        Nota: "",
+        "Total Votos": "",
+        "Nota Final": "",
+      });
     }
+
+    const ws = XLSX.utils.json_to_sheet(allData);
+    XLSX.utils.book_append_sheet(wb, ws, "Reporte Detallado");
 
     Swal.close();
     XLSX.writeFile(wb, "reporte_detallado_votaciones_tesis.xlsx");
