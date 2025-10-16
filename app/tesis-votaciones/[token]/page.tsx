@@ -305,12 +305,12 @@ function VotarTesisContent() {
   };
 
   const handleIncrement = () => {
-  setNota((prev) => parseFloat(Math.min(10, prev + 0.1).toFixed(1)));
-};
+    setNota((prev) => parseFloat(Math.min(10, prev + 0.1).toFixed(1)));
+  };
 
-const handleDecrement = () => {
-  setNota((prev) => parseFloat(Math.max(0, prev - 0.1).toFixed(1)));
-};
+  const handleDecrement = () => {
+    setNota((prev) => parseFloat(Math.max(0, prev - 0.1).toFixed(1)));
+  };
 
   const handleSubmit = async () => {
     if (isSubmitting || haVotado || tiempoRestante === 0 || error) return;
@@ -540,19 +540,19 @@ const handleDecrement = () => {
                     </div>
                     <div className="nota-input-wrapper">
                       <input
-                          type="number"
-                          className="nota-input-exacto"
-                          value={nota.toString()}
-                          onChange={handleNotaInputChange}
-                          onBlur={(e) =>
-                              setNota(
-                                  parseFloat(parseFloat(e.target.value).toFixed(1))
-                              )
-                          }
-                          min="0"
-                          max="10"
-                          step="0.1"
-                          disabled={isDisabled}
+                        type="number"
+                        className="nota-input-exacto"
+                        value={nota.toString()}
+                        onChange={handleNotaInputChange}
+                        onBlur={(e) =>
+                          setNota(
+                            parseFloat(parseFloat(e.target.value).toFixed(1))
+                          )
+                        }
+                        min="0"
+                        max="10"
+                        step="0.1"
+                        disabled={isDisabled}
                       />
                       <div className="nota-input-controls">
                         <button
@@ -576,15 +576,15 @@ const handleDecrement = () => {
                   </div>
 
                   <input
-                      type="range"
-                      id="nota-slider"
-                      min="0"
-                      max="10"
-                      step="0.1"
-                      value={nota}
-                      onChange={(e) => setNota(parseFloat(e.target.value))}
-                      disabled={isDisabled}
-                      className={`slider ${getSliderColor(nota)}`}
+                    type="range"
+                    id="nota-slider"
+                    min="0"
+                    max="10"
+                    step="0.1"
+                    value={nota}
+                    onChange={(e) => setNota(parseFloat(e.target.value))}
+                    disabled={isDisabled}
+                    className={`slider ${getSliderColor(nota)}`}
                   />
                   <div className="slider-labels">
                     <span>0.00</span>

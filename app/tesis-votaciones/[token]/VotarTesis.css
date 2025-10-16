@@ -230,8 +230,8 @@
   border: none;
   color: #999;
   cursor: pointer;
-  padding: 0.8rem; /* Aumentamos un poco el padding */
-  font-size: 1.5rem; /* <-- Valor aumentado para flechas más grandes */
+  padding: 0.8rem;
+  font-size: 1.5rem;
   line-height: 1;
   height: 50%;
   display: flex;
@@ -408,7 +408,6 @@
   color: #f5f6fa;
 }
 
-/* ESTILOS PARA CONFETI */
 .confetti-canvas {
   position: fixed;
   top: 0;
@@ -419,7 +418,6 @@
   pointer-events: none;
 }
 
-/* ESTILOS PARA EL RESUMEN POST-VOTO */
 .voto-summary {
   padding: 1.5rem 0;
   animation: fadeIn 0.5s ease;
@@ -611,14 +609,10 @@
     font-size: 3rem;
     min-width: 120px;
   }
-  .nota-input-exacto {
-    font-size: 1.5rem;
-    width: 120px;
-    padding-right: 1.8rem;
-  }
-  .control-btn {
-    font-size: 0.6rem;
-    padding: 0 0.3rem;
+
+  .control-btn:active {
+    background-color: rgba(135, 36, 255, 0.5);
+    color: #fff;
   }
   .submit-voto-button {
     padding: 0.8rem;
