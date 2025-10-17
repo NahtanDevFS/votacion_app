@@ -104,8 +104,17 @@ function AutenticacionContent() {
   // Manejador para el formulario de público
   const handlePublicLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!carnetAnio.trim() || !carnetCorrelativo.trim() || !nombreCompleto.trim() || !fingerprint) {
-      Swal.fire("Datos Incompletos", "Por favor, llena todos los campos.", "warning");
+    if (
+      !carnetAnio.trim() ||
+      !carnetCorrelativo.trim() ||
+      !nombreCompleto.trim() ||
+      !fingerprint
+    ) {
+      Swal.fire(
+        "Datos Incompletos",
+        "Por favor, llena todos los campos.",
+        "warning"
+      );
       return;
     }
     setIsSubmitting(true);
@@ -136,9 +145,11 @@ function AutenticacionContent() {
       }
 
       // Guardamos el código de acceso en localStorage para la sesión
-      localStorage.setItem("token_participante_tesis_vote_up", participant.codigo_acceso);
+      localStorage.setItem(
+        "token_participante_tesis_vote_up",
+        participant.codigo_acceso
+      );
       localStorage.setItem("tesis_vote_up_fingerprint", fingerprint);
-
 
       await Swal.fire({
         title: "¡Bienvenido!",
@@ -178,7 +189,9 @@ function AutenticacionContent() {
               type="text"
               placeholder="Año"
               value={carnetAnio}
-              onChange={(e) => setCarnetAnio(e.target.value.replace(/[^0-9]/g, ""))}
+              onChange={(e) =>
+                setCarnetAnio(e.target.value.replace(/[^0-9]/g, ""))
+              }
               maxLength={2}
               required
               className="carnet-input anio"
@@ -188,7 +201,9 @@ function AutenticacionContent() {
               type="text"
               placeholder="Carnet"
               value={carnetCorrelativo}
-              onChange={(e) => setCarnetCorrelativo(e.target.value.replace(/[^0-9]/g, ""))}
+              onChange={(e) =>
+                setCarnetCorrelativo(e.target.value.replace(/[^0-9]/g, ""))
+              }
               maxLength={6}
               required
               className="carnet-input correlativo"
@@ -196,13 +211,17 @@ function AutenticacionContent() {
           </div>
           <input
             type="text"
-            placeholder="Nombre Completo"
+            placeholder="Pon un nombre y un apellido"
             value={nombreCompleto}
             onChange={(e) => setNombreCompleto(e.target.value)}
             required
             className="auth-input"
           />
-          <button type="submit" className="auth-button" disabled={isSubmitting || !fingerprint}>
+          <button
+            type="submit"
+            className="auth-button"
+            disabled={isSubmitting || !fingerprint}
+          >
             {isSubmitting ? "Ingresando..." : "Ingresar"}
           </button>
         </form>
