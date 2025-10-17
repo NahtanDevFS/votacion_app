@@ -330,6 +330,21 @@ function VotarTesisContent() {
         if (!votacion || !rolParaVotar)
           throw new Error("Faltan datos para registrar el voto.");
 
+        // --- INICIO DE LA MODIFICACIÓN ---
+        // 1. Volver a verificar el estado de la votación ANTES de insertar.
+        const { data: freshVotacion, error: freshError } = await supabase
+          .from("votacion_tesis")
+          .select("estado")
+          .eq("id", votacion.id)
+          .single();
+
+        if (freshError || !freshVotacion || freshVotacion.estado !== "activa") {
+          throw new Error(
+            "La votación ha finalizado mientras emitías tu voto."
+          );
+        }
+        // --- FIN DE LA MODIFICACIÓN ---
+
         const votePayload: any = {
           votacion_tesis_id: votacion.id,
           nota: nota,

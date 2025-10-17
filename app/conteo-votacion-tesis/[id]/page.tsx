@@ -110,7 +110,7 @@ export default function DetalleVotacionPage() {
 
   useEffect(() => {
     fetchData(true);
-    const intervalId = setInterval(() => fetchData(false), 2000);
+    const intervalId = setInterval(() => fetchData(false), 1000);
     return () => clearInterval(intervalId);
   }, [fetchData]);
 
