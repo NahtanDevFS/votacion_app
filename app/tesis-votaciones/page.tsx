@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "../../lib/supabase";
-import VotacionParticipanteCard from "../../components/VotacionParticipanteCard";
+import { supabase } from "@/lib/supabase";
+import VotacionParticipanteCard from "@/components/VotacionParticipanteCard";
 import FingerprintJS from "@fingerprintjs/fingerprintjs";
 import "./VotacionesTesis.css";
 
@@ -67,16 +67,11 @@ export default function VotacionesTesisPage() {
     fetchParticipantData();
   }, [router]);
 
-  useEffect(() => {
-    if (!participante && !fingerprint) return;
+  const fetchVotaciones = useCallback(
+    async (isInitialLoad = false) => {
+      if (!participante && !fingerprint) return;
+      if (isInitialLoad) setLoading(true);
 
-    let timeoutId: NodeJS.Timeout;
-    let isInitial = true;
-
-    const smartFetchVotaciones = async () => {
-      if (isInitial) {
-        setLoading(true);
-      }
       try {
         const { data: votacionesData, error: fetchError } = await supabase
           .from("votacion_tesis")
@@ -86,24 +81,8 @@ export default function VotacionesTesisPage() {
 
         if (fetchError) throw fetchError;
 
-        let proximaActualizacionEn = 5000; // Default polling interval: 5 seconds
-        const ahora = Date.now();
-
         const votacionesConEstadoDeVoto = await Promise.all(
           (votacionesData || []).map(async (votacion) => {
-            // Adaptive polling logic
-            if (votacion.estado === "activa" && votacion.fecha_activacion) {
-              const fechaFin =
-                new Date(votacion.fecha_activacion).getTime() +
-                votacion.duracion_segundos * 1000;
-              const restanteMs = fechaFin - ahora;
-
-              // If a votation is in its last minute, poll faster.
-              if (restanteMs > 0 && restanteMs < 60000) {
-                proximaActualizacionEn = 1000; // 1 second
-              }
-            }
-
             let query = supabase
               .from("voto_tesis")
               .select("id, nota")
@@ -140,26 +119,27 @@ export default function VotacionesTesisPage() {
             };
           })
         );
-        setVotaciones(votacionesConEstadoDeVoto as VotacionParaParticipante[]);
+        setVotaciones(votacionesConEstadoDeVoto);
         setError(null);
-
-        timeoutId = setTimeout(smartFetchVotaciones, proximaActualizacionEn);
       } catch (err: any) {
         console.error("Error al refrescar votaciones:", err);
         setError("No se pudieron cargar las votaciones.");
-        timeoutId = setTimeout(smartFetchVotaciones, 5000); // Retry on error
       } finally {
-        if (isInitial) {
-          setLoading(false);
-          isInitial = false;
-        }
+        if (isInitialLoad) setLoading(false);
       }
-    };
+    },
+    [participante, fingerprint]
+  );
 
-    smartFetchVotaciones(); // Start the polling loop
-
-    return () => clearTimeout(timeoutId); // Cleanup on component unmount
-  }, [participante, fingerprint]);
+  useEffect(() => {
+    if (participante || fingerprint) {
+      fetchVotaciones(true);
+      const intervalId = setInterval(() => {
+        fetchVotaciones(false);
+      }, 1000);
+      return () => clearInterval(intervalId);
+    }
+  }, [participante, fingerprint, fetchVotaciones]);
 
   const handleLogout = () => {
     localStorage.removeItem("token_participante_tesis_vote_up");
