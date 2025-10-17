@@ -143,14 +143,14 @@ export default function TesisDashboardPage() {
           );
           notasJurados[nombre] =
             voto && typeof voto.nota === "number"
-              ? voto.nota.toFixed(2)
+              ? voto.nota.toFixed(1)
               : "N/V";
         });
 
         return {
           ...v,
           totalVotos: count ?? 0,
-          promedioPublico: promedioPublico.toFixed(2),
+          promedioPublico: promedioPublico.toFixed(1),
           notasJurados,
           juradoNames,
         };
@@ -181,7 +181,7 @@ export default function TesisDashboardPage() {
       ...allJuradoNames.map((name) => d.notasJurados[name] || "N/A"),
       d.promedioPublico,
       d.totalVotos,
-      d.nota_final?.toFixed(2) || "N/A",
+      d.nota_final?.toFixed(1) || "N/A",
     ]);
 
     const doc = new jsPDF({ orientation: "landscape" });
@@ -230,8 +230,12 @@ export default function TesisDashboardPage() {
           votos?.filter((v) => v.rol_al_votar === "publico") || [];
         const promedioPublico =
           votosPublico.length > 0
-            ? votosPublico.reduce((acc, voto) => acc + voto.nota, 0) /
-              votosPublico.length
+            ? parseFloat(
+                (
+                  votosPublico.reduce((acc, voto) => acc + voto.nota, 0) /
+                  votosPublico.length
+                ).toFixed(1)
+              )
             : null;
 
         const juradosData: { [key: string]: number | string } = {};
@@ -243,7 +247,9 @@ export default function TesisDashboardPage() {
                 jurado.participantes!.nombre_completo
             );
             juradosData[jurado.participantes.nombre_completo] =
-              voto && typeof voto.nota === "number" ? voto.nota : "N/V";
+              voto && typeof voto.nota === "number"
+                ? parseFloat(voto.nota.toFixed(1))
+                : "N/V";
           }
         });
 
@@ -262,7 +268,9 @@ export default function TesisDashboardPage() {
         // Agregar campos finales en orden
         row["Promedio Público"] = promedioPublico;
         row["Total Votos"] = count ?? 0;
-        row["Nota Final"] = v.nota_final || null;
+        row["Nota Final"] = v.nota_final
+          ? parseFloat(v.nota_final.toFixed(1))
+          : null;
 
         return row;
       })
@@ -363,7 +371,7 @@ export default function TesisDashboardPage() {
             v.nombre_tesista || "N/A",
             v.carnet || "N/A",
             count ?? 0,
-            v.nota_final?.toFixed(2) || "N/A",
+            v.nota_final?.toFixed(1) || "N/A",
           ],
         ],
         startY: currentY,
@@ -388,7 +396,7 @@ export default function TesisDashboardPage() {
             return [
               participante?.nombre_completo || "N/A",
               participante?.carnet || "N/A",
-              voto.nota.toFixed(2),
+              voto.nota.toFixed(1),
             ];
           }),
           startY: currentY,
@@ -417,12 +425,12 @@ export default function TesisDashboardPage() {
           return [
             participante?.nombre_completo || "N/A",
             participante?.carnet || "N/A",
-            voto.nota.toFixed(2),
+            voto.nota.toFixed(1),
           ];
         });
 
         // Agregar fila de promedio
-        bodyPublico.push(["PROMEDIO PÚBLICO", "", promedioPublico.toFixed(2)]);
+        bodyPublico.push(["PROMEDIO PÚBLICO", "", promedioPublico.toFixed(1)]);
 
         autoTable(doc, {
           head: [["Público", "Carnet", "Nota"]],
@@ -490,7 +498,7 @@ export default function TesisDashboardPage() {
         Carnet: v.carnet || "N/A",
         Nota: "",
         "Total Votos": count ?? 0,
-        "Nota Final": v.nota_final?.toFixed(2) || "N/A",
+        "Nota Final": v.nota_final?.toFixed(1) || "N/A",
       });
 
       allData.push({
@@ -512,7 +520,7 @@ export default function TesisDashboardPage() {
             Tipo: "Jurado",
             Nombre: participante?.nombre_completo || "N/A",
             Carnet: participante?.carnet || "N/A",
-            Nota: voto.nota.toFixed(2),
+            Nota: voto.nota.toFixed(1),
             "Total Votos": "",
             "Nota Final": "",
           });
@@ -529,7 +537,7 @@ export default function TesisDashboardPage() {
             Tipo: "Público",
             Nombre: participante?.nombre_completo || "N/A",
             Carnet: participante?.carnet || "N/A",
-            Nota: voto.nota.toFixed(2),
+            Nota: voto.nota.toFixed(1),
             "Total Votos": "",
             "Nota Final": "",
           });
@@ -543,7 +551,7 @@ export default function TesisDashboardPage() {
           Tipo: "PROMEDIO PÚBLICO",
           Nombre: "",
           Carnet: "",
-          Nota: promedioPublico.toFixed(2),
+          Nota: promedioPublico.toFixed(1),
           "Total Votos": "",
           "Nota Final": "",
         });

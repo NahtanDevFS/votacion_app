@@ -315,7 +315,7 @@ function VotarTesisContent() {
   const handleSubmit = async () => {
     if (isSubmitting || haVotado || tiempoRestante === 0 || error) return;
     const result = await Swal.fire({
-      title: `¿Confirmas tu calificación de ${nota.toFixed(2)}?`,
+      title: `¿Confirmas tu calificación de ${nota.toFixed(1)}?`, // CAMBIO 1
       text: "Esta acción es final y no se podrá cambiar.",
       icon: "question",
       showCancelButton: true,
@@ -350,21 +350,35 @@ function VotarTesisContent() {
 
         if (insertError) throw insertError;
 
-        setHaVotado(true);
-        setVotoEmitido({
-          nota: nota,
-          fecha: new Date().toISOString(),
-          rol: rolParaVotar,
-        });
+        if (rolParaVotar === "publico") {
+          // Para el público, mostrar un mensaje breve y redirigir
+          await Swal.fire({
+            title: "¡Voto Registrado!",
+            text: "Gracias por tu participación. Serás redirigido.",
+            icon: "success",
+            timer: 1500,
+            showConfirmButton: false,
+            timerProgressBar: true,
+          });
+          router.push("/tesis-votaciones");
+        } else {
+          // Para jurado, mostrar la pantalla de confirmación detallada
+          setHaVotado(true);
+          setVotoEmitido({
+            nota: nota,
+            fecha: new Date().toISOString(),
+            rol: rolParaVotar,
+          });
 
-        setShowConfetti(true);
-        setTimeout(() => setShowConfetti(false), 3000);
+          setShowConfetti(true);
+          setTimeout(() => setShowConfetti(false), 3000);
 
-        Swal.fire(
-          "¡Voto Registrado!",
-          "Gracias por tu participación.",
-          "success"
-        );
+          Swal.fire(
+            "¡Voto Registrado!",
+            "Gracias por tu participación.",
+            "success"
+          );
+        }
       } catch (err: any) {
         Swal.fire(
           "Error",
@@ -440,9 +454,11 @@ function VotarTesisContent() {
                       votoEmitido.nota
                     )}`}
                   >
-                    {votoEmitido.nota.toFixed(2)}
+                    {votoEmitido.nota.toFixed(1)}
+                    {/* CAMBIO 2 */}
                   </div>
-                  <span className="de-diez">de 10.00</span>
+                  <span className="de-diez">de 10.0</span>
+                  {/* CAMBIO 3 */}
                 </div>
                 <div className="voto-info">
                   <div className="info-row">
@@ -574,7 +590,6 @@ function VotarTesisContent() {
                       </div>
                     </div>
                   </div>
-
                   <input
                     type="range"
                     id="nota-slider"
@@ -587,9 +602,10 @@ function VotarTesisContent() {
                     className={`slider ${getSliderColor(nota)}`}
                   />
                   <div className="slider-labels">
-                    <span>0.00</span>
-                    <span>10.00</span>
-                  </div>
+                    <span>0.0</span>
+                    <span>10.0</span>
+                  </div>{" "}
+                  {/* CAMBIO 4 */}
                 </div>
               </div>
               <div className="votar-footer">
