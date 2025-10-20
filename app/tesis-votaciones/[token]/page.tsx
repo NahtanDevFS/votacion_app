@@ -14,7 +14,7 @@ import Swal from "sweetalert2";
 import FingerprintJS from "@fingerprintjs/fingerprintjs";
 import "./VotarTesis.css";
 
-// --- Componente de Confeti ---
+// --- Componente de Confeti
 const Confetti = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
