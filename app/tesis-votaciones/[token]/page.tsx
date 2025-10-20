@@ -314,97 +314,99 @@ function VotarTesisContent() {
 
   const handleSubmit = async () => {
     if (isSubmitting || haVotado || tiempoRestante === 0 || error) return;
-    const result = await Swal.fire({
-      title: `¿Confirmas tu calificación de ${nota.toFixed(1)}?`, // CAMBIO 1
-      text: "Esta acción es final y no se podrá cambiar.",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#8724ff",
-      cancelButtonColor: "#5a5a7a",
-      confirmButtonText: "Sí, confirmar mi voto",
-      cancelButtonText: "Cancelar",
-    });
-    if (result.isConfirmed) {
-      setIsSubmitting(true);
-      try {
-        if (!votacion || !rolParaVotar)
-          throw new Error("Faltan datos para registrar el voto.");
 
-        // --- INICIO DE LA MODIFICACIÓN ---
-        // 1. Volver a verificar el estado de la votación ANTES de insertar.
-        const { data: freshVotacion, error: freshError } = await supabase
-          .from("votacion_tesis")
-          .select("estado")
-          .eq("id", votacion.id)
-          .single();
+    // CAMBIO PRINCIPAL: Solo mostrar confirmación si es jurado asignado
+    if (rolParaVotar === "jurado") {
+      const result = await Swal.fire({
+        title: `¿Confirmas tu calificación de ${nota.toFixed(1)}?`,
+        text: "Esta acción es final y no se podrá cambiar.",
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonColor: "#8724ff",
+        cancelButtonColor: "#5a5a7a",
+        confirmButtonText: "Sí, confirmar mi voto",
+        cancelButtonText: "Cancelar",
+      });
 
-        if (freshError || !freshVotacion || freshVotacion.estado !== "activa") {
-          throw new Error(
-            "La votación ha finalizado mientras emitías tu voto."
-          );
-        }
-        // --- FIN DE LA MODIFICACIÓN ---
+      if (!result.isConfirmed) return;
+    }
 
-        const votePayload: any = {
-          votacion_tesis_id: votacion.id,
-          nota: nota,
-          rol_al_votar: rolParaVotar,
-        };
+    setIsSubmitting(true);
+    try {
+      if (!votacion || !rolParaVotar)
+        throw new Error("Faltan datos para registrar el voto.");
 
-        if (participante) {
-          votePayload.participante_id = participante.id;
-        } else if (fingerprint) {
-          votePayload.fingerprint = fingerprint;
-        } else {
-          throw new Error("No se pudo identificar al votante.");
-        }
+      // Verificar el estado de la votación ANTES de insertar
+      const { data: freshVotacion, error: freshError } = await supabase
+        .from("votacion_tesis")
+        .select("estado")
+        .eq("id", votacion.id)
+        .single();
 
-        const { error: insertError } = await supabase
-          .from("voto_tesis")
-          .insert(votePayload);
-
-        if (insertError) throw insertError;
-
-        if (rolParaVotar === "publico") {
-          // Para el público, mostrar un mensaje breve y redirigir
-          await Swal.fire({
-            title: "¡Voto Registrado!",
-            text: "Gracias por tu participación. Serás redirigido.",
-            icon: "success",
-            timer: 1500,
-            showConfirmButton: false,
-            timerProgressBar: true,
-          });
-          router.push("/tesis-votaciones");
-        } else {
-          // Para jurado, mostrar la pantalla de confirmación detallada
-          setHaVotado(true);
-          setVotoEmitido({
-            nota: nota,
-            fecha: new Date().toISOString(),
-            rol: rolParaVotar,
-          });
-
-          setShowConfetti(true);
-          setTimeout(() => setShowConfetti(false), 3000);
-
-          Swal.fire(
-            "¡Voto Registrado!",
-            "Gracias por tu participación.",
-            "success"
-          );
-        }
-      } catch (err: any) {
-        Swal.fire(
-          "Error",
-          "No se pudo registrar tu voto. Es posible que ya hayas votado o el tiempo haya terminado.",
-          "error"
-        );
-        console.error(err);
-        setError("No se pudo registrar tu voto.");
-      } finally {
-        setIsSubmitting(false);
+      if (freshError || !freshVotacion || freshVotacion.estado !== "activa") {
+        throw new Error("La votación ha finalizado mientras emitías tu voto.");
       }
+
+      const votePayload: any = {
+        votacion_tesis_id: votacion.id,
+        nota: nota,
+        rol_al_votar: rolParaVotar,
+      };
+
+      if (participante) {
+        votePayload.participante_id = participante.id;
+      } else if (fingerprint) {
+        votePayload.fingerprint = fingerprint;
+      } else {
+        throw new Error("No se pudo identificar al votante.");
+      }
+
+      const { error: insertError } = await supabase
+        .from("voto_tesis")
+        .insert(votePayload);
+
+      if (insertError) throw insertError;
+
+      // CAMBIO: Comportamiento diferenciado según el rol
+      if (rolParaVotar === "publico") {
+        // Para público (incluye jurados no asignados): mensaje breve y redirección
+        await Swal.fire({
+          title: "¡Voto Registrado!",
+          text: "Gracias por tu participación. Serás redirigido.",
+          icon: "success",
+          timer: 1500,
+          showConfirmButton: false,
+          timerProgressBar: true,
+        });
+        router.push("/tesis-votaciones");
+      } else {
+        // Para jurado asignado: pantalla de confirmación detallada
+        setHaVotado(true);
+        setVotoEmitido({
+          nota: nota,
+          fecha: new Date().toISOString(),
+          rol: rolParaVotar,
+        });
+
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 3000);
+
+        Swal.fire(
+          "¡Voto Registrado!",
+          "Gracias por tu participación.",
+          "success"
+        );
+      }
+    } catch (err: any) {
+      Swal.fire(
+        "Error",
+        "No se pudo registrar tu voto. Es posible que ya hayas votado o el tiempo haya terminado.",
+        "error"
+      );
+      console.error(err);
+      setError("No se pudo registrar tu voto.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -457,7 +459,7 @@ function VotarTesisContent() {
           </div>
 
           {haVotado && votoEmitido ? (
-            // RESUMEN POST-VOTO
+            // RESUMEN POST-VOTO (Solo se muestra para jurados asignados)
             <div className="voto-summary">
               <div className="success-icon">✅</div>
               <h2>¡Voto Registrado Exitosamente!</h2>
@@ -470,10 +472,8 @@ function VotarTesisContent() {
                     )}`}
                   >
                     {votoEmitido.nota.toFixed(1)}
-                    {/* CAMBIO 2 */}
                   </div>
                   <span className="de-diez">de 10.0</span>
-                  {/* CAMBIO 3 */}
                 </div>
                 <div className="voto-info">
                   <div className="info-row">
@@ -619,8 +619,7 @@ function VotarTesisContent() {
                   <div className="slider-labels">
                     <span>0.0</span>
                     <span>10.0</span>
-                  </div>{" "}
-                  {/* CAMBIO 4 */}
+                  </div>
                 </div>
               </div>
               <div className="votar-footer">
