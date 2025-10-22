@@ -55,12 +55,14 @@ export default function VotacionesTesisPage() {
         if (error || !data) {
           console.error("Error fetching participant data:", error);
           localStorage.removeItem("token_participante_tesis_vote_up");
-          loadFingerprint(); // Fallback to fingerprint if token is invalid
+          // Redirigir a autenticación si el token es inválido
+          router.push("/tesis-votaciones-autenticacion");
         } else {
           setParticipante(data);
         }
       } else {
-        loadFingerprint(); // Load fingerprint for public users
+        // Si no hay token, redirigir a la página de autenticación
+        router.push("/tesis-votaciones-autenticacion");
       }
     };
 
