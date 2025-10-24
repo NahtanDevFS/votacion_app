@@ -1,4 +1,3 @@
-// app/conteo-votacion-tesis/[id]/page.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
@@ -167,15 +166,23 @@ export default function DetalleVotacionPage() {
     return () => clearTimeout(timerId);
   }, [countdown, id]);
 
+  // Se hace el texto del popup dinámico
   const handleActivateVotacion = async () => {
+    // Determinar textos basados en el estado
+    const isReactivating = votacion?.estado === "finalizada";
+    const title = isReactivating
+      ? "¿Reactivar esta votación?"
+      : "¿Activar esta votación?";
+    const confirmButtonText = isReactivating ? "Sí, reactivar" : "Sí, activar";
+
     Swal.fire({
-      title: "¿Activar esta votación?",
+      title: title, // Título dinámico
       text: "Comenzará una cuenta regresiva de 5 segundos.",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#3085d6",
       cancelButtonColor: "#d33",
-      confirmButtonText: "Sí, activar",
+      confirmButtonText: confirmButtonText, // Texto de botón dinámico
       cancelButtonText: "Cancelar",
     }).then(async (result) => {
       if (result.isConfirmed) {
@@ -183,6 +190,7 @@ export default function DetalleVotacionPage() {
       }
     });
   };
+  // --- FIN DE MODIFICACIÓN ---
 
   const handleForceFinalize = async () => {
     Swal.fire({
@@ -485,15 +493,23 @@ export default function DetalleVotacionPage() {
                 </p>
               </div>
             )}
+
+            {/* --- MODIFICACIÓN AQUÍ --- */}
+            {/* Se muestra el botón si está inactiva O finalizada */}
             <div className="info-actions">
-              {votacion.estado === "inactiva" && (
+              {(votacion.estado === "inactiva" ||
+                votacion.estado === "finalizada") && (
                 <button
                   className="action-button activate"
                   onClick={handleActivateVotacion}
                 >
-                  Activar Votación
+                  {/* El texto cambia según el estado */}
+                  {votacion.estado === "inactiva"
+                    ? "Activar Votación"
+                    : "Reactivar Votación"}
                 </button>
               )}
+
               {votacion.estado === "activa" && (
                 <button
                   className="action-button finalize"
