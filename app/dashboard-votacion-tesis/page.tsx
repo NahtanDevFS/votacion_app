@@ -21,6 +21,7 @@ export interface ImagenTesis {
 export interface VotacionTesis {
   id: number;
   titulo: string;
+  titulo_tesis: string;
   nombre_tesista: string | null;
   carnet: string | null;
   descripcion: string | null;
@@ -29,6 +30,8 @@ export interface VotacionTesis {
   fecha_activacion: string | null;
   imagen_votacion_tesis: ImagenTesis[];
   nota_final?: number;
+  // --- MODIFICACIÓN 1: Añadir campo ---
+  finalizada_definitivamente: number;
 }
 
 export default function TesisDashboardPage() {
@@ -50,12 +53,15 @@ export default function TesisDashboardPage() {
         await supabase.rpc("finalizar_votaciones_expiradas");
         const { data: votacionesData, error: fetchError } = await supabase
           .from("votacion_tesis")
+          // --- MODIFICACIÓN 2: `select` ya incluye el campo por el `*` ---
           .select(`*, imagen_votacion_tesis(id, url_imagen)`)
           .eq("creado_por", user.id)
           .order("id", { ascending: false });
         if (fetchError) throw fetchError;
         const votacionesConNotas = await Promise.all(
           votacionesData.map(async (votacion) => {
+            // --- MODIFICACIÓN 3: Asegurar que el estado `finalizada_definitivamente` se propague ---
+            // (Ya está incluido por el `...votacion` y el `select *`)
             if (votacion.estado === "finalizada") {
               const { data: nota_final } = await supabase.rpc(
                 "calcular_nota_final",
@@ -90,11 +96,12 @@ export default function TesisDashboardPage() {
   }, [fetchAndProcessVotaciones]);
 
   const handleExportPDF = async () => {
+    // Filtrar votaciones "Cerradas" o "Finalizadas"
     const finalizadas = votaciones.filter((v) => v.estado === "finalizada");
     if (finalizadas.length === 0) {
       Swal.fire(
         "Sin datos",
-        "No hay votaciones finalizadas para exportar.",
+        "No hay votaciones cerradas o finalizadas para exportar.", // Texto actualizado
         "info"
       );
       return;
@@ -172,20 +179,24 @@ export default function TesisDashboardPage() {
         "Promedio Público",
         "Total Votos",
         "Nota Final",
+        // --- MODIFICACIÓN 4: Añadir estado al reporte ---
+        //"Estado",
       ],
     ];
     const body = reportData.map((d) => [
-      d.titulo,
+      d.titulo_tesis, //titulo o titulo_tesis
       d.nombre_tesista || "N/A",
       d.carnet || "N/A",
       ...allJuradoNames.map((name) => d.notasJurados[name] || "N/A"),
       d.promedioPublico,
       d.totalVotos,
       d.nota_final?.toFixed(1) || "N/A",
+      // --- MODIFICACIÓN 5: Mostrar texto de estado ---
+      //d.finalizada_definitivamente === 1 ? "Finalizada" : "Cerrada",
     ]);
 
     const doc = new jsPDF({ orientation: "landscape" });
-    doc.text("Reporte de Votaciones de Tesis Finalizadas", 14, 16);
+    doc.text("Reporte de Votaciones de Tesis Finalizadas o Cerradas", 14, 16);
     autoTable(doc, { head, body, startY: 20 });
 
     Swal.close();
@@ -197,7 +208,7 @@ export default function TesisDashboardPage() {
     if (finalizadas.length === 0) {
       Swal.fire(
         "Sin datos",
-        "No hay votaciones finalizadas para exportar.",
+        "No hay votaciones cerradas o finalizadas para exportar.", // Texto actualizado
         "info"
       );
       return;
@@ -255,7 +266,7 @@ export default function TesisDashboardPage() {
 
         // CORRECCIÓN 2: Construir objeto en orden específico para mantener columnas
         const row: any = {
-          Tesis: v.titulo,
+          Tesis: v.titulo_tesis, //titulo o titulo_tesis
           Tesista: v.nombre_tesista || "N/A",
           Carnet: v.carnet || "N/A",
         };
@@ -271,6 +282,8 @@ export default function TesisDashboardPage() {
         row["Nota Final"] = v.nota_final
           ? parseFloat(v.nota_final.toFixed(1))
           : null;
+        // --- MODIFICACIÓN 6: Añadir estado al reporte ---
+        //row["Estado"] = v.finalizada_definitivamente === 1 ? "Finalizada" : "Cerrada";
 
         return row;
       })
@@ -286,7 +299,9 @@ export default function TesisDashboardPage() {
           key !== "Carnet" &&
           key !== "Promedio Público" &&
           key !== "Total Votos" &&
-          key !== "Nota Final"
+          key !== "Nota Final" &&
+          // --- MODIFICACIÓN 7: Ignorar estado para orden ---
+          key !== "Estado"
         ) {
           allJuradoNames.add(key);
         }
@@ -302,6 +317,8 @@ export default function TesisDashboardPage() {
       "Promedio Público",
       "Total Votos",
       "Nota Final",
+      // --- MODIFICACIÓN 8: Añadir estado al orden ---
+      //"Estado",
     ];
 
     // Crear hoja con orden específico de columnas
@@ -318,7 +335,7 @@ export default function TesisDashboardPage() {
     if (finalizadas.length === 0) {
       Swal.fire(
         "Sin datos",
-        "No hay votaciones finalizadas para exportar.",
+        "No hay votaciones cerradas o finalizadas para exportar.", // Texto actualizado
         "info"
       );
       return;
@@ -331,7 +348,11 @@ export default function TesisDashboardPage() {
     });
 
     const doc = new jsPDF({ orientation: "landscape" });
-    doc.text("Reporte Detallado de Votaciones de Tesis Finalizadas", 14, 16);
+    doc.text(
+      "Reporte Detallado de Votaciones de Tesis Finalizadas o Cerradas",
+      14,
+      16
+    );
 
     // CORRECCIÓN 3: Iniciar la primera tabla después del título
     let currentY = 25;
@@ -363,15 +384,21 @@ export default function TesisDashboardPage() {
         currentY = 20;
       }
 
+      // --- MODIFICACIÓN 9: Añadir estado al reporte ---
       autoTable(doc, {
-        head: [["Tesis", "Tesista", "Carnet", "Total Votos", "Nota Final"]],
+        head: [
+          ["Tesis", "Tesista", "Carnet", "Total Votos", "Nota Final"],
+          //["Tesis", "Tesista", "Carnet", "Total Votos", "Nota Final", "Estado"],
+        ],
         body: [
           [
-            v.titulo,
+            v.titulo_tesis, //titulo o titulo_tesis
             v.nombre_tesista || "N/A",
             v.carnet || "N/A",
             count ?? 0,
             v.nota_final?.toFixed(1) || "N/A",
+            // --- MODIFICACIÓN 10: Mostrar texto de estado ---
+            //v.finalizada_definitivamente === 1 ? "Finalizada" : "Cerrada",
           ],
         ],
         startY: currentY,
@@ -461,7 +488,7 @@ export default function TesisDashboardPage() {
     if (finalizadas.length === 0) {
       Swal.fire(
         "Sin datos",
-        "No hay votaciones finalizadas para exportar.",
+        "No hay votaciones cerradas o finalizadas para exportar.", // Texto actualizado
         "info"
       );
       return;
@@ -492,13 +519,16 @@ export default function TesisDashboardPage() {
         votos?.filter((voto) => voto.rol_al_votar === "publico") || [];
 
       // Encabezado de la tesis
+      // --- MODIFICACIÓN 11: Añadir estado al reporte ---
       allData.push({
         Tipo: "TESIS",
-        Nombre: v.titulo,
+        Nombre: v.titulo_tesis, //titulo o titulo_tesis
         Carnet: v.carnet || "N/A",
         Nota: "",
         "Total Votos": count ?? 0,
         "Nota Final": v.nota_final?.toFixed(1) || "N/A",
+        // --- MODIFICACIÓN 12: Mostrar texto de estado ---
+        //Estado: v.finalizada_definitivamente === 1 ? "Finalizada" : "Cerrada",
       });
 
       allData.push({
@@ -508,6 +538,7 @@ export default function TesisDashboardPage() {
         Nota: "",
         "Total Votos": "",
         "Nota Final": "",
+        //Estado: "", // Columna vacía
       });
 
       // Votos de jurados
@@ -523,6 +554,7 @@ export default function TesisDashboardPage() {
             Nota: voto.nota.toFixed(1),
             "Total Votos": "",
             "Nota Final": "",
+            //Estado: "", // Columna vacía
           });
         });
       }
@@ -540,6 +572,7 @@ export default function TesisDashboardPage() {
             Nota: voto.nota.toFixed(1),
             "Total Votos": "",
             "Nota Final": "",
+            //Estado: "", // Columna vacía
           });
         });
 
@@ -554,6 +587,7 @@ export default function TesisDashboardPage() {
           Nota: promedioPublico.toFixed(1),
           "Total Votos": "",
           "Nota Final": "",
+          //Estado: "", // Columna vacía
         });
       }
 
@@ -565,10 +599,21 @@ export default function TesisDashboardPage() {
         Nota: "",
         "Total Votos": "",
         "Nota Final": "",
+        //Estado: "", // Columna vacía
       });
     }
 
-    const ws = XLSX.utils.json_to_sheet(allData);
+    // --- MODIFICACIÓN 13: Añadir Estado a las cabeceras ---
+    const header = [
+      "Tipo",
+      "Nombre",
+      "Carnet",
+      "Nota",
+      "Total Votos",
+      "Nota Final",
+      //"Estado",
+    ];
+    const ws = XLSX.utils.json_to_sheet(allData, { header: header });
     XLSX.utils.book_append_sheet(wb, ws, "Reporte Detallado");
 
     Swal.close();
@@ -663,7 +708,7 @@ export default function TesisDashboardPage() {
       </section>
 
       <section className="votaciones-section">
-        <h2 className="section-title finalizadas">Finalizadas</h2>
+        <h2 className="section-title finalizadas">Cerradas y Finalizadas</h2>
         {votacionesFinalizadas.length > 0 ? (
           <div className="votaciones-list-tesis">
             {votacionesFinalizadas.map((votacion) => (
@@ -672,7 +717,7 @@ export default function TesisDashboardPage() {
           </div>
         ) : (
           <p className="no-votaciones-tesis">
-            Aún no hay votaciones finalizadas.
+            Aún no hay votaciones cerradas o finalizadas.
           </p>
         )}
       </section>

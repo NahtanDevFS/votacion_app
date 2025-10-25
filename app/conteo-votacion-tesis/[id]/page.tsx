@@ -22,6 +22,7 @@ interface VotacionDetalle {
   fecha_activacion: string | null;
   token_qr: string;
   imagen_votacion_tesis: ImagenTesis[];
+  finalizada_definitivamente: number;
 }
 interface JuradoAsignado {
   participantes: {
@@ -62,6 +63,7 @@ export default function DetalleVotacionPage() {
       try {
         await supabase.rpc("finalizar_votaciones_expiradas");
 
+        // El select con * ya trae la nueva columna, no se necesita cambiar
         const { data: votacionData, error: votacionError } = await supabase
           .from("votacion_tesis")
           .select(`*, imagen_votacion_tesis(*)`)
@@ -166,9 +168,7 @@ export default function DetalleVotacionPage() {
     return () => clearTimeout(timerId);
   }, [countdown, id]);
 
-  // Se hace el texto del popup dinámico
   const handleActivateVotacion = async () => {
-    // Determinar textos basados en el estado
     const isReactivating = votacion?.estado === "finalizada";
     const title = isReactivating
       ? "¿Reactivar esta votación?"
@@ -176,13 +176,13 @@ export default function DetalleVotacionPage() {
     const confirmButtonText = isReactivating ? "Sí, reactivar" : "Sí, activar";
 
     Swal.fire({
-      title: title, // Título dinámico
+      title: title,
       text: "Comenzará una cuenta regresiva de 5 segundos.",
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#3085d6",
       cancelButtonColor: "#d33",
-      confirmButtonText: confirmButtonText, // Texto de botón dinámico
+      confirmButtonText: confirmButtonText,
       cancelButtonText: "Cancelar",
     }).then(async (result) => {
       if (result.isConfirmed) {
@@ -190,15 +190,14 @@ export default function DetalleVotacionPage() {
       }
     });
   };
-  // --- FIN DE MODIFICACIÓN ---
 
   const handleForceFinalize = async () => {
     Swal.fire({
-      title: "¿Finalizar esta votación ahora?",
-      text: "Esto detendrá la votación inmediatamente.",
+      title: "¿Cerrar esta votación?", // Texto cambiado
+      text: "La votación pasará a estado 'Cerrada' y podrá reactivarse.",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonText: "Sí, finalizar ahora",
+      confirmButtonText: "Sí, cerrar", // Texto cambiado
     }).then(async (result) => {
       if (result.isConfirmed) {
         const { data, error } = await supabase
@@ -208,11 +207,11 @@ export default function DetalleVotacionPage() {
           .select()
           .single();
         if (error)
-          Swal.fire("Error", "No se pudo finalizar la votación.", "error");
+          Swal.fire("Error", "No se pudo cerrar la votación.", "error");
         else {
           Swal.fire(
-            "¡Finalizada!",
-            "La votación ha sido finalizada.",
+            "¡Votación Cerrada!",
+            "La votación ha sido cerrada.",
             "success"
           );
           setVotacion(data);
@@ -220,6 +219,48 @@ export default function DetalleVotacionPage() {
       }
     });
   };
+
+  // --- MODIFICACIÓN 2: Nueva función para finalizar definitivamente ---
+  const handleFinalizeDefinitively = async () => {
+    Swal.fire({
+      title: "¿Finalizar Definitivamente?",
+      text: "Esta votación se cerrará permanentemente y NO podrá ser reactivada. ¿Estás seguro?",
+      icon: "error", // Icono de error para más énfasis
+      showCancelButton: true,
+      confirmButtonColor: "#d33", // Botón de confirmar en rojo
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Sí, finalizar permanentemente",
+      cancelButtonText: "Cancelar",
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        const { data, error } = await supabase
+          .from("votacion_tesis")
+          .update({
+            estado: "finalizada", // Asegura que el estado sea 'finalizada'
+            finalizada_definitivamente: 1, // Setea el flag definitivo
+          })
+          .eq("id", id)
+          .select()
+          .single();
+
+        if (error) {
+          Swal.fire(
+            "Error",
+            "No se pudo finalizar la votación permanentemente.",
+            "error"
+          );
+        } else {
+          Swal.fire(
+            "¡Finalizada Permanentemente!",
+            "La votación ha sido cerrada de forma definitiva.",
+            "success"
+          );
+          setVotacion(data); // Actualiza el estado local
+        }
+      }
+    });
+  };
+  // --- FIN MODIFICACIÓN ---
 
   const handleOpenFullScreenModal = () => setIsResultModalOpen(true);
   const handleCloseFullScreenModal = () => {
@@ -335,6 +376,19 @@ export default function DetalleVotacionPage() {
   const duracionMinutos = Math.floor(votacion.duracion_segundos / 60);
   const duracionSegundos = votacion.duracion_segundos % 60;
 
+  // --- MODIFICACIÓN 3: Lógica para mostrar texto de estado ---
+  // Función helper para determinar el texto a mostrar
+  const getDisplayEstadoTexto = () => {
+    if (votacion.estado === "finalizada") {
+      return votacion.finalizada_definitivamente === 1
+        ? "Finalizada"
+        : "Cerrada";
+    }
+    return votacion.estado; // 'inactiva' o 'activa'
+  };
+  const displayEstado = getDisplayEstadoTexto();
+  // --- FIN MODIFICACIÓN ---
+
   const MainContent = () => (
     <div
       className="detalle-card-ampliada clickable-card"
@@ -342,8 +396,9 @@ export default function DetalleVotacionPage() {
     >
       <div className="header-info-container">
         <div className="header-status-timer">
+          {/* Usar 'votacion.estado' para la clase CSS, 'displayEstado' para el texto */}
           <p className={`estado-tag estado-${votacion.estado}`}>
-            {votacion.estado}
+            {displayEstado}
           </p>
           {votacion.estado === "activa" && (
             <div className="temporizador-activo modal-temporizador">
@@ -472,8 +527,9 @@ export default function DetalleVotacionPage() {
             <div className="info-grid">
               <div>
                 <span>Estado</span>
+                {/* Usar 'votacion.estado' para la clase CSS, 'displayEstado' para el texto */}
                 <p className={`estado-tag estado-${votacion.estado}`}>
-                  {votacion.estado}
+                  {displayEstado}
                 </p>
               </div>
               <div>
@@ -494,33 +550,54 @@ export default function DetalleVotacionPage() {
               </div>
             )}
 
-            {/* --- MODIFICACIÓN AQUÍ --- */}
-            {/* Se muestra el botón si está inactiva O finalizada */}
+            {/* --- MODIFICACIÓN 4: Lógica de botones actualizada --- */}
             <div className="info-actions">
+              {/* 1. Botón Activar / Reactivar */}
+              {/* Solo aparece si está inactiva, o si está finalizada PERO NO definitivamente */}
               {(votacion.estado === "inactiva" ||
-                votacion.estado === "finalizada") && (
+                (votacion.estado === "finalizada" &&
+                  votacion.finalizada_definitivamente === 0)) && (
                 <button
                   className="action-button activate"
                   onClick={handleActivateVotacion}
                 >
-                  {/* El texto cambia según el estado */}
                   {votacion.estado === "inactiva"
                     ? "Activar Votación"
                     : "Reactivar Votación"}
                 </button>
               )}
 
+              {/* 2. Botón Cerrar (Temporal) */}
               {votacion.estado === "activa" && (
                 <button
                   className="action-button finalize"
                   onClick={handleForceFinalize}
                 >
-                  Finalizar Votación
+                  Cerrar Votación
                 </button>
               )}
-              <button className="action-button edit" onClick={handleEdit}>
-                Editar
-              </button>
+
+              {/* 3. NUEVO Botón Finalizar Definitivamente */}
+              {/* Solo aparece si está 'finalizada' (cerrada) pero no 'definitiva' */}
+              {votacion.estado === "finalizada" &&
+                votacion.finalizada_definitivamente === 0 && (
+                  <button
+                    className="action-button finalize-definitive" // Nueva clase CSS
+                    onClick={handleFinalizeDefinitively}
+                  >
+                    Finalizar Definitivamente
+                  </button>
+                )}
+
+              {/* 4. Botón Editar */}
+              {/* Ocultamos editar si ya está finalizada definitivamente */}
+              {votacion.finalizada_definitivamente === 0 && (
+                <button className="action-button edit" onClick={handleEdit}>
+                  Editar
+                </button>
+              )}
+
+              {/* 5. Botón Eliminar */}
               <button
                 className="action-button delete"
                 onClick={handleDeleteVotacion}
@@ -529,6 +606,7 @@ export default function DetalleVotacionPage() {
                 {deleting ? "Eliminando..." : "Eliminar Votación"}
               </button>
             </div>
+            {/* --- FIN MODIFICACIÓN --- */}
           </div>
           <div className="detalle-card recursos">
             <h3>Recursos de Votación</h3>

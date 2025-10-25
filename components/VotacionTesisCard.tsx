@@ -55,6 +55,18 @@ const VotacionTesisCard: React.FC<VotacionTesisCardProps> = ({ votacion }) => {
     router.push(`/conteo-votacion-tesis/${votacion.id}`);
   };
 
+  // --- MODIFICACIÓN 1: Lógica para texto de estado ---
+  const getDisplayEstadoTexto = () => {
+    if (votacion.estado === "finalizada") {
+      return votacion.finalizada_definitivamente === 1
+        ? "Finalizada"
+        : "Cerrada";
+    }
+    return votacion.estado; // 'inactiva' o 'activa'
+  };
+  const displayEstado = getDisplayEstadoTexto();
+  // --- FIN MODIFICACIÓN ---
+
   return (
     <div
       className={`votacion-tesis-list-item estado-${votacion.estado}`}
@@ -92,8 +104,9 @@ const VotacionTesisCard: React.FC<VotacionTesisCardProps> = ({ votacion }) => {
       <div className="list-item-main-content">
         <div className="list-item-header">
           <h3 className="list-item-title">{votacion.titulo}</h3>
+          {/* --- MODIFICACIÓN 2: Usar `displayEstado` para el texto --- */}
           <span className={`estado-tag estado-${votacion.estado}`}>
-            {votacion.estado}
+            {displayEstado}
           </span>
         </div>
         <p className="list-item-tesista">
@@ -114,7 +127,6 @@ const VotacionTesisCard: React.FC<VotacionTesisCardProps> = ({ votacion }) => {
           )}
         </div>
       </div>
-     
     </div>
   );
 };

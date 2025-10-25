@@ -476,6 +476,15 @@
   right: 10px;
 }
 
+.action-button.finalize-definitive {
+  background-color: #dc3545; /* Rojo peligro */
+  color: white;
+}
+
+.action-button.finalize-definitive:hover {
+  background-color: #c82333; /* Rojo más oscuro */
+}
+
 /* Media Queries para responsividad */
 @media (max-width: 1024px) {
   .detalle-main-grid-final {

@@ -30,6 +30,8 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
   }, [votacion.estado, votacion.fecha_activacion, votacion.duracion_segundos]);
 
   const handleCardClick = () => {
+    // --- MODIFICACIÓN 1: El participante no puede votar en votaciones cerradas/finalizadas ---
+    // (Esta lógica ya estaba correcta, pero la revisamos)
     if (votacion.estado === "activa" && !votacion.ha_votado) {
       router.push(`/tesis-votaciones/${votacion.token_qr}`);
     }
@@ -50,6 +52,18 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
   const duracionSegundos = votacion.duracion_segundos % 60;
 
   const isClickable = votacion.estado === "activa" && !votacion.ha_votado;
+
+  // --- MODIFICACIÓN 2: Lógica para texto de estado ---
+  const getDisplayEstadoTexto = () => {
+    if (votacion.estado === "finalizada") {
+      return votacion.finalizada_definitivamente === 1
+        ? "Finalizada"
+        : "Cerrada";
+    }
+    return votacion.estado; // 'inactiva' o 'activa'
+  };
+  const displayEstado = getDisplayEstadoTexto();
+  // --- FIN MODIFICACIÓN ---
 
   return (
     <div
@@ -85,8 +99,9 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
       <div className="list-item-content">
         <div className="list-item-header">
           <h3 className="list-item-title">{votacion.titulo}</h3>
+          {/* --- MODIFICACIÓN 3: Usar `displayEstado` para el texto --- */}
           <span className={`estado-tag estado-${votacion.estado}`}>
-            {votacion.estado}
+            {displayEstado}
           </span>
         </div>
         <p className="list-item-tesista">
@@ -96,8 +111,11 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
         <div className="list-item-voto-status">
           {votacion.ha_votado ? (
             <span className="voto-emitido">✓ Voto emitido</span>
-          ) : (
+          ) : // --- MODIFICACIÓN 4: Mostrar estado si no ha votado ---
+          votacion.estado === "activa" ? (
             <span className="no-votado">Pendiente de voto</span>
+          ) : (
+            <span className="no-votado">-</span> // No mostrar "pendiente" si no está activa
           )}
         </div>
 
@@ -109,12 +127,15 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
               {String(segundos).padStart(2, "0")}
             </div>
           ) : (
-            <div className="info-chip">
-              <strong>Duración:</strong> {duracionMinutos}:
-              {String(duracionSegundos).padStart(2, "0")} min
-            </div>
+            // --- MODIFICACIÓN 5: No mostrar duración si está cerrada/finalizada ---
+            votacion.estado === "inactiva" && (
+              <div className="info-chip">
+                <strong>Duración:</strong> {duracionMinutos}:
+                {String(duracionSegundos).padStart(2, "0")} min
+              </div>
+            )
           )}
-      {/*
+          {/*
         
         {votacion.estado === "finalizada" && (
           <>
@@ -129,7 +150,7 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
               </div>
             )}
           </>
-        )}*/ }
+        )}*/}
         </div>
       </div>
       {isClickable && <div className="click-indicator">→</div>}

@@ -24,6 +24,8 @@ export interface VotacionParaParticipante {
   ha_votado: boolean;
   nota_final?: number;
   mi_nota?: number;
+  // --- MODIFICACIÓN 1: Añadir campo ---
+  finalizada_definitivamente: number;
 }
 
 export default function VotacionesTesisPage() {
@@ -77,6 +79,7 @@ export default function VotacionesTesisPage() {
       try {
         const { data: votacionesData, error: fetchError } = await supabase
           .from("votacion_tesis")
+          // --- MODIFICACIÓN 2: `select` ya incluye el campo por el `*` ---
           .select(`*, imagen_votacion_tesis(*)`)
           .in("estado", ["activa", "inactiva", "finalizada"])
           .order("fecha_creacion", { ascending: false });
@@ -121,7 +124,7 @@ export default function VotacionesTesisPage() {
             };
           })
         );
-        setVotaciones(votacionesConEstadoDeVoto);
+        setVotaciones(votacionesConEstadoDeVoto as VotacionParaParticipante[]); // Cast al tipo actualizado
         setError(null);
       } catch (err: any) {
         console.error("Error al refrescar votaciones:", err);
@@ -208,8 +211,9 @@ export default function VotacionesTesisPage() {
         )}
       </section>
 
+      {/* --- MODIFICACIÓN 3: Título de la sección --- */}
       <section className="votaciones-section">
-        <h2 className="section-title finalizadas">Finalizadas</h2>
+        <h2 className="section-title finalizadas">Cerradas y Finalizadas</h2>
         {votacionesFinalizadas.length > 0 ? (
           <div className="votaciones-list">
             {votacionesFinalizadas.map((votacion) => (
@@ -217,7 +221,10 @@ export default function VotacionesTesisPage() {
             ))}
           </div>
         ) : (
-          <p className="no-votaciones">No hay votaciones finalizadas.</p>
+          <p className="no-votaciones">
+            {/* --- MODIFICACIÓN 4: Texto de la sección --- */}
+            No hay votaciones cerradas o finalizadas.
+          </p>
         )}
       </section>
     </div>
