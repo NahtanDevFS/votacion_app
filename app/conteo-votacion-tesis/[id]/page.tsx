@@ -55,14 +55,20 @@ export default function DetalleVotacionPage() {
   const [juradosAsignados, setJuradosAsignados] = useState<JuradoAsignado[]>(
     []
   );
+  
+  // Estado para evitar problemas de hidratación
+  const [mounted, setMounted] = useState(false);
 
   // Ref para almacenar el canal de suscripción
   const channelRef = useRef<RealtimeChannel | null>(null);
+  // Ref para el timeout de verificación de expiración
+  const expirationCheckRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!id) return;
 
     try {
+      // Verificar votaciones expiradas antes de cargar
       await supabase.rpc("finalizar_votaciones_expiradas");
 
       const { data: votacionData, error: votacionError } = await supabase
@@ -108,9 +114,53 @@ export default function DetalleVotacionPage() {
     }
   }, [id]);
 
+  // Función para verificar y cerrar votación si expiró
+  const checkAndFinalizeIfExpired = useCallback(async () => {
+    if (!votacion || votacion.estado !== "activa" || !votacion.fecha_activacion) {
+      return;
+    }
+
+    const fechaFin =
+      new Date(votacion.fecha_activacion).getTime() +
+      votacion.duracion_segundos * 1000;
+    const ahora = Date.now();
+
+    // Si ya expiró, finalizar inmediatamente
+    if (ahora >= fechaFin) {
+      console.log("⏰ Votación expirada, finalizando...");
+      
+      try {
+        // Actualizar directamente en la base de datos
+        const { error: updateError } = await supabase
+          .from("votacion_tesis")
+          .update({ estado: "finalizada" })
+          .eq("id", id)
+          .eq("estado", "activa"); // Solo si aún está activa (evita actualizaciones duplicadas)
+
+        if (updateError) {
+          console.error("Error al finalizar:", updateError);
+          // Si falla, intentar con RPC como fallback
+          await supabase.rpc("finalizar_votaciones_expiradas");
+        } else {
+          console.log("✅ Votación finalizada exitosamente");
+        }
+
+        // Recargar datos
+        await fetchData();
+      } catch (err) {
+        console.error("Error en checkAndFinalizeIfExpired:", err);
+      }
+    }
+  }, [votacion, id, fetchData]);
+
+  // Efecto para montar el componente (evita problemas de hidratación)
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Configurar suscripciones de Realtime
   useEffect(() => {
-    if (!id) return;
+    if (!id || !mounted) return;
 
     // Carga inicial
     fetchData();
@@ -126,16 +176,21 @@ export default function DetalleVotacionPage() {
           table: "votacion_tesis",
           filter: `id=eq.${id}`,
         },
-        (payload) => {
-          console.log("Cambio en votacion_tesis:", payload);
+        async (payload) => {
+          console.log("🔄 Cambio en votacion_tesis:", payload);
           if (payload.eventType === "UPDATE" || payload.eventType === "INSERT") {
-            // Actualizar votación con los nuevos datos
-            setVotacion((prev) => ({
-              ...prev,
-              ...(payload.new as VotacionDetalle),
-            }));
+            // Recargar datos completos con imágenes
+            const { data: votacionActualizada, error } = await supabase
+              .from("votacion_tesis")
+              .select(`*, imagen_votacion_tesis(*)`)
+              .eq("id", id)
+              .single();
+            
+            if (!error && votacionActualizada) {
+              console.log("✅ Votación actualizada con imágenes");
+              setVotacion(votacionActualizada);
+            }
           } else if (payload.eventType === "DELETE") {
-            // Si se elimina la votación, redirigir
             router.push("/dashboard-votacion-tesis");
           }
         }
@@ -149,8 +204,7 @@ export default function DetalleVotacionPage() {
           filter: `votacion_tesis_id=eq.${id}`,
         },
         async (payload) => {
-          console.log("Cambio en voto_tesis:", payload);
-          // Recalcular total de votos
+          console.log("🗳️ Cambio en voto_tesis:", payload);
           const { count } = await supabase
             .from("voto_tesis")
             .select("*", { count: "exact", head: true })
@@ -167,8 +221,7 @@ export default function DetalleVotacionPage() {
           filter: `votacion_tesis_id=eq.${id}`,
         },
         async (payload) => {
-          console.log("Cambio en jurado_por_votacion:", payload);
-          // Recargar jurados
+          console.log("👥 Cambio en jurado_por_votacion:", payload);
           const { data: juradosData } = await supabase
             .from("jurado_por_votacion")
             .select(
@@ -199,8 +252,7 @@ export default function DetalleVotacionPage() {
           filter: `votacion_tesis_id=eq.${id}`,
         },
         (payload) => {
-          console.log("Cambio en imagen_votacion_tesis:", payload);
-          // Recargar datos completos para actualizar imágenes
+          console.log("🖼️ Cambio en imagen_votacion_tesis:", payload);
           fetchData();
         }
       )
@@ -208,37 +260,66 @@ export default function DetalleVotacionPage() {
 
     channelRef.current = channel;
 
-    // Cleanup al desmontar
     return () => {
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
     };
-  }, [id, fetchData, router]);
+  }, [id, mounted, fetchData, router]);
 
-  // Temporizador para votaciones activas (mantener este efecto)
+  // Temporizador para votaciones activas con verificación agresiva
   useEffect(() => {
-    if (votacion?.estado === "activa" && votacion.fecha_activacion) {
-      const fechaFin =
-        new Date(votacion.fecha_activacion).getTime() +
-        votacion.duracion_segundos * 1000;
-      let timeoutId: NodeJS.Timeout;
-      const tick = () => {
-        const restante = Math.max(
-          0,
-          Math.floor((fechaFin - Date.now()) / 1000)
-        );
-        setTiempoRestante(restante);
-        if (restante > 0) {
-          const delay = 1000 - (Date.now() % 1000);
-          timeoutId = setTimeout(tick, delay);
-        }
-      };
-      tick();
-      return () => clearTimeout(timeoutId);
+    if (!mounted || !votacion?.estado || votacion.estado !== "activa" || !votacion.fecha_activacion) {
+      return;
     }
-  }, [votacion]);
+
+    const fechaActivacion = new Date(votacion.fecha_activacion).getTime();
+    const fechaFin = fechaActivacion + votacion.duracion_segundos * 1000;
+    
+    let tickTimeoutId: NodeJS.Timeout;
+    
+    const tick = () => {
+      const ahora = Date.now();
+      const restanteMilisegundos = fechaFin - ahora;
+      const restanteSegundos = Math.max(0, Math.floor(restanteMilisegundos / 1000));
+      
+      setTiempoRestante(restanteSegundos);
+      
+      // Si quedan 2 segundos o menos, verificar cada 500ms (más agresivo)
+      if (restanteMilisegundos <= 2000 && restanteMilisegundos > 0) {
+        tickTimeoutId = setTimeout(tick, 500);
+      } else if (restanteSegundos > 0) {
+        // Calcular próximo tick al segundo exacto
+        const delay = 1000 - (ahora % 1000);
+        tickTimeoutId = setTimeout(tick, delay);
+      }
+      
+      // Si el tiempo expiró, finalizar inmediatamente
+      if (restanteMilisegundos <= 0) {
+        checkAndFinalizeIfExpired();
+      }
+    };
+    
+    // Primera ejecución
+    tick();
+    
+    // Verificación adicional cada segundo como backup
+    expirationCheckRef.current = setInterval(() => {
+      const ahora = Date.now();
+      if (ahora >= fechaFin) {
+        checkAndFinalizeIfExpired();
+      }
+    }, 1000);
+    
+    return () => {
+      clearTimeout(tickTimeoutId);
+      if (expirationCheckRef.current) {
+        clearInterval(expirationCheckRef.current);
+        expirationCheckRef.current = null;
+      }
+    };
+  }, [mounted, votacion, checkAndFinalizeIfExpired]);
 
   useEffect(() => {
     if (countdown === null || countdown < 0) return;
@@ -259,7 +340,7 @@ export default function DetalleVotacionPage() {
         } else {
           setTimeout(() => {
             setCountdown(null);
-            setVotacion(data);
+            fetchData();
             setIsResultModalOpen(true);
           }, 2000);
         }
@@ -269,7 +350,7 @@ export default function DetalleVotacionPage() {
     }
     const timerId = setTimeout(() => setCountdown(countdown - 1), 1000);
     return () => clearTimeout(timerId);
-  }, [countdown, id]);
+  }, [countdown, id, fetchData]);
 
   const handleActivateVotacion = async () => {
     const isReactivating = votacion?.estado === "finalizada";
@@ -303,21 +384,19 @@ export default function DetalleVotacionPage() {
       confirmButtonText: "Sí, cerrar",
     }).then(async (result) => {
       if (result.isConfirmed) {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from("votacion_tesis")
           .update({ estado: "finalizada" })
-          .eq("id", id)
-          .select()
-          .single();
-        if (error)
+          .eq("id", id);
+        if (error) {
           Swal.fire("Error", "No se pudo cerrar la votación.", "error");
-        else {
+        } else {
           Swal.fire(
             "¡Votación Cerrada!",
             "La votación ha sido cerrada.",
             "success"
           );
-          setVotacion(data);
+          await fetchData();
         }
       }
     });
@@ -335,15 +414,13 @@ export default function DetalleVotacionPage() {
       cancelButtonText: "Cancelar",
     }).then(async (result) => {
       if (result.isConfirmed) {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from("votacion_tesis")
           .update({
             estado: "finalizada",
             finalizada_definitivamente: 1,
           })
-          .eq("id", id)
-          .select()
-          .single();
+          .eq("id", id);
 
         if (error) {
           Swal.fire(
@@ -357,7 +434,7 @@ export default function DetalleVotacionPage() {
             "La votación ha sido cerrada de forma definitiva.",
             "success"
           );
-          setVotacion(data);
+          await fetchData();
         }
       }
     });
@@ -370,6 +447,8 @@ export default function DetalleVotacionPage() {
   };
 
   useEffect(() => {
+    if (!mounted) return;
+    
     if (isResultModalOpen && resultModalRef.current) {
       resultModalRef.current.requestFullscreen().catch(console.error);
     }
@@ -379,7 +458,7 @@ export default function DetalleVotacionPage() {
     document.addEventListener("fullscreenchange", handleFullScreenChange);
     return () =>
       document.removeEventListener("fullscreenchange", handleFullScreenChange);
-  }, [isResultModalOpen]);
+  }, [mounted, isResultModalOpen]);
 
   const handleDeleteVotacion = async () => {
     if (!votacion) return;
@@ -468,6 +547,11 @@ export default function DetalleVotacionPage() {
     setQrCodeContent({ url, title });
     setIsQrModalOpen(true);
   };
+
+  // Evitar renderizado hasta que el componente esté montado
+  if (!mounted) {
+    return <div className="loading">Inicializando...</div>;
+  }
 
   if (loading) return <div className="loading">Cargando detalles...</div>;
   if (error) return <div className="error-message">{error}</div>;
