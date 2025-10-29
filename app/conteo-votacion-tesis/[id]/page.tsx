@@ -66,7 +66,24 @@ export default function DetalleVotacionPage() {
         // El select con * ya trae la nueva columna, no se necesita cambiar
         const { data: votacionData, error: votacionError } = await supabase
           .from("votacion_tesis")
-          .select(`*, imagen_votacion_tesis(*)`)
+          .select(
+            `
+              id,
+              titulo,
+              nombre_tesista,
+              titulo_tesis,
+              descripcion,
+              estado,
+              duracion_segundos,
+              fecha_activacion,
+              token_qr,
+              finalizada_definitivamente,
+              imagen_votacion_tesis (
+                id,
+                url_imagen
+              )
+            `
+          )
           .eq("id", id)
           .single();
         if (votacionError) throw new Error("No se encontró la votación.");
@@ -93,7 +110,7 @@ export default function DetalleVotacionPage() {
 
         const { count, error: countError } = await supabase
           .from("voto_tesis")
-          .select("*", { count: "exact", head: true })
+          .select("id", { count: "exact", head: true })
           .eq("votacion_tesis_id", id);
 
         if (countError) throw countError;
@@ -141,6 +158,11 @@ export default function DetalleVotacionPage() {
     if (countdown === null || countdown < 0) return;
     if (countdown === 0) {
       const activate = async () => {
+        const selectColumns = `
+          id, titulo, nombre_tesista, titulo_tesis, descripcion, estado,
+          duracion_segundos, fecha_activacion, token_qr, finalizada_definitivamente,
+          imagen_votacion_tesis (id, url_imagen)
+        `;
         const { data, error } = await supabase
           .from("votacion_tesis")
           .update({
@@ -148,7 +170,7 @@ export default function DetalleVotacionPage() {
             fecha_activacion: new Date().toISOString(),
           })
           .eq("id", id)
-          .select()
+          .select(selectColumns)
           .single();
         if (error) {
           Swal.fire("Error", "No se pudo activar la votación.", "error");

@@ -99,7 +99,6 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
       <div className="list-item-content">
         <div className="list-item-header">
           <h3 className="list-item-title">{votacion.titulo}</h3>
-          {/* --- MODIFICACIÓN 3: Usar `displayEstado` para el texto --- */}
           <span className={`estado-tag estado-${votacion.estado}`}>
             {displayEstado}
           </span>
@@ -111,7 +110,7 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
         <div className="list-item-voto-status">
           {votacion.ha_votado ? (
             <span className="voto-emitido">✓ Voto emitido</span>
-          ) : // --- MODIFICACIÓN 4: Mostrar estado si no ha votado ---
+          ) : //Mostrar estado si no ha votado
           votacion.estado === "activa" ? (
             <span className="no-votado">Pendiente de voto</span>
           ) : (

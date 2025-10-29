@@ -53,8 +53,23 @@ export default function TesisDashboardPage() {
         await supabase.rpc("finalizar_votaciones_expiradas");
         const { data: votacionesData, error: fetchError } = await supabase
           .from("votacion_tesis")
-          // --- MODIFICACIÓN 2: `select` ya incluye el campo por el `*` ---
-          .select(`*, imagen_votacion_tesis(id, url_imagen)`)
+          .select(
+            `
+                id,
+                titulo,
+                nombre_tesista,
+                estado,
+                fecha_activacion,
+                duracion_segundos,
+                finalizada_definitivamente,
+                carnet,          
+                titulo_tesis,    
+                imagen_votacion_tesis ( 
+                  id,
+                  url_imagen
+                )
+              `
+          )
           .eq("creado_por", user.id)
           .order("id", { ascending: false });
         if (fetchError) throw fetchError;

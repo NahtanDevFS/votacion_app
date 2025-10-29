@@ -80,7 +80,21 @@ export default function VotacionesTesisPage() {
         const { data: votacionesData, error: fetchError } = await supabase
           .from("votacion_tesis")
           // --- MODIFICACIÓN 2: `select` ya incluye el campo por el `*` ---
-          .select(`*, imagen_votacion_tesis(*)`)
+          .select(
+            `
+              id,
+              titulo,
+              nombre_tesista,
+              estado,
+              duracion_segundos,
+              fecha_activacion,
+              token_qr,
+              finalizada_definitivamente,
+              imagen_votacion_tesis (
+                url_imagen
+              )
+            `
+          )
           .in("estado", ["activa", "inactiva", "finalizada"])
           .order("fecha_creacion", { ascending: false });
 
