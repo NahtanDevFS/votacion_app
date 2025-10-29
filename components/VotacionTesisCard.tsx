@@ -3,8 +3,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { VotacionTesis } from "@/app/dashboard-votacion-tesis/page"; // Importamos el tipo
-import "@/app/dashboard-votacion-tesis/dashboard_tesis.css"; // Usamos el mismo CSS
+import { VotacionTesis } from "@/app/dashboard-votacion-tesis/page";
+import "@/app/dashboard-votacion-tesis/dashboard_tesis.css";
 
 interface VotacionTesisCardProps {
   votacion: VotacionTesis;
@@ -12,14 +12,61 @@ interface VotacionTesisCardProps {
 
 const VotacionTesisCard: React.FC<VotacionTesisCardProps> = ({ votacion }) => {
   const router = useRouter();
-  const [tiempoRestante, setTiempoRestante] = useState<number>(0);
-
-  // --- NUEVO: Lógica para el carrusel de imágenes ---
+  const [tiempoRestante, setTiempoRestante] = useState<number | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const images = votacion.imagen_votacion_tesis || [];
 
+  // ✅ TIMER CORREGIDO - Sincronizado correctamente
+  useEffect(() => {
+    if (votacion.estado === "activa" && votacion.fecha_activacion) {
+      const fechaActivacion = new Date(votacion.fecha_activacion).getTime();
+      const duracionMs = votacion.duracion_segundos * 1000;
+      const fechaFin = fechaActivacion + duracionMs;
+
+      let animationFrameId: number;
+      let lastUpdateTime = Date.now();
+
+      const updateTimer = () => {
+        const now = Date.now();
+        
+        // Solo actualizar si ha pasado al menos 1 segundo desde la última actualización
+        if (now - lastUpdateTime >= 1000) {
+          const restante = Math.max(0, Math.floor((fechaFin - now) / 1000));
+          setTiempoRestante(restante);
+          lastUpdateTime = now;
+        }
+
+        if (fechaFin > now) {
+          animationFrameId = requestAnimationFrame(updateTimer);
+        } else {
+          setTiempoRestante(0);
+        }
+      };
+
+      // Iniciar inmediatamente con el tiempo correcto
+      const restanteInicial = Math.max(0, Math.floor((fechaFin - Date.now()) / 1000));
+      setTiempoRestante(restanteInicial);
+      
+      // Sincronizar con el próximo segundo exacto
+      const msHastaProximoSegundo = 1000 - (Date.now() % 1000);
+      const timeoutId = setTimeout(() => {
+        lastUpdateTime = Date.now();
+        animationFrameId = requestAnimationFrame(updateTimer);
+      }, msHastaProximoSegundo);
+
+      return () => {
+        clearTimeout(timeoutId);
+        if (animationFrameId) {
+          cancelAnimationFrame(animationFrameId);
+        }
+      };
+    } else {
+      setTiempoRestante(null);
+    }
+  }, [votacion.estado, votacion.fecha_activacion, votacion.duracion_segundos]);
+
   const nextImage = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Evita que el click en el botón active el de "Ver Detalles"
+    e.stopPropagation();
     setCurrentImageIndex((prevIndex) => (prevIndex + 1) % images.length);
   };
 
@@ -29,25 +76,12 @@ const VotacionTesisCard: React.FC<VotacionTesisCardProps> = ({ votacion }) => {
       (prevIndex) => (prevIndex - 1 + images.length) % images.length
     );
   };
-  // --- FIN de la lógica del carrusel ---
 
-  useEffect(() => {
-    if (votacion.estado === "activa" && votacion.fecha_activacion) {
-      const fechaFin =
-        new Date(votacion.fecha_activacion).getTime() +
-        votacion.duracion_segundos * 1000;
-      const intervalId = setInterval(() => {
-        const ahora = new Date().getTime();
-        setTiempoRestante(Math.max(0, Math.floor((fechaFin - ahora) / 1000)));
-      }, 1000);
-      return () => clearInterval(intervalId);
-    }
-  }, [votacion]);
+  // Formatear tiempo restante
+  const minutos = tiempoRestante !== null ? Math.floor(tiempoRestante / 60) : 0;
+  const segundos = tiempoRestante !== null ? tiempoRestante % 60 : 0;
 
-  const minutos = Math.floor(tiempoRestante / 60);
-  const segundos = tiempoRestante % 60;
-
-  // --- NUEVO: Formateo de la duración total ---
+  // Formateo de la duración total
   const duracionMinutos = Math.floor(votacion.duracion_segundos / 60);
   const duracionSegundos = votacion.duracion_segundos % 60;
 
@@ -55,7 +89,7 @@ const VotacionTesisCard: React.FC<VotacionTesisCardProps> = ({ votacion }) => {
     router.push(`/conteo-votacion-tesis/${votacion.id}`);
   };
 
-  // --- MODIFICACIÓN 1: Lógica para texto de estado ---
+  // Lógica para texto de estado
   const getDisplayEstadoTexto = () => {
     if (votacion.estado === "finalizada") {
       return votacion.finalizada_definitivamente === 1
@@ -65,7 +99,6 @@ const VotacionTesisCard: React.FC<VotacionTesisCardProps> = ({ votacion }) => {
     return votacion.estado; // 'inactiva' o 'activa'
   };
   const displayEstado = getDisplayEstadoTexto();
-  // --- FIN MODIFICACIÓN ---
 
   return (
     <div
@@ -104,7 +137,6 @@ const VotacionTesisCard: React.FC<VotacionTesisCardProps> = ({ votacion }) => {
       <div className="list-item-main-content">
         <div className="list-item-header">
           <h3 className="list-item-title">{votacion.titulo}</h3>
-          {/* --- MODIFICACIÓN 2: Usar `displayEstado` para el texto --- */}
           <span className={`estado-tag estado-${votacion.estado}`}>
             {displayEstado}
           </span>
@@ -114,12 +146,11 @@ const VotacionTesisCard: React.FC<VotacionTesisCardProps> = ({ votacion }) => {
         </p>
 
         <div className="list-item-footer">
-          {/* --- MODIFICADO: Muestra la duración formateada --- */}
           <div className="info-chip">
             <strong>Duración:</strong> {duracionMinutos}:
             {String(duracionSegundos).padStart(2, "0")} min
           </div>
-          {votacion.estado === "activa" && (
+          {votacion.estado === "activa" && tiempoRestante !== null && (
             <div className="info-chip cronometro">
               <strong>Tiempo:</strong> {String(minutos).padStart(2, "0")}:
               {String(segundos).padStart(2, "0")}

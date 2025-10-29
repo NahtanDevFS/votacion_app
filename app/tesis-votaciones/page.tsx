@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import VotacionParticipanteCard from "@/components/VotacionParticipanteCard";
 import FingerprintJS from "@fingerprintjs/fingerprintjs";
+import { RealtimeChannel } from "@supabase/supabase-js";
 import "./VotacionesTesis.css";
 
 export interface ImagenTesis {
@@ -24,7 +25,6 @@ export interface VotacionParaParticipante {
   ha_votado: boolean;
   nota_final?: number;
   mi_nota?: number;
-  // --- MODIFICACIÓN 1: Añadir campo ---
   finalizada_definitivamente: number;
 }
 
@@ -38,6 +38,10 @@ export default function VotacionesTesisPage() {
     nombre_completo: string;
   } | null>(null);
   const [fingerprint, setFingerprint] = useState<string | null>(null);
+
+  // Referencias para las suscripciones
+  const votacionChannelRef = useRef<RealtimeChannel | null>(null);
+  const votoChannelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     const loadFingerprint = async () => {
@@ -57,92 +61,222 @@ export default function VotacionesTesisPage() {
         if (error || !data) {
           console.error("Error fetching participant data:", error);
           localStorage.removeItem("token_participante_tesis_vote_up");
-          // Redirigir a autenticación si el token es inválido
           router.push("/tesis-votaciones-autenticacion");
         } else {
           setParticipante(data);
         }
       } else {
-        // Si no hay token, redirigir a la página de autenticación
         router.push("/tesis-votaciones-autenticacion");
       }
     };
 
+    loadFingerprint();
     fetchParticipantData();
   }, [router]);
 
-  const fetchVotaciones = useCallback(
-    async (isInitialLoad = false) => {
-      if (!participante && !fingerprint) return;
-      if (isInitialLoad) setLoading(true);
+  // Función para enriquecer una votación con datos de voto y nota final
+  const enrichVotacion = useCallback(
+    async (votacion: any): Promise<VotacionParaParticipante> => {
+      let query = supabase
+        .from("voto_tesis")
+        .select("id, nota")
+        .eq("votacion_tesis_id", votacion.id);
 
-      try {
-        const { data: votacionesData, error: fetchError } = await supabase
-          .from("votacion_tesis")
-          // --- MODIFICACIÓN 2: `select` ya incluye el campo por el `*` ---
-          .select(`*, imagen_votacion_tesis(*)`)
-          .in("estado", ["activa", "inactiva", "finalizada"])
-          .order("fecha_creacion", { ascending: false });
-
-        if (fetchError) throw fetchError;
-
-        const votacionesConEstadoDeVoto = await Promise.all(
-          (votacionesData || []).map(async (votacion) => {
-            let query = supabase
-              .from("voto_tesis")
-              .select("id, nota")
-              .eq("votacion_tesis_id", votacion.id);
-
-            if (participante) {
-              query = query.eq("participante_id", participante.id);
-            } else if (fingerprint) {
-              query = query.eq("fingerprint", fingerprint);
-            }
-
-            const { data: voto, error: votoError } = await query.maybeSingle();
-
-            if (votoError) {
-              console.error(
-                `Error al verificar el voto para la votación ${votacion.id}:`,
-                votoError
-              );
-            }
-
-            let nota_final;
-            if (votacion.estado === "finalizada") {
-              const { data } = await supabase.rpc("calcular_nota_final", {
-                id_votacion: votacion.id,
-              });
-              nota_final = data;
-            }
-
-            return {
-              ...votacion,
-              ha_votado: !!voto,
-              mi_nota: voto?.nota,
-              nota_final,
-            };
-          })
-        );
-        setVotaciones(votacionesConEstadoDeVoto as VotacionParaParticipante[]); // Cast al tipo actualizado
-        setError(null);
-      } catch (err: any) {
-        console.error("Error al refrescar votaciones:", err);
-        setError("No se pudieron cargar las votaciones.");
-      } finally {
-        if (isInitialLoad) setLoading(false);
+      if (participante) {
+        query = query.eq("participante_id", participante.id);
+      } else if (fingerprint) {
+        query = query.eq("fingerprint", fingerprint);
       }
+
+      const { data: voto, error: votoError } = await query.maybeSingle();
+
+      if (votoError) {
+        console.error(
+          `Error al verificar el voto para la votación ${votacion.id}:`,
+          votoError
+        );
+      }
+
+      let nota_final;
+      if (votacion.estado === "finalizada") {
+        const { data } = await supabase.rpc("calcular_nota_final", {
+          id_votacion: votacion.id,
+        });
+        nota_final = data;
+      }
+
+      return {
+        ...votacion,
+        ha_votado: !!voto,
+        mi_nota: voto?.nota,
+        nota_final,
+      };
     },
     [participante, fingerprint]
   );
 
+  // Carga inicial de votaciones
+  const fetchVotaciones = useCallback(async () => {
+    if (!participante && !fingerprint) return;
+    setLoading(true);
+
+    try {
+      const { data: votacionesData, error: fetchError } = await supabase
+        .from("votacion_tesis")
+        .select(`
+          *,
+          imagen_votacion_tesis(
+            id,
+            url_imagen
+          )
+        `)
+        .in("estado", ["activa", "inactiva", "finalizada"])
+        .order("fecha_creacion", { ascending: false });
+
+      if (fetchError) throw fetchError;
+
+      const votacionesEnriquecidas = await Promise.all(
+        (votacionesData || []).map(enrichVotacion)
+      );
+
+      setVotaciones(votacionesEnriquecidas);
+      setError(null);
+    } catch (err: any) {
+      console.error("Error al cargar votaciones:", err);
+      setError("No se pudieron cargar las votaciones.");
+    } finally {
+      setLoading(false);
+    }
+  }, [participante, fingerprint, enrichVotacion]);
+
+  // Configurar suscripciones Realtime
+  useEffect(() => {
+    if (!participante && !fingerprint) return;
+
+    // Limpiar suscripciones anteriores
+    if (votacionChannelRef.current) {
+      supabase.removeChannel(votacionChannelRef.current);
+    }
+    if (votoChannelRef.current) {
+      supabase.removeChannel(votoChannelRef.current);
+    }
+
+    // Suscripción a cambios en votacion_tesis
+    const votacionChannel = supabase
+      .channel("votaciones_list_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*", // INSERT, UPDATE, DELETE
+          schema: "public",
+          table: "votacion_tesis",
+        },
+        async (payload) => {
+          console.log("Cambio en votacion_tesis:", payload);
+
+          if (payload.eventType === "INSERT") {
+            // Nueva votación creada - cargar con imágenes
+            const { data: votacionCompleta } = await supabase
+              .from("votacion_tesis")
+              .select(`
+                *,
+                imagen_votacion_tesis(
+                  id,
+                  url_imagen
+                )
+              `)
+              .eq("id", payload.new.id)
+              .single();
+
+            if (votacionCompleta) {
+              const nuevaVotacion = await enrichVotacion(votacionCompleta);
+              setVotaciones((prev) => [nuevaVotacion, ...prev]);
+            }
+          } else if (payload.eventType === "UPDATE") {
+            // Votación actualizada - mantener imágenes existentes
+            setVotaciones((prev) =>
+              prev.map((v) => {
+                if (v.id === payload.new.id) {
+                  return {
+                    ...v,
+                    ...payload.new,
+                    imagen_votacion_tesis: v.imagen_votacion_tesis, // Mantener imágenes
+                  };
+                }
+                return v;
+              })
+            );
+
+            // Si cambió a finalizada, recalcular nota final
+            if (payload.new.estado === "finalizada") {
+              const { data: notaFinal } = await supabase.rpc("calcular_nota_final", {
+                id_votacion: payload.new.id,
+              });
+              setVotaciones((prev) =>
+                prev.map((v) =>
+                  v.id === payload.new.id ? { ...v, nota_final: notaFinal } : v
+                )
+              );
+            }
+          } else if (payload.eventType === "DELETE") {
+            // Votación eliminada
+            setVotaciones((prev) => prev.filter((v) => v.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    votacionChannelRef.current = votacionChannel;
+
+    // Suscripción a cambios en voto_tesis (para actualizar estado de "ha_votado")
+    let votoFilter = "";
+    if (participante) {
+      votoFilter = `participante_id=eq.${participante.id}`;
+    } else if (fingerprint) {
+      votoFilter = `fingerprint=eq.${fingerprint}`;
+    }
+
+    const votoChannel = supabase
+      .channel("votos_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "voto_tesis",
+          filter: votoFilter,
+        },
+        async (payload) => {
+          console.log("Nuevo voto registrado:", payload);
+          const votacionId = payload.new.votacion_tesis_id;
+
+          // Actualizar la votación correspondiente
+          setVotaciones((prev) =>
+            prev.map((v) =>
+              v.id === votacionId
+                ? { ...v, ha_votado: true, mi_nota: payload.new.nota }
+                : v
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    votoChannelRef.current = votoChannel;
+
+    // Cleanup
+    return () => {
+      supabase.removeChannel(votacionChannel);
+      supabase.removeChannel(votoChannel);
+      votacionChannelRef.current = null;
+      votoChannelRef.current = null;
+    };
+  }, [participante, fingerprint, enrichVotacion]);
+
+  // Cargar votaciones inicialmente
   useEffect(() => {
     if (participante || fingerprint) {
-      fetchVotaciones(true);
-      const intervalId = setInterval(() => {
-        fetchVotaciones(false);
-      }, 1000);
-      return () => clearInterval(intervalId);
+      fetchVotaciones();
     }
   }, [participante, fingerprint, fetchVotaciones]);
 
@@ -211,7 +345,6 @@ export default function VotacionesTesisPage() {
         )}
       </section>
 
-      {/* --- MODIFICACIÓN 3: Título de la sección --- */}
       <section className="votaciones-section">
         <h2 className="section-title finalizadas">Cerradas y Finalizadas</h2>
         {votacionesFinalizadas.length > 0 ? (
@@ -222,7 +355,6 @@ export default function VotacionesTesisPage() {
           </div>
         ) : (
           <p className="no-votaciones">
-            {/* --- MODIFICACIÓN 4: Texto de la sección --- */}
             No hay votaciones cerradas o finalizadas.
           </p>
         )}

@@ -12,6 +12,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Swal from "sweetalert2";
 import FingerprintJS from "@fingerprintjs/fingerprintjs";
+import { RealtimeChannel } from "@supabase/supabase-js";
 import "./VotarTesis.css";
 
 // --- Componente de Confeti
@@ -115,6 +116,10 @@ function VotarTesisContent() {
     rol: "jurado" | "publico";
   } | null>(null);
 
+  // Referencias para las suscripciones
+  const votacionChannelRef = useRef<RealtimeChannel | null>(null);
+  const votoChannelRef = useRef<RealtimeChannel | null>(null);
+
   useEffect(() => {
     const getFingerprint = async () => {
       try {
@@ -146,121 +151,221 @@ function VotarTesisContent() {
     return "normal";
   };
 
-  const fetchVotacionState = useCallback(
-    async (isInitialLoad = false) => {
-      if (isInitialLoad) setIsLoading(true);
-      if (!fingerprint) return;
+  // Función para cargar votación inicial
+  const fetchVotacionInitial = useCallback(async () => {
+    if (!fingerprint) return;
 
-      const codigoAcceso = localStorage.getItem(
-        "token_participante_tesis_vote_up"
-      );
+    const codigoAcceso = localStorage.getItem(
+      "token_participante_tesis_vote_up"
+    );
 
-      try {
-        const { data: vData, error: vError } = await supabase
-          .from("votacion_tesis")
-          .select("*, imagen_votacion_tesis(url_imagen)")
-          .eq("token_qr", token_qr)
+    try {
+      const { data: vData, error: vError } = await supabase
+        .from("votacion_tesis")
+        .select("*, imagen_votacion_tesis(url_imagen)")
+        .eq("token_qr", token_qr)
+        .single();
+
+      if (vError)
+        throw new Error("La votación no existe o ya no está disponible.");
+
+      if (vData.estado === "finalizada") {
+        Swal.fire({
+          title: "Votación Finalizada",
+          text: "Esta votación ya ha terminado. Serás redirigido al listado de votaciones.",
+          icon: "info",
+          timer: 3000,
+          timerProgressBar: true,
+          showConfirmButton: false,
+          allowOutsideClick: false,
+        }).then(() => {
+          router.push("/tesis-votaciones");
+        });
+        return;
+      }
+
+      if (vData.estado === "inactiva")
+        throw new Error("Esta votación aún no ha sido activada.");
+
+      setVotacion(vData);
+
+      // Cargar datos del participante
+      if (codigoAcceso) {
+        const { data: pData, error: pError } = await supabase
+          .from("participantes")
+          .select("id, rol_general, nombre_completo")
+          .eq("codigo_acceso", codigoAcceso)
           .single();
-        if (vError)
-          throw new Error("La votación no existe o ya no está disponible.");
-        if (vData.estado === "finalizada") {
-          Swal.fire({
-            title: "Votación Finalizada",
-            text: "Esta votación ya ha terminado. Serás redirigido al listado de votaciones.",
-            icon: "info",
-            timer: 3000,
-            timerProgressBar: true,
-            showConfirmButton: false,
-            allowOutsideClick: false,
-          }).then(() => {
-            router.push("/tesis-votaciones");
-          });
-          return;
-        }
-        if (vData.estado === "inactiva")
-          throw new Error("Esta votación aún no ha sido activada.");
 
-        setVotacion(vData);
+        if (pError || !pData)
+          throw new Error("Tu código de acceso de jurado no es válido.");
 
-        if (isInitialLoad) {
-          if (codigoAcceso) {
-            const { data: pData, error: pError } = await supabase
-              .from("participantes")
-              .select("id, rol_general, nombre_completo")
-              .eq("codigo_acceso", codigoAcceso)
-              .single();
-            if (pError || !pData)
-              throw new Error("Tu código de acceso de jurado no es válido.");
+        setParticipante(pData);
 
-            setParticipante(pData);
-
-            let rolFinal: "jurado" | "publico" = "publico";
-            if (pData.rol_general === "jurado") {
-              const { data: esJuradoAsignado } = await supabase
-                .from("jurado_por_votacion")
-                .select("id")
-                .eq("votacion_tesis_id", vData.id)
-                .eq("participante_id", pData.id)
-                .maybeSingle();
-              if (esJuradoAsignado) {
-                rolFinal = "jurado";
-              }
-            }
-            setRolParaVotar(rolFinal);
-
-            const { data: votoExistente } = await supabase
-              .from("voto_tesis")
-              .select("id, nota, created_at, rol_al_votar")
-              .eq("votacion_tesis_id", vData.id)
-              .eq("participante_id", pData.id)
-              .maybeSingle();
-
-            if (votoExistente) {
-              setHaVotado(true);
-              setVotoEmitido({
-                nota: votoExistente.nota,
-                fecha: votoExistente.created_at,
-                rol: votoExistente.rol_al_votar,
-              });
-            }
-          } else {
-            setParticipante(null);
-            setRolParaVotar("publico");
-            const { data: votoExistente } = await supabase
-              .from("voto_tesis")
-              .select("id, nota, created_at, rol_al_votar")
-              .eq("votacion_tesis_id", vData.id)
-              .eq("fingerprint", fingerprint)
-              .maybeSingle();
-
-            if (votoExistente) {
-              setHaVotado(true);
-              setVotoEmitido({
-                nota: votoExistente.nota,
-                fecha: votoExistente.created_at,
-                rol: votoExistente.rol_al_votar,
-              });
-            }
+        let rolFinal: "jurado" | "publico" = "publico";
+        if (pData.rol_general === "jurado") {
+          const { data: esJuradoAsignado } = await supabase
+            .from("jurado_por_votacion")
+            .select("id")
+            .eq("votacion_tesis_id", vData.id)
+            .eq("participante_id", pData.id)
+            .maybeSingle();
+          if (esJuradoAsignado) {
+            rolFinal = "jurado";
           }
         }
-        setError(null);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        if (isInitialLoad) setIsLoading(false);
-      }
-    },
-    [token_qr, router, fingerprint]
-  );
+        setRolParaVotar(rolFinal);
 
+        const { data: votoExistente } = await supabase
+          .from("voto_tesis")
+          .select("id, nota, created_at, rol_al_votar")
+          .eq("votacion_tesis_id", vData.id)
+          .eq("participante_id", pData.id)
+          .maybeSingle();
+
+        if (votoExistente) {
+          setHaVotado(true);
+          setVotoEmitido({
+            nota: votoExistente.nota,
+            fecha: votoExistente.created_at,
+            rol: votoExistente.rol_al_votar,
+          });
+        }
+      } else {
+        setParticipante(null);
+        setRolParaVotar("publico");
+        const { data: votoExistente } = await supabase
+          .from("voto_tesis")
+          .select("id, nota, created_at, rol_al_votar")
+          .eq("votacion_tesis_id", vData.id)
+          .eq("fingerprint", fingerprint)
+          .maybeSingle();
+
+        if (votoExistente) {
+          setHaVotado(true);
+          setVotoEmitido({
+            nota: votoExistente.nota,
+            fecha: votoExistente.created_at,
+            rol: votoExistente.rol_al_votar,
+          });
+        }
+      }
+      setError(null);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [token_qr, router, fingerprint]);
+
+  // Suscripción a cambios en votacion_tesis
+  useEffect(() => {
+    if (!votacion) return;
+
+    // Limpiar suscripción anterior si existe
+    if (votacionChannelRef.current) {
+      supabase.removeChannel(votacionChannelRef.current);
+    }
+
+    const channel = supabase
+      .channel(`votacion_${votacion.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "votacion_tesis",
+          filter: `id=eq.${votacion.id}`,
+        },
+        (payload) => {
+          console.log("Cambio detectado en votacion_tesis:", payload);
+          const nuevoEstado = payload.new.estado;
+
+          if (nuevoEstado === "finalizada" && !haVotado) {
+            Swal.fire({
+              title: "Votación Finalizada",
+              text: "La votación ha sido cerrada. Serás redirigido al listado.",
+              icon: "warning",
+              timer: 3000,
+              timerProgressBar: true,
+              showConfirmButton: false,
+              allowOutsideClick: false,
+            }).then(() => {
+              router.push("/tesis-votaciones");
+            });
+          } else {
+            // Actualizar estado local
+            setVotacion((prev) =>
+              prev ? { ...prev, estado: nuevoEstado } : prev
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    votacionChannelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+      votacionChannelRef.current = null;
+    };
+  }, [votacion, haVotado, router]);
+
+  // Suscripción a cambios en voto_tesis (para detectar si alguien más vota con mi cuenta/fingerprint)
+  useEffect(() => {
+    if (!votacion || !fingerprint) return;
+
+    // Limpiar suscripción anterior si existe
+    if (votoChannelRef.current) {
+      supabase.removeChannel(votoChannelRef.current);
+    }
+
+    let filterString = `votacion_tesis_id=eq.${votacion.id}`;
+    if (participante) {
+      filterString += `,participante_id=eq.${participante.id}`;
+    } else {
+      filterString += `,fingerprint=eq.${fingerprint}`;
+    }
+
+    const channel = supabase
+      .channel(`voto_${votacion.id}_${fingerprint}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "voto_tesis",
+          filter: filterString,
+        },
+        (payload) => {
+          console.log("Nuevo voto detectado:", payload);
+          // Si detectamos un INSERT de nuestro propio voto (puede ser desde otro tab o dispositivo)
+          setHaVotado(true);
+          setVotoEmitido({
+            nota: payload.new.nota,
+            fecha: payload.new.created_at,
+            rol: payload.new.rol_al_votar,
+          });
+        }
+      )
+      .subscribe();
+
+    votoChannelRef.current = channel;
+
+    return () => {
+      supabase.removeChannel(channel);
+      votoChannelRef.current = null;
+    };
+  }, [votacion, participante, fingerprint]);
+
+  // Cargar datos iniciales
   useEffect(() => {
     if (fingerprint) {
-      fetchVotacionState(true);
-      const intervalId = setInterval(() => fetchVotacionState(false), 2000);
-      return () => clearInterval(intervalId);
+      fetchVotacionInitial();
     }
-  }, [fingerprint, fetchVotacionState]);
+  }, [fingerprint, fetchVotacionInitial]);
 
+  // Timer local (sigue siendo necesario para el countdown)
   useEffect(() => {
     if (votacion && votacion.estado === "activa") {
       const fechaFin =
@@ -315,7 +420,6 @@ function VotarTesisContent() {
   const handleSubmit = async () => {
     if (isSubmitting || haVotado || tiempoRestante === 0 || error) return;
 
-    // CAMBIO PRINCIPAL: Solo mostrar confirmación si es jurado asignado
     if (rolParaVotar === "jurado") {
       const result = await Swal.fire({
         title: `¿Confirmas tu calificación de ${nota.toFixed(1)}?`,
@@ -367,9 +471,7 @@ function VotarTesisContent() {
 
       if (insertError) throw insertError;
 
-      // CAMBIO: Comportamiento diferenciado según el rol
       if (rolParaVotar === "publico") {
-        // Para público (incluye jurados no asignados): mensaje breve y redirección
         await Swal.fire({
           title: "¡Voto Registrado!",
           text: "Gracias por tu participación. Serás redirigido.",
@@ -380,7 +482,6 @@ function VotarTesisContent() {
         });
         router.push("/tesis-votaciones");
       } else {
-        // Para jurado asignado: pantalla de confirmación detallada
         setHaVotado(true);
         setVotoEmitido({
           nota: nota,
@@ -459,7 +560,6 @@ function VotarTesisContent() {
           </div>
 
           {haVotado && votoEmitido ? (
-            // RESUMEN POST-VOTO (Solo se muestra para jurados asignados)
             <div className="voto-summary">
               <div className="success-icon">✅</div>
               <h2>¡Voto Registrado Exitosamente!</h2>
@@ -522,7 +622,6 @@ function VotarTesisContent() {
               </p>
             </div>
           ) : (
-            // FORMULARIO DE VOTACIÓN
             <>
               <div className="votar-header">
                 <h1>{votacion.titulo}</h1>

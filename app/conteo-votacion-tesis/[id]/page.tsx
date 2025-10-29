@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Swal from "sweetalert2";
 import "./DetalleVotacion.css";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 // --- Interfaces de Tipos de Datos ---
 interface ImagenTesis {
@@ -55,66 +56,168 @@ export default function DetalleVotacionPage() {
     []
   );
 
-  const fetchData = useCallback(
-    async (isInitialLoad = false) => {
-      if (!id) return;
-      if (isInitialLoad) setLoading(true);
+  // Ref para almacenar el canal de suscripción
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
-      try {
-        await supabase.rpc("finalizar_votaciones_expiradas");
+  const fetchData = useCallback(async () => {
+    if (!id) return;
 
-        // El select con * ya trae la nueva columna, no se necesita cambiar
-        const { data: votacionData, error: votacionError } = await supabase
-          .from("votacion_tesis")
-          .select(`*, imagen_votacion_tesis(*)`)
-          .eq("id", id)
-          .single();
-        if (votacionError) throw new Error("No se encontró la votación.");
-        setVotacion(votacionData);
+    try {
+      await supabase.rpc("finalizar_votaciones_expiradas");
 
-        const { data: juradosData, error: juradosError } = await supabase
-          .from("jurado_por_votacion")
-          .select(
-            `participantes(id, nombre_completo, url_imagen_participante, codigo_acceso)`
-          )
-          .eq("votacion_tesis_id", id)
-          .order("nombre_completo", {
-            foreignTable: "participantes",
-            ascending: true,
-          });
-        if (juradosError) throw juradosError;
-        const transformedJurados = juradosData.map((j: any) => ({
-          ...j,
-          participantes: Array.isArray(j.participantes)
-            ? j.participantes[0]
-            : j.participantes,
-        })) as JuradoAsignado[];
-        setJuradosAsignados(transformedJurados);
+      const { data: votacionData, error: votacionError } = await supabase
+        .from("votacion_tesis")
+        .select(`*, imagen_votacion_tesis(*)`)
+        .eq("id", id)
+        .single();
+      if (votacionError) throw new Error("No se encontró la votación.");
+      setVotacion(votacionData);
 
-        const { count, error: countError } = await supabase
-          .from("voto_tesis")
-          .select("*", { count: "exact", head: true })
-          .eq("votacion_tesis_id", id);
+      const { data: juradosData, error: juradosError } = await supabase
+        .from("jurado_por_votacion")
+        .select(
+          `participantes(id, nombre_completo, url_imagen_participante, codigo_acceso)`
+        )
+        .eq("votacion_tesis_id", id)
+        .order("nombre_completo", {
+          foreignTable: "participantes",
+          ascending: true,
+        });
+      if (juradosError) throw juradosError;
+      const transformedJurados = juradosData.map((j: any) => ({
+        ...j,
+        participantes: Array.isArray(j.participantes)
+          ? j.participantes[0]
+          : j.participantes,
+      })) as JuradoAsignado[];
+      setJuradosAsignados(transformedJurados);
 
-        if (countError) throw countError;
-        setTotalVotos(count || 0);
+      const { count, error: countError } = await supabase
+        .from("voto_tesis")
+        .select("*", { count: "exact", head: true })
+        .eq("votacion_tesis_id", id);
 
-        setError(null);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        if (isInitialLoad) setLoading(false);
-      }
-    },
-    [id]
-  );
+      if (countError) throw countError;
+      setTotalVotos(count || 0);
 
+      setError(null);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  // Configurar suscripciones de Realtime
   useEffect(() => {
-    fetchData(true);
-    const intervalId = setInterval(() => fetchData(false), 1000);
-    return () => clearInterval(intervalId);
-  }, [fetchData]);
+    if (!id) return;
 
+    // Carga inicial
+    fetchData();
+
+    // Crear canal de suscripción
+    const channel = supabase
+      .channel(`votacion-${id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "votacion_tesis",
+          filter: `id=eq.${id}`,
+        },
+        (payload) => {
+          console.log("Cambio en votacion_tesis:", payload);
+          if (payload.eventType === "UPDATE" || payload.eventType === "INSERT") {
+            // Actualizar votación con los nuevos datos
+            setVotacion((prev) => ({
+              ...prev,
+              ...(payload.new as VotacionDetalle),
+            }));
+          } else if (payload.eventType === "DELETE") {
+            // Si se elimina la votación, redirigir
+            router.push("/dashboard-votacion-tesis");
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "voto_tesis",
+          filter: `votacion_tesis_id=eq.${id}`,
+        },
+        async (payload) => {
+          console.log("Cambio en voto_tesis:", payload);
+          // Recalcular total de votos
+          const { count } = await supabase
+            .from("voto_tesis")
+            .select("*", { count: "exact", head: true })
+            .eq("votacion_tesis_id", id);
+          setTotalVotos(count || 0);
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "jurado_por_votacion",
+          filter: `votacion_tesis_id=eq.${id}`,
+        },
+        async (payload) => {
+          console.log("Cambio en jurado_por_votacion:", payload);
+          // Recargar jurados
+          const { data: juradosData } = await supabase
+            .from("jurado_por_votacion")
+            .select(
+              `participantes(id, nombre_completo, url_imagen_participante, codigo_acceso)`
+            )
+            .eq("votacion_tesis_id", id)
+            .order("nombre_completo", {
+              foreignTable: "participantes",
+              ascending: true,
+            });
+          if (juradosData) {
+            const transformedJurados = juradosData.map((j: any) => ({
+              ...j,
+              participantes: Array.isArray(j.participantes)
+                ? j.participantes[0]
+                : j.participantes,
+            })) as JuradoAsignado[];
+            setJuradosAsignados(transformedJurados);
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "imagen_votacion_tesis",
+          filter: `votacion_tesis_id=eq.${id}`,
+        },
+        (payload) => {
+          console.log("Cambio en imagen_votacion_tesis:", payload);
+          // Recargar datos completos para actualizar imágenes
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+
+    // Cleanup al desmontar
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  }, [id, fetchData, router]);
+
+  // Temporizador para votaciones activas (mantener este efecto)
   useEffect(() => {
     if (votacion?.estado === "activa" && votacion.fecha_activacion) {
       const fechaFin =
@@ -193,11 +296,11 @@ export default function DetalleVotacionPage() {
 
   const handleForceFinalize = async () => {
     Swal.fire({
-      title: "¿Cerrar esta votación?", // Texto cambiado
+      title: "¿Cerrar esta votación?",
       text: "La votación pasará a estado 'Cerrada' y podrá reactivarse.",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonText: "Sí, cerrar", // Texto cambiado
+      confirmButtonText: "Sí, cerrar",
     }).then(async (result) => {
       if (result.isConfirmed) {
         const { data, error } = await supabase
@@ -220,14 +323,13 @@ export default function DetalleVotacionPage() {
     });
   };
 
-  // --- MODIFICACIÓN 2: Nueva función para finalizar definitivamente ---
   const handleFinalizeDefinitively = async () => {
     Swal.fire({
       title: "¿Finalizar Definitivamente?",
       text: "Esta votación se cerrará permanentemente y NO podrá ser reactivada. ¿Estás seguro?",
-      icon: "error", // Icono de error para más énfasis
+      icon: "error",
       showCancelButton: true,
-      confirmButtonColor: "#d33", // Botón de confirmar en rojo
+      confirmButtonColor: "#d33",
       cancelButtonColor: "#3085d6",
       confirmButtonText: "Sí, finalizar permanentemente",
       cancelButtonText: "Cancelar",
@@ -236,8 +338,8 @@ export default function DetalleVotacionPage() {
         const { data, error } = await supabase
           .from("votacion_tesis")
           .update({
-            estado: "finalizada", // Asegura que el estado sea 'finalizada'
-            finalizada_definitivamente: 1, // Setea el flag definitivo
+            estado: "finalizada",
+            finalizada_definitivamente: 1,
           })
           .eq("id", id)
           .select()
@@ -255,12 +357,11 @@ export default function DetalleVotacionPage() {
             "La votación ha sido cerrada de forma definitiva.",
             "success"
           );
-          setVotacion(data); // Actualiza el estado local
+          setVotacion(data);
         }
       }
     });
   };
-  // --- FIN MODIFICACIÓN ---
 
   const handleOpenFullScreenModal = () => setIsResultModalOpen(true);
   const handleCloseFullScreenModal = () => {
@@ -376,18 +477,15 @@ export default function DetalleVotacionPage() {
   const duracionMinutos = Math.floor(votacion.duracion_segundos / 60);
   const duracionSegundos = votacion.duracion_segundos % 60;
 
-  // --- MODIFICACIÓN 3: Lógica para mostrar texto de estado ---
-  // Función helper para determinar el texto a mostrar
   const getDisplayEstadoTexto = () => {
     if (votacion.estado === "finalizada") {
       return votacion.finalizada_definitivamente === 1
         ? "Finalizada"
         : "Cerrada";
     }
-    return votacion.estado; // 'inactiva' o 'activa'
+    return votacion.estado;
   };
   const displayEstado = getDisplayEstadoTexto();
-  // --- FIN MODIFICACIÓN ---
 
   const MainContent = () => (
     <div
@@ -396,7 +494,6 @@ export default function DetalleVotacionPage() {
     >
       <div className="header-info-container">
         <div className="header-status-timer">
-          {/* Usar 'votacion.estado' para la clase CSS, 'displayEstado' para el texto */}
           <p className={`estado-tag estado-${votacion.estado}`}>
             {displayEstado}
           </p>
@@ -527,7 +624,6 @@ export default function DetalleVotacionPage() {
             <div className="info-grid">
               <div>
                 <span>Estado</span>
-                {/* Usar 'votacion.estado' para la clase CSS, 'displayEstado' para el texto */}
                 <p className={`estado-tag estado-${votacion.estado}`}>
                   {displayEstado}
                 </p>
@@ -550,10 +646,7 @@ export default function DetalleVotacionPage() {
               </div>
             )}
 
-            {/* --- MODIFICACIÓN 4: Lógica de botones actualizada --- */}
             <div className="info-actions">
-              {/* 1. Botón Activar / Reactivar */}
-              {/* Solo aparece si está inactiva, o si está finalizada PERO NO definitivamente */}
               {(votacion.estado === "inactiva" ||
                 (votacion.estado === "finalizada" &&
                   votacion.finalizada_definitivamente === 0)) && (
@@ -567,7 +660,6 @@ export default function DetalleVotacionPage() {
                 </button>
               )}
 
-              {/* 2. Botón Cerrar (Temporal) */}
               {votacion.estado === "activa" && (
                 <button
                   className="action-button finalize"
@@ -577,27 +669,22 @@ export default function DetalleVotacionPage() {
                 </button>
               )}
 
-              {/* 3. NUEVO Botón Finalizar Definitivamente */}
-              {/* Solo aparece si está 'finalizada' (cerrada) pero no 'definitiva' */}
               {votacion.estado === "finalizada" &&
                 votacion.finalizada_definitivamente === 0 && (
                   <button
-                    className="action-button finalize-definitive" // Nueva clase CSS
+                    className="action-button finalize-definitive"
                     onClick={handleFinalizeDefinitively}
                   >
                     Finalizar Definitivamente
                   </button>
                 )}
 
-              {/* 4. Botón Editar */}
-              {/* Ocultamos editar si ya está finalizada definitivamente */}
               {votacion.finalizada_definitivamente === 0 && (
                 <button className="action-button edit" onClick={handleEdit}>
                   Editar
                 </button>
               )}
 
-              {/* 5. Botón Eliminar */}
               <button
                 className="action-button delete"
                 onClick={handleDeleteVotacion}
@@ -606,7 +693,6 @@ export default function DetalleVotacionPage() {
                 {deleting ? "Eliminando..." : "Eliminar Votación"}
               </button>
             </div>
-            {/* --- FIN MODIFICACIÓN --- */}
           </div>
           <div className="detalle-card recursos">
             <h3>Recursos de Votación</h3>

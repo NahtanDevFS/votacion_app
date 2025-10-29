@@ -1,7 +1,7 @@
 // pages/dashboard-votacion-tesis/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import "./dashboard_tesis.css";
@@ -10,6 +10,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import Swal from "sweetalert2";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 // Definimos los tipos de datos para mayor seguridad y claridad
 export interface ImagenTesis {
@@ -30,7 +31,6 @@ export interface VotacionTesis {
   fecha_activacion: string | null;
   imagen_votacion_tesis: ImagenTesis[];
   nota_final?: number;
-  // --- MODIFICACIÓN 1: Añadir campo ---
   finalizada_definitivamente: number;
 }
 
@@ -39,69 +39,183 @@ export default function TesisDashboardPage() {
   const [votaciones, setVotaciones] = useState<VotacionTesis[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Ref para almacenar el canal de suscripción
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
-  const fetchAndProcessVotaciones = useCallback(
-    async (isInitialLoad = false) => {
-      if (isInitialLoad) {
-        setLoading(true);
+  const fetchAndProcessVotaciones = useCallback(async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem("admin") || "{}");
+      if (!user.id) {
+        throw new Error("No se pudo identificar al administrador.");
       }
-      try {
-        const user = JSON.parse(localStorage.getItem("admin") || "{}");
-        if (!user.id) {
-          throw new Error("No se pudo identificar al administrador.");
-        }
-        await supabase.rpc("finalizar_votaciones_expiradas");
-        const { data: votacionesData, error: fetchError } = await supabase
-          .from("votacion_tesis")
-          // --- MODIFICACIÓN 2: `select` ya incluye el campo por el `*` ---
-          .select(`*, imagen_votacion_tesis(id, url_imagen)`)
-          .eq("creado_por", user.id)
-          .order("id", { ascending: false });
-        if (fetchError) throw fetchError;
-        const votacionesConNotas = await Promise.all(
-          votacionesData.map(async (votacion) => {
-            // --- MODIFICACIÓN 3: Asegurar que el estado `finalizada_definitivamente` se propague ---
-            // (Ya está incluido por el `...votacion` y el `select *`)
-            if (votacion.estado === "finalizada") {
+      await supabase.rpc("finalizar_votaciones_expiradas");
+      const { data: votacionesData, error: fetchError } = await supabase
+        .from("votacion_tesis")
+        .select(`*, imagen_votacion_tesis(id, url_imagen)`)
+        .eq("creado_por", user.id)
+        .order("id", { ascending: false });
+      if (fetchError) throw fetchError;
+      const votacionesConNotas = await Promise.all(
+        votacionesData.map(async (votacion) => {
+          if (votacion.estado === "finalizada") {
+            const { data: nota_final } = await supabase.rpc(
+              "calcular_nota_final",
+              { id_votacion: votacion.id }
+            );
+            return { ...votacion, nota_final: nota_final || 0 };
+          }
+          return votacion;
+        })
+      );
+      setVotaciones(votacionesConNotas as VotacionTesis[]);
+      setError(null);
+    } catch (err: any) {
+      console.error("Error al cargar las votaciones:", err);
+      setError("No se pudieron cargar las votaciones.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Configurar suscripciones de Realtime
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("admin") || "{}");
+    if (!user.id) {
+      setError("No se pudo identificar al administrador.");
+      setLoading(false);
+      return;
+    }
+
+    // Carga inicial
+    fetchAndProcessVotaciones();
+
+    // Crear canal de suscripción
+    const channel = supabase
+      .channel("votaciones-dashboard")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "votacion_tesis",
+          filter: `creado_por=eq.${user.id}`,
+        },
+        async (payload) => {
+          console.log("Cambio en votacion_tesis:", payload);
+          
+          if (payload.eventType === "INSERT") {
+            // Agregar nueva votación
+            const newVotacion = payload.new as VotacionTesis;
+            const { data: imagenes } = await supabase
+              .from("imagen_votacion_tesis")
+              .select("id, url_imagen")
+              .eq("votacion_tesis_id", newVotacion.id);
+            
+            newVotacion.imagen_votacion_tesis = imagenes || [];
+            setVotaciones((prev) => [newVotacion, ...prev]);
+          } else if (payload.eventType === "UPDATE") {
+            // Actualizar votación existente
+            const updatedVotacion = payload.new as VotacionTesis;
+            
+            // Si cambió a finalizada, calcular nota final
+            if (updatedVotacion.estado === "finalizada") {
               const { data: nota_final } = await supabase.rpc(
                 "calcular_nota_final",
-                { id_votacion: votacion.id }
+                { id_votacion: updatedVotacion.id }
               );
-              return { ...votacion, nota_final: nota_final || 0 };
+              updatedVotacion.nota_final = nota_final || 0;
             }
-            return votacion;
-          })
-        );
-        setVotaciones(votacionesConNotas as VotacionTesis[]);
-        setError(null);
-      } catch (err: any) {
-        console.error("Error al refrescar las votaciones:", err);
-        setError("No se pudieron cargar las votaciones.");
-      } finally {
-        if (isInitialLoad) {
-          setLoading(false);
+            
+            setVotaciones((prev) =>
+              prev.map((v) =>
+                v.id === updatedVotacion.id
+                  ? { ...v, ...updatedVotacion }
+                  : v
+              )
+            );
+          } else if (payload.eventType === "DELETE") {
+            // Eliminar votación
+            setVotaciones((prev) =>
+              prev.filter((v) => v.id !== payload.old.id)
+            );
+          }
         }
-      }
-    },
-    []
-  );
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "voto_tesis",
+        },
+        async (payload) => {
+          console.log("Cambio en voto_tesis:", payload);
+          // Cuando hay un cambio en votos, recalcular notas finales para votaciones finalizadas
+          const finalizadas = votaciones.filter((v) => v.estado === "finalizada");
+          
+          for (const votacion of finalizadas) {
+            const { data: nota_final } = await supabase.rpc(
+              "calcular_nota_final",
+              { id_votacion: votacion.id }
+            );
+            
+            setVotaciones((prev) =>
+              prev.map((v) =>
+                v.id === votacion.id ? { ...v, nota_final: nota_final || 0 } : v
+              )
+            );
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "imagen_votacion_tesis",
+        },
+        async (payload) => {
+          console.log("Cambio en imagen_votacion_tesis:", payload);
+          
+          if (payload.eventType === "INSERT" || payload.eventType === "DELETE") {
+            const votacionId = (payload.new as any || payload.old as any).votacion_tesis_id;
+            
+            // Recargar imágenes para esa votación
+            const { data: imagenes } = await supabase
+              .from("imagen_votacion_tesis")
+              .select("id, url_imagen")
+              .eq("votacion_tesis_id", votacionId);
+            
+            setVotaciones((prev) =>
+              prev.map((v) =>
+                v.id === votacionId
+                  ? { ...v, imagen_votacion_tesis: imagenes || [] }
+                  : v
+              )
+            );
+          }
+        }
+      )
+      .subscribe();
 
-  useEffect(() => {
-    fetchAndProcessVotaciones(true);
-    const intervalId = setInterval(
-      () => fetchAndProcessVotaciones(false),
-      2000
-    );
-    return () => clearInterval(intervalId);
-  }, [fetchAndProcessVotaciones]);
+    channelRef.current = channel;
+
+    // Cleanup al desmontar
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  }, [fetchAndProcessVotaciones, votaciones]);
 
   const handleExportPDF = async () => {
-    // Filtrar votaciones "Cerradas" o "Finalizadas"
     const finalizadas = votaciones.filter((v) => v.estado === "finalizada");
     if (finalizadas.length === 0) {
       Swal.fire(
         "Sin datos",
-        "No hay votaciones cerradas o finalizadas para exportar.", // Texto actualizado
+        "No hay votaciones cerradas o finalizadas para exportar.",
         "info"
       );
       return;
@@ -113,10 +227,8 @@ export default function TesisDashboardPage() {
       didOpen: () => Swal.showLoading(),
     });
 
-    // Preparar datos y encabezados dinámicos
     const reportData = await Promise.all(
       finalizadas.map(async (v) => {
-        // CORRECCIÓN 1: Filtrar votos por votacion_tesis_id específica
         const { data: votos, count } = await supabase
           .from("voto_tesis")
           .select("nota, rol_al_votar,*, participantes(nombre_completo)", {
@@ -179,20 +291,16 @@ export default function TesisDashboardPage() {
         "Promedio Público",
         "Total Votos",
         "Nota Final",
-        // --- MODIFICACIÓN 4: Añadir estado al reporte ---
-        //"Estado",
       ],
     ];
     const body = reportData.map((d) => [
-      d.titulo_tesis, //titulo o titulo_tesis
+      d.titulo_tesis,
       d.nombre_tesista || "N/A",
       d.carnet || "N/A",
       ...allJuradoNames.map((name) => d.notasJurados[name] || "N/A"),
       d.promedioPublico,
       d.totalVotos,
       d.nota_final?.toFixed(1) || "N/A",
-      // --- MODIFICACIÓN 5: Mostrar texto de estado ---
-      //d.finalizada_definitivamente === 1 ? "Finalizada" : "Cerrada",
     ]);
 
     const doc = new jsPDF({ orientation: "landscape" });
@@ -208,7 +316,7 @@ export default function TesisDashboardPage() {
     if (finalizadas.length === 0) {
       Swal.fire(
         "Sin datos",
-        "No hay votaciones cerradas o finalizadas para exportar.", // Texto actualizado
+        "No hay votaciones cerradas o finalizadas para exportar.",
         "info"
       );
       return;
@@ -222,7 +330,6 @@ export default function TesisDashboardPage() {
 
     const data = await Promise.all(
       finalizadas.map(async (v) => {
-        // CORRECCIÓN 1: Filtrar votos por votacion_tesis_id específica
         const { data: votos, count } = await supabase
           .from("voto_tesis")
           .select("nota, rol_al_votar,*, participantes(nombre_completo)", {
@@ -264,32 +371,26 @@ export default function TesisDashboardPage() {
           }
         });
 
-        // CORRECCIÓN 2: Construir objeto en orden específico para mantener columnas
         const row: any = {
-          Tesis: v.titulo_tesis, //titulo o titulo_tesis
+          Tesis: v.titulo_tesis,
           Tesista: v.nombre_tesista || "N/A",
           Carnet: v.carnet || "N/A",
         };
 
-        // Agregar jurados en orden
         Object.keys(juradosData).forEach((key) => {
           row[key] = juradosData[key];
         });
 
-        // Agregar campos finales en orden
         row["Promedio Público"] = promedioPublico;
         row["Total Votos"] = count ?? 0;
         row["Nota Final"] = v.nota_final
           ? parseFloat(v.nota_final.toFixed(1))
           : null;
-        // --- MODIFICACIÓN 6: Añadir estado al reporte ---
-        //row["Estado"] = v.finalizada_definitivamente === 1 ? "Finalizada" : "Cerrada";
 
         return row;
       })
     );
 
-    // Obtener todos los nombres de jurados únicos para definir el orden de columnas
     const allJuradoNames = new Set<string>();
     data.forEach((row) => {
       Object.keys(row).forEach((key) => {
@@ -300,7 +401,6 @@ export default function TesisDashboardPage() {
           key !== "Promedio Público" &&
           key !== "Total Votos" &&
           key !== "Nota Final" &&
-          // --- MODIFICACIÓN 7: Ignorar estado para orden ---
           key !== "Estado"
         ) {
           allJuradoNames.add(key);
@@ -308,7 +408,6 @@ export default function TesisDashboardPage() {
       });
     });
 
-    // Definir el orden exacto de las columnas
     const columnOrder = [
       "Tesis",
       "Tesista",
@@ -317,11 +416,8 @@ export default function TesisDashboardPage() {
       "Promedio Público",
       "Total Votos",
       "Nota Final",
-      // --- MODIFICACIÓN 8: Añadir estado al orden ---
-      //"Estado",
     ];
 
-    // Crear hoja con orden específico de columnas
     const ws = XLSX.utils.json_to_sheet(data, { header: columnOrder });
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Votaciones Finalizadas");
@@ -335,7 +431,7 @@ export default function TesisDashboardPage() {
     if (finalizadas.length === 0) {
       Swal.fire(
         "Sin datos",
-        "No hay votaciones cerradas o finalizadas para exportar.", // Texto actualizado
+        "No hay votaciones cerradas o finalizadas para exportar.",
         "info"
       );
       return;
@@ -354,7 +450,6 @@ export default function TesisDashboardPage() {
       16
     );
 
-    // CORRECCIÓN 3: Iniciar la primera tabla después del título
     let currentY = 25;
 
     for (const v of finalizadas) {
@@ -365,7 +460,6 @@ export default function TesisDashboardPage() {
         })
         .eq("votacion_tesis_id", v.id);
 
-      // CORRECCIÓN 4: Obtener información de jurados para el detallado
       const { data: juradosAsignados } = await supabase
         .from("jurado_por_votacion")
         .select("*, participantes(nombre_completo, carnet)")
@@ -378,27 +472,20 @@ export default function TesisDashboardPage() {
       const votosJurados =
         votos?.filter((voto) => voto.rol_al_votar === "jurado") || [];
 
-      // Verificar si hay espacio, si no, agregar nueva página
       if (currentY > 180) {
         doc.addPage();
         currentY = 20;
       }
 
-      // --- MODIFICACIÓN 9: Añadir estado al reporte ---
       autoTable(doc, {
-        head: [
-          ["Tesis", "Tesista", "Carnet", "Total Votos", "Nota Final"],
-          //["Tesis", "Tesista", "Carnet", "Total Votos", "Nota Final", "Estado"],
-        ],
+        head: [["Tesis", "Tesista", "Carnet", "Total Votos", "Nota Final"]],
         body: [
           [
-            v.titulo_tesis, //titulo o titulo_tesis
+            v.titulo_tesis,
             v.nombre_tesista || "N/A",
             v.carnet || "N/A",
             count ?? 0,
             v.nota_final?.toFixed(1) || "N/A",
-            // --- MODIFICACIÓN 10: Mostrar texto de estado ---
-            //v.finalizada_definitivamente === 1 ? "Finalizada" : "Cerrada",
           ],
         ],
         startY: currentY,
@@ -407,7 +494,6 @@ export default function TesisDashboardPage() {
 
       currentY = (doc as any).lastAutoTable.finalY + 5;
 
-      // Tabla de jurados
       if (votosJurados.length > 0) {
         if (currentY > 180) {
           doc.addPage();
@@ -433,14 +519,12 @@ export default function TesisDashboardPage() {
         currentY = (doc as any).lastAutoTable.finalY + 5;
       }
 
-      // Tabla de público
       if (votosPublico.length > 0) {
         if (currentY > 180) {
           doc.addPage();
           currentY = 20;
         }
 
-        // Calcular promedio del público
         const promedioPublico =
           votosPublico.reduce((acc, voto) => acc + voto.nota, 0) /
           votosPublico.length;
@@ -456,7 +540,6 @@ export default function TesisDashboardPage() {
           ];
         });
 
-        // Agregar fila de promedio
         bodyPublico.push(["PROMEDIO PÚBLICO", "", promedioPublico.toFixed(1)]);
 
         autoTable(doc, {
@@ -465,7 +548,6 @@ export default function TesisDashboardPage() {
           startY: currentY,
           theme: "grid",
           didParseCell: function (data) {
-            // Hacer bold la fila del promedio
             if (data.row.index === bodyPublico.length - 1) {
               data.cell.styles.fontStyle = "bold";
               data.cell.styles.fillColor = [240, 240, 240];
@@ -488,7 +570,7 @@ export default function TesisDashboardPage() {
     if (finalizadas.length === 0) {
       Swal.fire(
         "Sin datos",
-        "No hay votaciones cerradas o finalizadas para exportar.", // Texto actualizado
+        "No hay votaciones cerradas o finalizadas para exportar.",
         "info"
       );
       return;
@@ -503,7 +585,6 @@ export default function TesisDashboardPage() {
     const wb = XLSX.utils.book_new();
     const allData: any[] = [];
 
-    // CORRECCIÓN 4: Todo en una sola hoja, igual que el PDF
     for (const v of finalizadas) {
       const { data: votos, count } = await supabase
         .from("voto_tesis")
@@ -518,17 +599,13 @@ export default function TesisDashboardPage() {
       const votosPublico =
         votos?.filter((voto) => voto.rol_al_votar === "publico") || [];
 
-      // Encabezado de la tesis
-      // --- MODIFICACIÓN 11: Añadir estado al reporte ---
       allData.push({
         Tipo: "TESIS",
-        Nombre: v.titulo_tesis, //titulo o titulo_tesis
+        Nombre: v.titulo_tesis,
         Carnet: v.carnet || "N/A",
         Nota: "",
         "Total Votos": count ?? 0,
         "Nota Final": v.nota_final?.toFixed(1) || "N/A",
-        // --- MODIFICACIÓN 12: Mostrar texto de estado ---
-        //Estado: v.finalizada_definitivamente === 1 ? "Finalizada" : "Cerrada",
       });
 
       allData.push({
@@ -538,10 +615,8 @@ export default function TesisDashboardPage() {
         Nota: "",
         "Total Votos": "",
         "Nota Final": "",
-        //Estado: "", // Columna vacía
       });
 
-      // Votos de jurados
       if (votosJurados.length > 0) {
         votosJurados.forEach((voto) => {
           const participante = Array.isArray(voto.participantes)
@@ -554,12 +629,10 @@ export default function TesisDashboardPage() {
             Nota: voto.nota.toFixed(1),
             "Total Votos": "",
             "Nota Final": "",
-            //Estado: "", // Columna vacía
           });
         });
       }
 
-      // Votos del público
       if (votosPublico.length > 0) {
         votosPublico.forEach((voto) => {
           const participante = Array.isArray(voto.participantes)
@@ -572,11 +645,9 @@ export default function TesisDashboardPage() {
             Nota: voto.nota.toFixed(1),
             "Total Votos": "",
             "Nota Final": "",
-            //Estado: "", // Columna vacía
           });
         });
 
-        // Agregar fila de promedio del público
         const promedioPublico =
           votosPublico.reduce((acc, voto) => acc + voto.nota, 0) /
           votosPublico.length;
@@ -587,11 +658,9 @@ export default function TesisDashboardPage() {
           Nota: promedioPublico.toFixed(1),
           "Total Votos": "",
           "Nota Final": "",
-          //Estado: "", // Columna vacía
         });
       }
 
-      // Fila vacía como separador
       allData.push({
         Tipo: "",
         Nombre: "",
@@ -599,11 +668,9 @@ export default function TesisDashboardPage() {
         Nota: "",
         "Total Votos": "",
         "Nota Final": "",
-        //Estado: "", // Columna vacía
       });
     }
 
-    // --- MODIFICACIÓN 13: Añadir Estado a las cabeceras ---
     const header = [
       "Tipo",
       "Nombre",
@@ -611,7 +678,6 @@ export default function TesisDashboardPage() {
       "Nota",
       "Total Votos",
       "Nota Final",
-      //"Estado",
     ];
     const ws = XLSX.utils.json_to_sheet(allData, { header: header });
     XLSX.utils.book_append_sheet(wb, ws, "Reporte Detallado");
