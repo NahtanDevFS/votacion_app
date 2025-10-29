@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import Swal from "sweetalert2";
 import "./DetalleVotacion.css";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { useVotacionTimer, formatTiempoRestante } from "@/hooks/useVotacionTimer";
 
 // --- Interfaces de Tipos de Datos ---
 interface ImagenTesis {
@@ -45,7 +46,6 @@ export default function DetalleVotacionPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [tiempoRestante, setTiempoRestante] = useState(0);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [qrCodeContent, setQrCodeContent] = useState({ url: "", title: "" });
   const [isResultModalOpen, setIsResultModalOpen] = useState(false);
@@ -268,58 +268,12 @@ export default function DetalleVotacionPage() {
     };
   }, [id, mounted, fetchData, router]);
 
-  // Temporizador para votaciones activas con verificación agresiva
-  useEffect(() => {
-    if (!mounted || !votacion?.estado || votacion.estado !== "activa" || !votacion.fecha_activacion) {
-      return;
-    }
-
-    const fechaActivacion = new Date(votacion.fecha_activacion).getTime();
-    const fechaFin = fechaActivacion + votacion.duracion_segundos * 1000;
-    
-    let tickTimeoutId: NodeJS.Timeout;
-    
-    const tick = () => {
-      const ahora = Date.now();
-      const restanteMilisegundos = fechaFin - ahora;
-      const restanteSegundos = Math.max(0, Math.floor(restanteMilisegundos / 1000));
-      
-      setTiempoRestante(restanteSegundos);
-      
-      // Si quedan 2 segundos o menos, verificar cada 500ms (más agresivo)
-      if (restanteMilisegundos <= 2000 && restanteMilisegundos > 0) {
-        tickTimeoutId = setTimeout(tick, 500);
-      } else if (restanteSegundos > 0) {
-        // Calcular próximo tick al segundo exacto
-        const delay = 1000 - (ahora % 1000);
-        tickTimeoutId = setTimeout(tick, delay);
-      }
-      
-      // Si el tiempo expiró, finalizar inmediatamente
-      if (restanteMilisegundos <= 0) {
-        checkAndFinalizeIfExpired();
-      }
-    };
-    
-    // Primera ejecución
-    tick();
-    
-    // Verificación adicional cada segundo como backup
-    expirationCheckRef.current = setInterval(() => {
-      const ahora = Date.now();
-      if (ahora >= fechaFin) {
-        checkAndFinalizeIfExpired();
-      }
-    }, 1000);
-    
-    return () => {
-      clearTimeout(tickTimeoutId);
-      if (expirationCheckRef.current) {
-        clearInterval(expirationCheckRef.current);
-        expirationCheckRef.current = null;
-      }
-    };
-  }, [mounted, votacion, checkAndFinalizeIfExpired]);
+  const tiempoRestante = useVotacionTimer({
+    fechaActivacion: votacion?.fecha_activacion || null,
+    duracionSegundos: votacion?.duracion_segundos || 0,
+    estado: votacion?.estado || 'inactiva',
+    onExpire: checkAndFinalizeIfExpired
+  });
 
   useEffect(() => {
     if (countdown === null || countdown < 0) return;
@@ -585,8 +539,7 @@ export default function DetalleVotacionPage() {
             <div className="temporizador-activo modal-temporizador">
               <span>Tiempo Restante</span>
               <p>
-                {Math.floor(tiempoRestante / 60)}:
-                {String(tiempoRestante % 60).padStart(2, "0")}
+                {formatTiempoRestante(tiempoRestante)}
               </p>
             </div>
           )}
@@ -724,8 +677,7 @@ export default function DetalleVotacionPage() {
               <div className="temporizador-activo">
                 <span>Tiempo Restante</span>
                 <p>
-                  {Math.floor(tiempoRestante / 60)}:
-                  {String(tiempoRestante % 60).padStart(2, "0")}
+                  {formatTiempoRestante(tiempoRestante)}
                 </p>
               </div>
             )}
