@@ -12,26 +12,60 @@ interface CardProps {
 
 export default function VotacionParticipanteCard({ votacion }: CardProps) {
   const router = useRouter();
-  const [tiempoRestante, setTiempoRestante] = useState(0);
+  const [tiempoRestante, setTiempoRestante] = useState<number | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const images = votacion.imagen_votacion_tesis || [];
 
+  // ✅ TIMER CORREGIDO - Sincronizado correctamente
   useEffect(() => {
     if (votacion.estado === "activa" && votacion.fecha_activacion) {
-      const fechaFin =
-        new Date(votacion.fecha_activacion).getTime() +
-        votacion.duracion_segundos * 1000;
-      const intervalId = setInterval(() => {
-        const ahora = Date.now();
-        setTiempoRestante(Math.max(0, Math.floor((fechaFin - ahora) / 1000)));
-      }, 1000);
-      return () => clearInterval(intervalId);
+      const fechaActivacion = new Date(votacion.fecha_activacion).getTime();
+      const duracionMs = votacion.duracion_segundos * 1000;
+      const fechaFin = fechaActivacion + duracionMs;
+
+      let animationFrameId: number;
+      let lastUpdateTime = Date.now();
+
+      const updateTimer = () => {
+        const now = Date.now();
+        
+        // Solo actualizar si ha pasado al menos 1 segundo desde la última actualización
+        if (now - lastUpdateTime >= 1000) {
+          const restante = Math.max(0, Math.floor((fechaFin - now) / 1000));
+          setTiempoRestante(restante);
+          lastUpdateTime = now;
+        }
+
+        if (fechaFin > now) {
+          animationFrameId = requestAnimationFrame(updateTimer);
+        } else {
+          setTiempoRestante(0);
+        }
+      };
+
+      // Iniciar inmediatamente con el tiempo correcto
+      const restanteInicial = Math.max(0, Math.floor((fechaFin - Date.now()) / 1000));
+      setTiempoRestante(restanteInicial);
+      
+      // Sincronizar con el próximo segundo exacto
+      const msHastaProximoSegundo = 1000 - (Date.now() % 1000);
+      const timeoutId = setTimeout(() => {
+        lastUpdateTime = Date.now();
+        animationFrameId = requestAnimationFrame(updateTimer);
+      }, msHastaProximoSegundo);
+
+      return () => {
+        clearTimeout(timeoutId);
+        if (animationFrameId) {
+          cancelAnimationFrame(animationFrameId);
+        }
+      };
+    } else {
+      setTiempoRestante(null);
     }
   }, [votacion.estado, votacion.fecha_activacion, votacion.duracion_segundos]);
 
   const handleCardClick = () => {
-    // --- MODIFICACIÓN 1: El participante no puede votar en votaciones cerradas/finalizadas ---
-    // (Esta lógica ya estaba correcta, pero la revisamos)
     if (votacion.estado === "activa" && !votacion.ha_votado) {
       router.push(`/tesis-votaciones/${votacion.token_qr}`);
     }
@@ -41,19 +75,23 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
     e.stopPropagation();
     setCurrentImageIndex((p) => (p + 1) % images.length);
   };
+
   const prevImage = (e: React.MouseEvent) => {
     e.stopPropagation();
     setCurrentImageIndex((p) => (p - 1 + images.length) % images.length);
   };
 
-  const minutos = Math.floor(tiempoRestante / 60);
-  const segundos = tiempoRestante % 60;
+  // Formatear tiempo restante
+  const minutos = tiempoRestante !== null ? Math.floor(tiempoRestante / 60) : 0;
+  const segundos = tiempoRestante !== null ? tiempoRestante % 60 : 0;
+
+  // Formatear duración total
   const duracionMinutos = Math.floor(votacion.duracion_segundos / 60);
   const duracionSegundos = votacion.duracion_segundos % 60;
 
   const isClickable = votacion.estado === "activa" && !votacion.ha_votado;
 
-  // --- MODIFICACIÓN 2: Lógica para texto de estado ---
+  // Lógica para texto de estado
   const getDisplayEstadoTexto = () => {
     if (votacion.estado === "finalizada") {
       return votacion.finalizada_definitivamente === 1
@@ -63,7 +101,6 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
     return votacion.estado; // 'inactiva' o 'activa'
   };
   const displayEstado = getDisplayEstadoTexto();
-  // --- FIN MODIFICACIÓN ---
 
   return (
     <div
@@ -99,7 +136,6 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
       <div className="list-item-content">
         <div className="list-item-header">
           <h3 className="list-item-title">{votacion.titulo}</h3>
-          {/* --- MODIFICACIÓN 3: Usar `displayEstado` para el texto --- */}
           <span className={`estado-tag estado-${votacion.estado}`}>
             {displayEstado}
           </span>
@@ -111,11 +147,10 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
         <div className="list-item-voto-status">
           {votacion.ha_votado ? (
             <span className="voto-emitido">✓ Voto emitido</span>
-          ) : // --- MODIFICACIÓN 4: Mostrar estado si no ha votado ---
-          votacion.estado === "activa" ? (
+          ) : votacion.estado === "activa" ? (
             <span className="no-votado">Pendiente de voto</span>
           ) : (
-            <span className="no-votado">-</span> // No mostrar "pendiente" si no está activa
+            <span className="no-votado">-</span>
           )}
         </div>
 
@@ -127,7 +162,6 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
               {String(segundos).padStart(2, "0")}
             </div>
           ) : (
-            // --- MODIFICACIÓN 5: No mostrar duración si está cerrada/finalizada ---
             votacion.estado === "inactiva" && (
               <div className="info-chip">
                 <strong>Duración:</strong> {duracionMinutos}:
@@ -135,22 +169,6 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
               </div>
             )
           )}
-          {/*
-        
-        {votacion.estado === "finalizada" && (
-          <>
-            <div className="info-chip nota-final">
-              <strong>Calificación Final:</strong>{" "}
-              {votacion.nota_final?.toFixed(2) || "N/A"} / 40
-            </div>
-            {votacion.mi_nota !== undefined && (
-              <div className="info-chip mi-nota">
-                <strong>Mi Calificación:</strong>{" "}
-                {votacion.mi_nota.toFixed(2)}
-              </div>
-            )}
-          </>
-        )}*/}
         </div>
       </div>
       {isClickable && <div className="click-indicator">→</div>}
