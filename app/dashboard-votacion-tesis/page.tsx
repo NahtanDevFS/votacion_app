@@ -42,20 +42,31 @@ export default function TesisDashboardPage() {
   
   // Ref para almacenar el canal de suscripción
   const channelRef = useRef<RealtimeChannel | null>(null);
+  // Ref para el ID del usuario (evita dependencias innecesarias)
+  const userIdRef = useRef<number | null>(null);
 
+  // ✅ Función para cargar votaciones (sin dependencias que causen loops)
   const fetchAndProcessVotaciones = useCallback(async () => {
     try {
       const user = JSON.parse(localStorage.getItem("admin") || "{}");
       if (!user.id) {
         throw new Error("No se pudo identificar al administrador.");
       }
+      
+      // Guardar userId en ref
+      userIdRef.current = user.id;
+      
+      // Finalizar votaciones expiradas antes de cargar
       await supabase.rpc("finalizar_votaciones_expiradas");
+      
       const { data: votacionesData, error: fetchError } = await supabase
         .from("votacion_tesis")
         .select(`*, imagen_votacion_tesis(id, url_imagen)`)
         .eq("creado_por", user.id)
         .order("id", { ascending: false });
+      
       if (fetchError) throw fetchError;
+      
       const votacionesConNotas = await Promise.all(
         votacionesData.map(async (votacion) => {
           if (votacion.estado === "finalizada") {
@@ -68,6 +79,7 @@ export default function TesisDashboardPage() {
           return votacion;
         })
       );
+      
       setVotaciones(votacionesConNotas as VotacionTesis[]);
       setError(null);
     } catch (err: any) {
@@ -76,9 +88,9 @@ export default function TesisDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, []); // ✅ Sin dependencias - se ejecuta solo cuando se llama
 
-  // Configurar suscripciones de Realtime
+  // ✅ Efecto para carga inicial (solo una vez)
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("admin") || "{}");
     if (!user.id) {
@@ -89,6 +101,20 @@ export default function TesisDashboardPage() {
 
     // Carga inicial
     fetchAndProcessVotaciones();
+  }, [fetchAndProcessVotaciones]);
+
+  // ✅ Efecto separado para configurar suscripciones Realtime
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("admin") || "{}");
+    if (!user.id) return;
+
+    // Limpiar suscripción anterior si existe
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
+    console.log("🔄 Configurando suscripciones Realtime...");
 
     // Crear canal de suscripción
     const channel = supabase
@@ -102,21 +128,45 @@ export default function TesisDashboardPage() {
           filter: `creado_por=eq.${user.id}`,
         },
         async (payload) => {
-          console.log("Cambio en votacion_tesis:", payload);
+          console.log("📊 Cambio en votacion_tesis:", payload.eventType, payload);
           
           if (payload.eventType === "INSERT") {
-            // Agregar nueva votación
+            // Nueva votación creada
             const newVotacion = payload.new as VotacionTesis;
+            
+            // Cargar imágenes asociadas
             const { data: imagenes } = await supabase
               .from("imagen_votacion_tesis")
               .select("id, url_imagen")
               .eq("votacion_tesis_id", newVotacion.id);
             
             newVotacion.imagen_votacion_tesis = imagenes || [];
-            setVotaciones((prev) => [newVotacion, ...prev]);
+            
+            setVotaciones((prev) => {
+              // Evitar duplicados
+              if (prev.some(v => v.id === newVotacion.id)) {
+                return prev;
+              }
+              return [newVotacion, ...prev];
+            });
+            
           } else if (payload.eventType === "UPDATE") {
-            // Actualizar votación existente
+            // Votación actualizada
             const updatedVotacion = payload.new as VotacionTesis;
+            
+            setVotaciones((prev) =>
+              prev.map((v) => {
+                if (v.id === updatedVotacion.id) {
+                  // Mantener imágenes existentes si no cambiaron
+                  return {
+                    ...v,
+                    ...updatedVotacion,
+                    imagen_votacion_tesis: v.imagen_votacion_tesis
+                  };
+                }
+                return v;
+              })
+            );
             
             // Si cambió a finalizada, calcular nota final
             if (updatedVotacion.estado === "finalizada") {
@@ -124,18 +174,19 @@ export default function TesisDashboardPage() {
                 "calcular_nota_final",
                 { id_votacion: updatedVotacion.id }
               );
-              updatedVotacion.nota_final = nota_final || 0;
+              
+              setVotaciones((prev) =>
+                prev.map((v) =>
+                  v.id === updatedVotacion.id 
+                    ? { ...v, nota_final: nota_final || 0 } 
+                    : v
+                )
+              );
             }
             
-            setVotaciones((prev) =>
-              prev.map((v) =>
-                v.id === updatedVotacion.id
-                  ? { ...v, ...updatedVotacion }
-                  : v
-              )
-            );
           } else if (payload.eventType === "DELETE") {
-            // Eliminar votación
+            // Votación eliminada
+            console.log("🗑️ Eliminando votación:", payload.old.id);
             setVotaciones((prev) =>
               prev.filter((v) => v.id !== payload.old.id)
             );
@@ -150,22 +201,41 @@ export default function TesisDashboardPage() {
           table: "voto_tesis",
         },
         async (payload) => {
-          console.log("Cambio en voto_tesis:", payload);
-          // Cuando hay un cambio en votos, recalcular notas finales para votaciones finalizadas
-          const finalizadas = votaciones.filter((v) => v.estado === "finalizada");
+          console.log("🗳️ Cambio en voto_tesis:", payload.eventType);
           
-          for (const votacion of finalizadas) {
-            const { data: nota_final } = await supabase.rpc(
-              "calcular_nota_final",
-              { id_votacion: votacion.id }
-            );
+          // Identificar qué votación fue afectada
+          const votacionId = (payload.new as any)?.votacion_tesis_id || 
+                            (payload.old as any)?.votacion_tesis_id;
+          
+          if (!votacionId) return;
+          
+          setVotaciones((prev) => {
+            // Verificar si la votación afectada está en nuestro estado
+            const votacionAfectada = prev.find(v => v.id === votacionId);
             
-            setVotaciones((prev) =>
-              prev.map((v) =>
-                v.id === votacion.id ? { ...v, nota_final: nota_final || 0 } : v
-              )
-            );
-          }
+            if (!votacionAfectada) return prev;
+            
+            // Si está finalizada, recalcular su nota final
+            if (votacionAfectada.estado === "finalizada") {
+              // Ejecutar recálculo de forma asíncrona
+              (async () => {
+                const { data: nota_final } = await supabase.rpc(
+                  "calcular_nota_final",
+                  { id_votacion: votacionId }
+                );
+                
+                setVotaciones((current) =>
+                  current.map((v) =>
+                    v.id === votacionId 
+                      ? { ...v, nota_final: nota_final || 0 } 
+                      : v
+                  )
+                );
+              })();
+            }
+            
+            return prev;
+          });
         }
       )
       .on(
@@ -176,39 +246,77 @@ export default function TesisDashboardPage() {
           table: "imagen_votacion_tesis",
         },
         async (payload) => {
-          console.log("Cambio en imagen_votacion_tesis:", payload);
+          console.log("🖼️ Cambio en imagen_votacion_tesis:", payload.eventType);
           
-          if (payload.eventType === "INSERT" || payload.eventType === "DELETE") {
-            const votacionId = (payload.new as any || payload.old as any).votacion_tesis_id;
-            
-            // Recargar imágenes para esa votación
-            const { data: imagenes } = await supabase
-              .from("imagen_votacion_tesis")
-              .select("id, url_imagen")
-              .eq("votacion_tesis_id", votacionId);
-            
-            setVotaciones((prev) =>
-              prev.map((v) =>
-                v.id === votacionId
-                  ? { ...v, imagen_votacion_tesis: imagenes || [] }
-                  : v
-              )
-            );
-          }
+          const votacionId = (payload.new as any)?.votacion_tesis_id || 
+                            (payload.old as any)?.votacion_tesis_id;
+          
+          if (!votacionId) return;
+          
+          // Recargar imágenes para esa votación específica
+          const { data: imagenes } = await supabase
+            .from("imagen_votacion_tesis")
+            .select("id, url_imagen")
+            .eq("votacion_tesis_id", votacionId);
+          
+          setVotaciones((prev) =>
+            prev.map((v) =>
+              v.id === votacionId
+                ? { ...v, imagen_votacion_tesis: imagenes || [] }
+                : v
+            )
+          );
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("📡 Estado de suscripción:", status);
+      });
 
     channelRef.current = channel;
 
     // Cleanup al desmontar
     return () => {
+      console.log("🔌 Desconectando suscripciones Realtime...");
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
     };
-  }, [fetchAndProcessVotaciones, votaciones]);
+  }, []); // ✅ Solo se ejecuta una vez al montar
+
+  // ✅ Verificación periódica de votaciones expiradas (cada 10 segundos)
+  useEffect(() => {
+    const checkExpiredVotaciones = async () => {
+      try {
+        await supabase.rpc("finalizar_votaciones_expiradas");
+        
+        // Recargar votaciones finalizadas para actualizar notas
+        const finalizadas = votaciones.filter(v => v.estado === "finalizada");
+        
+        for (const votacion of finalizadas) {
+          const { data: nota_final } = await supabase.rpc(
+            "calcular_nota_final",
+            { id_votacion: votacion.id }
+          );
+          
+          setVotaciones((prev) =>
+            prev.map((v) =>
+              v.id === votacion.id 
+                ? { ...v, nota_final: nota_final || 0 } 
+                : v
+            )
+          );
+        }
+      } catch (error) {
+        console.error("Error verificando votaciones expiradas:", error);
+      }
+    };
+
+    // Ejecutar cada 10 segundos
+    const interval = setInterval(checkExpiredVotaciones, 10000);
+
+    return () => clearInterval(interval);
+  }, [votaciones]);
 
   const handleExportPDF = async () => {
     const finalizadas = votaciones.filter((v) => v.estado === "finalizada");
