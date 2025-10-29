@@ -14,6 +14,8 @@ import Swal from "sweetalert2";
 import FingerprintJS from "@fingerprintjs/fingerprintjs";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import "./VotarTesis.css";
+import { useVotacionTimer, getTimerState, formatTiempoRestante } from "@/hooks/useVotacionTimer";
+
 
 // --- Componente de Confeti
 const Confetti = () => {
@@ -103,7 +105,6 @@ function VotarTesisContent() {
     null
   );
   const [nota, setNota] = useState<number>(0.0);
-  const [tiempoRestante, setTiempoRestante] = useState<number | null>(null);
   const [haVotado, setHaVotado] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -366,41 +367,27 @@ function VotarTesisContent() {
   }, [fingerprint, fetchVotacionInitial]);
 
   // Timer local (sigue siendo necesario para el countdown)
-  useEffect(() => {
-    if (votacion && votacion.estado === "activa") {
-      const fechaFin =
-        new Date(votacion.fecha_activacion).getTime() +
-        votacion.duracion_segundos * 1000;
-      let timeoutId: NodeJS.Timeout;
-
-      const tick = () => {
-        const restante = Math.max(
-          0,
-          Math.floor((fechaFin - Date.now()) / 1000)
-        );
-        setTiempoRestante(restante);
-
-        if (restante > 0) {
-          const delay = 1000 - (Date.now() % 1000);
-          timeoutId = setTimeout(tick, delay);
-        } else if (!haVotado) {
-          Swal.fire({
-            title: "Tiempo Finalizado",
-            text: "El tiempo para votar ha terminado. Serás redirigido al listado de votaciones.",
-            icon: "warning",
-            timer: 3000,
-            timerProgressBar: true,
-            showConfirmButton: false,
-            allowOutsideClick: false,
-          }).then(() => {
-            router.push("/tesis-votaciones");
-          });
-        }
-      };
-      tick();
-      return () => clearTimeout(timeoutId);
+// ✅ Usar el hook de timer mejorado con callback de expiración
+const tiempoRestante = useVotacionTimer({
+  fechaActivacion: votacion?.fecha_activacion || null,
+  duracionSegundos: votacion?.duracion_segundos || 0,
+  estado: votacion?.estado || 'inactiva',
+  onExpire: () => {
+    if (!haVotado) {
+      Swal.fire({
+        title: "Tiempo Finalizado",
+        text: "El tiempo para votar ha terminado. Serás redirigido al listado de votaciones.",
+        icon: "warning",
+        timer: 3000,
+        timerProgressBar: true,
+        showConfirmButton: false,
+        allowOutsideClick: false,
+      }).then(() => {
+        router.push("/tesis-votaciones");
+      });
     }
-  }, [votacion, haVotado, router]);
+  }
+});
 
   const handleNotaInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = parseFloat(e.target.value);
@@ -520,8 +507,7 @@ function VotarTesisContent() {
 
   const minutos = tiempoRestante !== null ? Math.floor(tiempoRestante / 60) : 0;
   const segundos = tiempoRestante !== null ? tiempoRestante % 60 : 0;
-  const isDisabled =
-    haVotado || isSubmitting || tiempoRestante === 0 || error !== null;
+  const isDisabled = haVotado || isSubmitting || tiempoRestante === 0 || error !== null;
   const timerState = getTimerState(tiempoRestante);
 
   return (
@@ -554,8 +540,7 @@ function VotarTesisContent() {
           <div className={`timer timer-${timerState}`}>
             <span className="timer-label">Tiempo Restante</span>
             <span className="timer-value">
-              {String(minutos).padStart(2, "0")}:
-              {String(segundos).padStart(2, "0")}
+              {formatTiempoRestante(tiempoRestante)}
             </span>
           </div>
 

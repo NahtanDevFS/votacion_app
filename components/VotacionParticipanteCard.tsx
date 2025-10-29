@@ -5,6 +5,8 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { VotacionParaParticipante } from "@/app/tesis-votaciones/page";
 import "@/app/dashboard-votacion-tesis/dashboard_tesis.css";
+import { useVotacionTimer, formatTiempoRestante } from "@/hooks/useVotacionTimer";
+
 
 interface CardProps {
   votacion: VotacionParaParticipante;
@@ -12,58 +14,15 @@ interface CardProps {
 
 export default function VotacionParticipanteCard({ votacion }: CardProps) {
   const router = useRouter();
-  const [tiempoRestante, setTiempoRestante] = useState<number | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const images = votacion.imagen_votacion_tesis || [];
 
-  // ✅ TIMER CORREGIDO - Sincronizado correctamente
-  useEffect(() => {
-    if (votacion.estado === "activa" && votacion.fecha_activacion) {
-      const fechaActivacion = new Date(votacion.fecha_activacion).getTime();
-      const duracionMs = votacion.duracion_segundos * 1000;
-      const fechaFin = fechaActivacion + duracionMs;
-
-      let animationFrameId: number;
-      let lastUpdateTime = Date.now();
-
-      const updateTimer = () => {
-        const now = Date.now();
-        
-        // Solo actualizar si ha pasado al menos 1 segundo desde la última actualización
-        if (now - lastUpdateTime >= 1000) {
-          const restante = Math.max(0, Math.floor((fechaFin - now) / 1000));
-          setTiempoRestante(restante);
-          lastUpdateTime = now;
-        }
-
-        if (fechaFin > now) {
-          animationFrameId = requestAnimationFrame(updateTimer);
-        } else {
-          setTiempoRestante(0);
-        }
-      };
-
-      // Iniciar inmediatamente con el tiempo correcto
-      const restanteInicial = Math.max(0, Math.floor((fechaFin - Date.now()) / 1000));
-      setTiempoRestante(restanteInicial);
-      
-      // Sincronizar con el próximo segundo exacto
-      const msHastaProximoSegundo = 1000 - (Date.now() % 1000);
-      const timeoutId = setTimeout(() => {
-        lastUpdateTime = Date.now();
-        animationFrameId = requestAnimationFrame(updateTimer);
-      }, msHastaProximoSegundo);
-
-      return () => {
-        clearTimeout(timeoutId);
-        if (animationFrameId) {
-          cancelAnimationFrame(animationFrameId);
-        }
-      };
-    } else {
-      setTiempoRestante(null);
-    }
-  }, [votacion.estado, votacion.fecha_activacion, votacion.duracion_segundos]);
+  // ✅ Usar el hook de timer mejorado y consistente
+  const tiempoRestante = useVotacionTimer({
+    fechaActivacion: votacion.fecha_activacion,
+    duracionSegundos: votacion.duracion_segundos,
+    estado: votacion.estado
+  });
 
   const handleCardClick = () => {
     if (votacion.estado === "activa" && !votacion.ha_votado) {
@@ -158,8 +117,7 @@ export default function VotacionParticipanteCard({ votacion }: CardProps) {
           {votacion.estado === "activa" ? (
             <div className="info-chip cronometro">
               <strong>Tiempo restante:</strong>{" "}
-              {String(minutos).padStart(2, "0")}:
-              {String(segundos).padStart(2, "0")}
+              {formatTiempoRestante(tiempoRestante)}
             </div>
           ) : (
             votacion.estado === "inactiva" && (
