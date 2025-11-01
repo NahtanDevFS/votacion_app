@@ -260,3 +260,36 @@
     width: 100%;
   }
 }
+
+/* --- FIX: Responsive para Móviles Pequeños (500px) --- */
+@media (max-width: 500px) {
+  .form-container-tesis {
+    /* Reducir márgenes y paddings para que quepa */
+    margin: 0.5rem;
+    padding: 1rem;
+  }
+
+  .form-title-tesis {
+    font-size: 1.6rem; /* Título más pequeño */
+    margin-bottom: 2rem;
+  }
+
+  .input-group {
+    /* Permitir que el input y el select se pongan uno encima del otro */
+    flex-wrap: wrap;
+  }
+
+  .input-group input {
+    /* Hacer que el input ocupe todo el ancho */
+    flex-basis: 100%;
+    border-radius: 8px; /* Restaurar bordes redondeados */
+    margin-bottom: 0.5rem; /* Espacio antes del select */
+  }
+
+  .input-group select {
+    /* Hacer que el select ocupe todo el ancho */
+    flex-basis: 100%;
+    border-radius: 8px; /* Restaurar bordes redondeados */
+    border-left: 1px solid #5a5a7a; /* Restaurar borde */
+  }
+}

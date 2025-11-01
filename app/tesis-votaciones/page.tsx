@@ -151,7 +151,7 @@ export default function VotacionesTesisPage() {
     }
   }, [participante, fingerprint, enrichVotacion]);
 
-  // ✅ SOLUCIÓN: Hook para recargar datos al volver a enfocar la pestaña
+  //SOLUCIÓN Hook para recargar datos al volver a enfocar la pestaña
   useEffect(() => {
     const handleVisibilityChange = () => {
       // Si la pestaña vuelve a estar visible

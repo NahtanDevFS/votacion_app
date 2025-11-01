@@ -14,8 +14,11 @@ import Swal from "sweetalert2";
 import FingerprintJS from "@fingerprintjs/fingerprintjs";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import "./VotarTesis.css";
-import { useVotacionTimer, getTimerState, formatTiempoRestante } from "@/hooks/useVotacionTimer";
-
+import {
+  useVotacionTimer,
+  getTimerState,
+  formatTiempoRestante,
+} from "@/hooks/useVotacionTimer";
 
 // --- Componente de Confeti
 const Confetti = () => {
@@ -259,6 +262,21 @@ function VotarTesisContent() {
     }
   }, [token_qr, router, fingerprint]);
 
+  //SOLUCIÓN Hook para recargar datos al volver a enfocar la pestaña
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        console.log("Pestaña visible, recargando votación actual...");
+        // Vuelve a llamar a tu función de carga de datos
+        fetchVotacionInitial();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [fetchVotacionInitial]); // Dependencia
+
   // Suscripción a cambios en votacion_tesis
   useEffect(() => {
     if (!votacion) return;
@@ -367,27 +385,27 @@ function VotarTesisContent() {
   }, [fingerprint, fetchVotacionInitial]);
 
   // Timer local (sigue siendo necesario para el countdown)
-// ✅ Usar el hook de timer mejorado con callback de expiración
-const tiempoRestante = useVotacionTimer({
-  fechaActivacion: votacion?.fecha_activacion || null,
-  duracionSegundos: votacion?.duracion_segundos || 0,
-  estado: votacion?.estado || 'inactiva',
-  onExpire: () => {
-    if (!haVotado) {
-      Swal.fire({
-        title: "Tiempo Finalizado",
-        text: "El tiempo para votar ha terminado. Serás redirigido al listado de votaciones.",
-        icon: "warning",
-        timer: 3000,
-        timerProgressBar: true,
-        showConfirmButton: false,
-        allowOutsideClick: false,
-      }).then(() => {
-        router.push("/tesis-votaciones");
-      });
-    }
-  }
-});
+  // ✅ Usar el hook de timer mejorado con callback de expiración
+  const tiempoRestante = useVotacionTimer({
+    fechaActivacion: votacion?.fecha_activacion || null,
+    duracionSegundos: votacion?.duracion_segundos || 0,
+    estado: votacion?.estado || "inactiva",
+    onExpire: () => {
+      if (!haVotado) {
+        Swal.fire({
+          title: "Tiempo Finalizado",
+          text: "El tiempo para votar ha terminado. Serás redirigido al listado de votaciones.",
+          icon: "warning",
+          timer: 3000,
+          timerProgressBar: true,
+          showConfirmButton: false,
+          allowOutsideClick: false,
+        }).then(() => {
+          router.push("/tesis-votaciones");
+        });
+      }
+    },
+  });
 
   const handleNotaInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let value = parseFloat(e.target.value);
@@ -507,7 +525,8 @@ const tiempoRestante = useVotacionTimer({
 
   const minutos = tiempoRestante !== null ? Math.floor(tiempoRestante / 60) : 0;
   const segundos = tiempoRestante !== null ? tiempoRestante % 60 : 0;
-  const isDisabled = haVotado || isSubmitting || tiempoRestante === 0 || error !== null;
+  const isDisabled =
+    haVotado || isSubmitting || tiempoRestante === 0 || error !== null;
   const timerState = getTimerState(tiempoRestante);
 
   return (
