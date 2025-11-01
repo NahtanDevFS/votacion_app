@@ -123,13 +123,15 @@ export default function VotacionesTesisPage() {
     try {
       const { data: votacionesData, error: fetchError } = await supabase
         .from("votacion_tesis")
-        .select(`
+        .select(
+          `
           *,
           imagen_votacion_tesis(
             id,
             url_imagen
           )
-        `)
+        `
+        )
         .in("estado", ["activa", "inactiva", "finalizada"])
         .order("fecha_creacion", { ascending: false });
 
@@ -148,6 +150,26 @@ export default function VotacionesTesisPage() {
       setLoading(false);
     }
   }, [participante, fingerprint, enrichVotacion]);
+
+  // ✅ SOLUCIÓN: Hook para recargar datos al volver a enfocar la pestaña
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      // Si la pestaña vuelve a estar visible
+      if (document.visibilityState === "visible") {
+        console.log("Pestaña visible, recargando votaciones...");
+        // Vuelve a llamar a tu función de carga de datos
+        fetchVotaciones();
+      }
+    };
+
+    // Añade el listener
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Limpia el listener al desmontar el componente
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [fetchVotaciones]); // Asegúrate de incluir fetchVotaciones en las dependencias
 
   // Configurar suscripciones Realtime
   useEffect(() => {
@@ -178,13 +200,15 @@ export default function VotacionesTesisPage() {
             // Nueva votación creada - cargar con imágenes
             const { data: votacionCompleta } = await supabase
               .from("votacion_tesis")
-              .select(`
+              .select(
+                `
                 *,
                 imagen_votacion_tesis(
                   id,
                   url_imagen
                 )
-              `)
+              `
+              )
               .eq("id", payload.new.id)
               .single();
 
@@ -209,9 +233,12 @@ export default function VotacionesTesisPage() {
 
             // Si cambió a finalizada, recalcular nota final
             if (payload.new.estado === "finalizada") {
-              const { data: notaFinal } = await supabase.rpc("calcular_nota_final", {
-                id_votacion: payload.new.id,
-              });
+              const { data: notaFinal } = await supabase.rpc(
+                "calcular_nota_final",
+                {
+                  id_votacion: payload.new.id,
+                }
+              );
               setVotaciones((prev) =>
                 prev.map((v) =>
                   v.id === payload.new.id ? { ...v, nota_final: notaFinal } : v
@@ -220,7 +247,9 @@ export default function VotacionesTesisPage() {
             }
           } else if (payload.eventType === "DELETE") {
             // Votación eliminada
-            setVotaciones((prev) => prev.filter((v) => v.id !== payload.old.id));
+            setVotaciones((prev) =>
+              prev.filter((v) => v.id !== payload.old.id)
+            );
           }
         }
       )
