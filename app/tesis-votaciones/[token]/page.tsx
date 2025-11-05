@@ -384,14 +384,15 @@ function VotarTesisContent() {
     }
   }, [fingerprint, fetchVotacionInitial]);
 
-  // Timer local (sigue siendo necesario para el countdown)
-  // ✅ Usar el hook de timer mejorado con callback de expiración
+  // Timer local
   const tiempoRestante = useVotacionTimer({
     fechaActivacion: votacion?.fecha_activacion || null,
     duracionSegundos: votacion?.duracion_segundos || 0,
     estado: votacion?.estado || "inactiva",
     onExpire: () => {
-      if (!haVotado) {
+      // Redirigir si no ha votado (aplica a público y jurado)
+      // O si es jurado (porque ellos se quedan en la página después de votar)
+      if (!haVotado || rolParaVotar === "jurado") {
         Swal.fire({
           title: "Tiempo Finalizado",
           text: "El tiempo para votar ha terminado. Serás redirigido al listado de votaciones.",
