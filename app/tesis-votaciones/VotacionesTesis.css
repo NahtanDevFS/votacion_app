@@ -276,7 +276,42 @@
   font-style: italic;
 }
 
-/* --- NUEVO: Media Queries para Responsividad --- */
+.reload-info-container {
+  background-color: #3a3a5a;
+  border: 1px solid #5a5a7a;
+  padding: 0.8rem 1.2rem;
+  border-radius: 8px;
+  margin-top: 1.5rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #c0c0d0;
+}
+
+.reload-info-container p {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap; /* Para móviles */
+}
+
+.reload-button-tesis {
+  background-color: #8724ff;
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  padding: 0.4rem 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.reload-button-tesis:hover {
+  background-color: #6200ff;
+}
+
 @media (max-width: 600px) {
   .votaciones-participante-container {
     padding: 1rem;

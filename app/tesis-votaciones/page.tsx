@@ -1,3 +1,4 @@
+// app/tesis-votaciones/page.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
@@ -344,6 +345,18 @@ export default function VotacionesTesisPage() {
         )}
         <h1>Votaciones Disponibles</h1>
         <p>Selecciona una votación activa para participar.</p>
+
+        <div className="reload-info-container">
+          <p>
+            ¿Notas que los datos no están actualizados o son incorrectos?
+            <button
+              onClick={() => window.location.reload()}
+              className="reload-button-tesis"
+            >
+              Recargar la página
+            </button>
+          </p>
+        </div>
       </div>
 
       <section className="votaciones-section">
