@@ -1,3 +1,4 @@
+// app/conteo-votacion-tesis/[id]/page.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
@@ -6,7 +7,10 @@ import { supabase } from "@/lib/supabase";
 import Swal from "sweetalert2";
 import "./DetalleVotacion.css";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { useVotacionTimer, formatTiempoRestante } from "@/hooks/useVotacionTimer";
+import {
+  useVotacionTimer,
+  formatTiempoRestante,
+} from "@/hooks/useVotacionTimer";
 
 // --- Interfaces de Tipos de Datos ---
 interface ImagenTesis {
@@ -55,7 +59,7 @@ export default function DetalleVotacionPage() {
   const [juradosAsignados, setJuradosAsignados] = useState<JuradoAsignado[]>(
     []
   );
-  
+
   // Estado para evitar problemas de hidratación
   const [mounted, setMounted] = useState(false);
 
@@ -116,7 +120,11 @@ export default function DetalleVotacionPage() {
 
   // Función para verificar y cerrar votación si expiró
   const checkAndFinalizeIfExpired = useCallback(async () => {
-    if (!votacion || votacion.estado !== "activa" || !votacion.fecha_activacion) {
+    if (
+      !votacion ||
+      votacion.estado !== "activa" ||
+      !votacion.fecha_activacion
+    ) {
       return;
     }
 
@@ -128,7 +136,7 @@ export default function DetalleVotacionPage() {
     // Si ya expiró, finalizar inmediatamente
     if (ahora >= fechaFin) {
       console.log("⏰ Votación expirada, finalizando...");
-      
+
       try {
         // Actualizar directamente en la base de datos
         const { error: updateError } = await supabase
@@ -178,14 +186,17 @@ export default function DetalleVotacionPage() {
         },
         async (payload) => {
           console.log("🔄 Cambio en votacion_tesis:", payload);
-          if (payload.eventType === "UPDATE" || payload.eventType === "INSERT") {
+          if (
+            payload.eventType === "UPDATE" ||
+            payload.eventType === "INSERT"
+          ) {
             // Recargar datos completos con imágenes
             const { data: votacionActualizada, error } = await supabase
               .from("votacion_tesis")
               .select(`*, imagen_votacion_tesis(*)`)
               .eq("id", id)
               .single();
-            
+
             if (!error && votacionActualizada) {
               console.log("✅ Votación actualizada con imágenes");
               setVotacion(votacionActualizada);
@@ -271,40 +282,51 @@ export default function DetalleVotacionPage() {
   const tiempoRestante = useVotacionTimer({
     fechaActivacion: votacion?.fecha_activacion || null,
     duracionSegundos: votacion?.duracion_segundos || 0,
-    estado: votacion?.estado || 'inactiva',
-    onExpire: checkAndFinalizeIfExpired
+    estado: votacion?.estado || "inactiva",
+    onExpire: checkAndFinalizeIfExpired,
   });
 
+  // ----- INICIO DE LA MODIFICACIÓN -----
+  // Este useEffect maneja la cuenta regresiva y la activación
   useEffect(() => {
     if (countdown === null || countdown < 0) return;
+
+    // Cuando la cuenta regresiva llega a 0
     if (countdown === 0) {
       const activate = async () => {
-        const { data, error } = await supabase
-          .from("votacion_tesis")
-          .update({
-            estado: "activa",
-            fecha_activacion: new Date().toISOString(),
-          })
-          .eq("id", id)
-          .select()
-          .single();
+        // Llamamos a la función RPC 'activar_votacion' que creamos en Supabase
+        const { error } = await supabase.rpc("activar_votacion", {
+          votacion_id_param: parseInt(id, 10), // Asegúrate de que el id sea un número
+        });
+
         if (error) {
-          Swal.fire("Error", "No se pudo activar la votación.", "error");
+          Swal.fire(
+            "Error",
+            `No se pudo activar la votación: ${error.message}`,
+            "error"
+          );
           setCountdown(null);
         } else {
+          // La RPC no devuelve los datos, así que esperamos un poco
+          // y luego recargamos los datos manualmente con fetchData().
+          // La suscripción de Realtime también ayudará a actualizar el estado.
           setTimeout(() => {
             setCountdown(null);
-            fetchData();
+            fetchData(); // Vuelve a cargar los datos (ahora con la fecha del servidor)
             setIsResultModalOpen(true);
-          }, 2000);
+          }, 2000); // Mantenemos el efecto de "A VOTAR"
         }
       };
+
       activate();
       return;
     }
+
+    // Lógica para reducir la cuenta regresiva
     const timerId = setTimeout(() => setCountdown(countdown - 1), 1000);
     return () => clearTimeout(timerId);
-  }, [countdown, id, fetchData]);
+  }, [countdown, id, fetchData]); // fetchData se añade como dependencia
+  // ----- FIN DE LA MODIFICACIÓN -----
 
   const handleActivateVotacion = async () => {
     const isReactivating = votacion?.estado === "finalizada";
@@ -402,7 +424,7 @@ export default function DetalleVotacionPage() {
 
   useEffect(() => {
     if (!mounted) return;
-    
+
     if (isResultModalOpen && resultModalRef.current) {
       resultModalRef.current.requestFullscreen().catch(console.error);
     }
@@ -538,9 +560,7 @@ export default function DetalleVotacionPage() {
           {votacion.estado === "activa" && (
             <div className="temporizador-activo modal-temporizador">
               <span>Tiempo Restante</span>
-              <p>
-                {formatTiempoRestante(tiempoRestante)}
-              </p>
+              <p>{formatTiempoRestante(tiempoRestante)}</p>
             </div>
           )}
         </div>
@@ -676,9 +696,7 @@ export default function DetalleVotacionPage() {
             {votacion.estado === "activa" && (
               <div className="temporizador-activo">
                 <span>Tiempo Restante</span>
-                <p>
-                  {formatTiempoRestante(tiempoRestante)}
-                </p>
+                <p>{formatTiempoRestante(tiempoRestante)}</p>
               </div>
             )}
 

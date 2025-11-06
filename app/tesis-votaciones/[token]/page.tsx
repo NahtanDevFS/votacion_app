@@ -300,20 +300,34 @@ function VotarTesisContent() {
           console.log("Cambio detectado en votacion_tesis:", payload);
           const nuevoEstado = payload.new.estado;
 
-          if (nuevoEstado === "finalizada" && !haVotado) {
-            Swal.fire({
-              title: "Votación Finalizada",
-              text: "La votación ha sido cerrada. Serás redirigido al listado.",
-              icon: "warning",
-              timer: 3000,
-              timerProgressBar: true,
-              showConfirmButton: false,
-              allowOutsideClick: false,
-            }).then(() => {
-              router.push("/tesis-votaciones");
-            });
+          if (nuevoEstado === "finalizada") {
+            // Si la votación se finaliza (manual o por tiempo),
+            // chequear si debemos redirigir.
+
+            // Redirigir si el usuario NO ha votado (sea público o jurado)
+            // O si el usuario ES un jurado (independientemente de si ha votado)
+            if (!haVotado || rolParaVotar === "jurado") {
+              Swal.fire({
+                title: "Votación Finalizada",
+                text: "La votación ha sido cerrada. Serás redirigido al listado.",
+                icon: "warning",
+                timer: 3000,
+                timerProgressBar: true,
+                showConfirmButton: false,
+                allowOutsideClick: false,
+              }).then(() => {
+                router.push("/tesis-votaciones");
+              });
+            } else {
+              // Este es el caso de un 'publico' que ya votó.
+              // No hacemos nada, solo actualizamos el estado.
+              // (Aunque este caso es raro, ya que el público es redirigido al votar)
+              setVotacion((prev) =>
+                prev ? { ...prev, estado: nuevoEstado } : prev
+              );
+            }
           } else {
-            // Actualizar estado local
+            // Si el estado cambia a otra cosa (ej. 'activa'), solo actualizar
             setVotacion((prev) =>
               prev ? { ...prev, estado: nuevoEstado } : prev
             );
