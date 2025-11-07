@@ -39,7 +39,7 @@ export default function TesisDashboardPage() {
   const [votaciones, setVotaciones] = useState<VotacionTesis[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Ref para almacenar el canal de suscripción
   const channelRef = useRef<RealtimeChannel | null>(null);
   // Ref para el ID del usuario (evita dependencias innecesarias)
@@ -52,21 +52,21 @@ export default function TesisDashboardPage() {
       if (!user.id) {
         throw new Error("No se pudo identificar al administrador.");
       }
-      
+
       // Guardar userId en ref
       userIdRef.current = user.id;
-      
+
       // Finalizar votaciones expiradas antes de cargar
       await supabase.rpc("finalizar_votaciones_expiradas");
-      
+
       const { data: votacionesData, error: fetchError } = await supabase
         .from("votacion_tesis")
         .select(`*, imagen_votacion_tesis(id, url_imagen)`)
         .eq("creado_por", user.id)
         .order("id", { ascending: false });
-      
+
       if (fetchError) throw fetchError;
-      
+
       const votacionesConNotas = await Promise.all(
         votacionesData.map(async (votacion) => {
           if (votacion.estado === "finalizada") {
@@ -79,7 +79,7 @@ export default function TesisDashboardPage() {
           return votacion;
         })
       );
-      
+
       setVotaciones(votacionesConNotas as VotacionTesis[]);
       setError(null);
     } catch (err: any) {
@@ -128,32 +128,35 @@ export default function TesisDashboardPage() {
           filter: `creado_por=eq.${user.id}`,
         },
         async (payload) => {
-          console.log("📊 Cambio en votacion_tesis:", payload.eventType, payload);
-          
+          console.log(
+            "📊 Cambio en votacion_tesis:",
+            payload.eventType,
+            payload
+          );
+
           if (payload.eventType === "INSERT") {
             // Nueva votación creada
             const newVotacion = payload.new as VotacionTesis;
-            
+
             // Cargar imágenes asociadas
             const { data: imagenes } = await supabase
               .from("imagen_votacion_tesis")
               .select("id, url_imagen")
               .eq("votacion_tesis_id", newVotacion.id);
-            
+
             newVotacion.imagen_votacion_tesis = imagenes || [];
-            
+
             setVotaciones((prev) => {
               // Evitar duplicados
-              if (prev.some(v => v.id === newVotacion.id)) {
+              if (prev.some((v) => v.id === newVotacion.id)) {
                 return prev;
               }
               return [newVotacion, ...prev];
             });
-            
           } else if (payload.eventType === "UPDATE") {
             // Votación actualizada
             const updatedVotacion = payload.new as VotacionTesis;
-            
+
             setVotaciones((prev) =>
               prev.map((v) => {
                 if (v.id === updatedVotacion.id) {
@@ -161,29 +164,28 @@ export default function TesisDashboardPage() {
                   return {
                     ...v,
                     ...updatedVotacion,
-                    imagen_votacion_tesis: v.imagen_votacion_tesis
+                    imagen_votacion_tesis: v.imagen_votacion_tesis,
                   };
                 }
                 return v;
               })
             );
-            
+
             // Si cambió a finalizada, calcular nota final
             if (updatedVotacion.estado === "finalizada") {
               const { data: nota_final } = await supabase.rpc(
                 "calcular_nota_final",
                 { id_votacion: updatedVotacion.id }
               );
-              
+
               setVotaciones((prev) =>
                 prev.map((v) =>
-                  v.id === updatedVotacion.id 
-                    ? { ...v, nota_final: nota_final || 0 } 
+                  v.id === updatedVotacion.id
+                    ? { ...v, nota_final: nota_final || 0 }
                     : v
                 )
               );
             }
-            
           } else if (payload.eventType === "DELETE") {
             // Votación eliminada
             console.log("🗑️ Eliminando votación:", payload.old.id);
@@ -202,19 +204,20 @@ export default function TesisDashboardPage() {
         },
         async (payload) => {
           console.log("🗳️ Cambio en voto_tesis:", payload.eventType);
-          
+
           // Identificar qué votación fue afectada
-          const votacionId = (payload.new as any)?.votacion_tesis_id || 
-                            (payload.old as any)?.votacion_tesis_id;
-          
+          const votacionId =
+            (payload.new as any)?.votacion_tesis_id ||
+            (payload.old as any)?.votacion_tesis_id;
+
           if (!votacionId) return;
-          
+
           setVotaciones((prev) => {
             // Verificar si la votación afectada está en nuestro estado
-            const votacionAfectada = prev.find(v => v.id === votacionId);
-            
+            const votacionAfectada = prev.find((v) => v.id === votacionId);
+
             if (!votacionAfectada) return prev;
-            
+
             // Si está finalizada, recalcular su nota final
             if (votacionAfectada.estado === "finalizada") {
               // Ejecutar recálculo de forma asíncrona
@@ -223,17 +226,17 @@ export default function TesisDashboardPage() {
                   "calcular_nota_final",
                   { id_votacion: votacionId }
                 );
-                
+
                 setVotaciones((current) =>
                   current.map((v) =>
-                    v.id === votacionId 
-                      ? { ...v, nota_final: nota_final || 0 } 
+                    v.id === votacionId
+                      ? { ...v, nota_final: nota_final || 0 }
                       : v
                   )
                 );
               })();
             }
-            
+
             return prev;
           });
         }
@@ -247,18 +250,19 @@ export default function TesisDashboardPage() {
         },
         async (payload) => {
           console.log("🖼️ Cambio en imagen_votacion_tesis:", payload.eventType);
-          
-          const votacionId = (payload.new as any)?.votacion_tesis_id || 
-                            (payload.old as any)?.votacion_tesis_id;
-          
+
+          const votacionId =
+            (payload.new as any)?.votacion_tesis_id ||
+            (payload.old as any)?.votacion_tesis_id;
+
           if (!votacionId) return;
-          
+
           // Recargar imágenes para esa votación específica
           const { data: imagenes } = await supabase
             .from("imagen_votacion_tesis")
             .select("id, url_imagen")
             .eq("votacion_tesis_id", votacionId);
-          
+
           setVotaciones((prev) =>
             prev.map((v) =>
               v.id === votacionId
@@ -289,21 +293,19 @@ export default function TesisDashboardPage() {
     const checkExpiredVotaciones = async () => {
       try {
         await supabase.rpc("finalizar_votaciones_expiradas");
-        
+
         // Recargar votaciones finalizadas para actualizar notas
-        const finalizadas = votaciones.filter(v => v.estado === "finalizada");
-        
+        const finalizadas = votaciones.filter((v) => v.estado === "finalizada");
+
         for (const votacion of finalizadas) {
           const { data: nota_final } = await supabase.rpc(
             "calcular_nota_final",
             { id_votacion: votacion.id }
           );
-          
+
           setVotaciones((prev) =>
             prev.map((v) =>
-              v.id === votacion.id 
-                ? { ...v, nota_final: nota_final || 0 } 
-                : v
+              v.id === votacion.id ? { ...v, nota_final: nota_final || 0 } : v
             )
           );
         }
@@ -405,7 +407,7 @@ export default function TesisDashboardPage() {
       d.titulo_tesis,
       d.nombre_tesista || "N/A",
       d.carnet || "N/A",
-      ...allJuradoNames.map((name) => d.notasJurados[name] || "N/A"),
+      ...allJuradoNames.map((name) => d.notasJurados[name] || "---"),
       d.promedioPublico,
       d.totalVotos,
       d.nota_final?.toFixed(1) || "N/A",
